@@ -52,24 +52,21 @@ export default function StudentPage() {
     e.preventDefault();
     if (!user || !type) return;
 
-    const { error } = await supabase.from('applications').insert([
-      {
-        applicant_id: user.id,
-        applicant_name: applicants.join(', '),
-        type,
-        period: type === '외박' ? null : selectedHours.join(', '),
-        start_time: startTime ? startTime.toISOString() : null,
-        end_time: endTime ? endTime.toISOString() : null,
-        teacher,
-        location,
-        reason: type === '컴이석' ? null : reason,
-      },
-    ]);
+    const { error } = await supabase.from('applications').insert([{
+      applicant_id: user.id,
+      applicant_name: applicants.join(', '),
+      type,
+      period: type === '외박' ? null : selectedHours.join(', '),
+      start_time: startTime ? startTime.toISOString() : null,
+      end_time: endTime ? endTime.toISOString() : null,
+      teacher,
+      location,
+      reason: type === '컴이석' ? null : reason,
+    }]);
 
     if (!error) {
       alert('신청 완료!');
       fetchApplications(user.id);
-
       setType('컴이석');
       setSelectedHours([]);
       setStartTime(null);
@@ -90,25 +87,20 @@ export default function StudentPage() {
 
   const typeBtn = (selected) =>
     `px-4 py-1 m-1 rounded-full text-sm transition-all duration-150 transform ${
-      selected
-        ? 'bg-black text-white scale-95'
-        : 'bg-gray-200 text-gray-600 scale-100'
+      selected ? 'bg-black text-white scale-95' : 'bg-gray-200 text-gray-600 scale-100'
     }`;
 
   const flatBtn = (selected) =>
     `px-4 py-1 m-1 rounded-full text-sm transition-all duration-150 transform ${
-      selected
-        ? 'bg-black text-white scale-95'
-        : 'bg-gray-300 text-gray-600 scale-100'
+      selected ? 'bg-black text-white scale-95' : 'bg-gray-300 text-gray-600 scale-100'
     }`;
 
-  const inputFocusClass =
-    'focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50';
+  const inputStyle = 'flex-1 p-2 rounded-full bg-gray-300 border-none focus:outline-none';
 
-  const boxHeightClass = 'min-h-[5.5rem]'; // 외출/외박 박스 공통 높이
+  const boxHeightClass = 'min-h-[5.5rem]';
 
   return (
-    <div className="min-h-screen p-6 text-sm" style={{ backgroundColor: '#dcdad9' }}>
+    <div className="min-h-screen p-6 text-sm" style={{ backgroundColor: '#f5f5f5' }}>
       <h1 className="text-3xl font-semibold mb-4 text-center text-gray-800">
         이석 신청
       </h1>
@@ -116,24 +108,24 @@ export default function StudentPage() {
       <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-3">
 
         {/* 신청자 */}
-        <div className="bg-white p-3 rounded-xl border border-gray-300">
-          <label className="block mb-1 text-gray-700 font-medium">신청자</label>
+        <div className="flex items-center gap-2">
           <input
             type="text"
+            placeholder="신청자"
             value={applicants.join(', ')}
             onChange={(e) => {
               const base = user.user_metadata?.name || '';
               const extra = e.target.value.split(',').map(n => n.trim()).filter(Boolean);
               setApplicants([...new Set([base, ...extra.filter(n => n !== base)])]);
             }}
-            className={`mt-1 block w-full rounded-lg p-2 border border-gray-300 bg-white ${inputFocusClass}`}
+            className={inputStyle}
           />
         </div>
 
         {/* 이석 종류 */}
-        <div className="bg-white p-3 rounded-xl border border-gray-300">
-          <label className="block mb-1 text-gray-700 font-medium">이석 종류</label>
-          <div className="flex flex-wrap mt-1">
+        <div className="flex items-center gap-2">
+          <span className="text-gray-700 font-medium">이석 종류</span>
+          <div className="flex flex-wrap">
             {LEAVE_TYPES.map((t) => (
               <button
                 key={t}
@@ -148,7 +140,7 @@ export default function StudentPage() {
         </div>
 
         {/* 외출 / 외박 박스 */}
-        <div className={`bg-white p-3 rounded-xl border border-gray-300 flex flex-col justify-center gap-3 ${boxHeightClass}`}>
+        <div className={`flex flex-col justify-center gap-3 ${boxHeightClass}`}>
           {type !== '외박' && (
             <div className="flex items-center gap-3">
               {/* 주간/야간 토글 */}
@@ -182,23 +174,23 @@ export default function StudentPage() {
 
           {type === '외박' && (
             <div className="flex items-center gap-3">
-              <label className="block text-gray-700 font-medium">시작</label>
               <DatePicker
                 selected={startTime}
                 onChange={setStartTime}
                 showTimeSelect
                 timeIntervals={10}
                 dateFormat="yyyy-MM-dd HH:mm"
-                className={`w-44 p-2 rounded-lg border border-gray-300 bg-white ${inputFocusClass}`}
+                placeholderText="시작"
+                className={`${inputStyle} w-44`}
               />
-              <label className="block text-gray-700 font-medium">종료</label>
               <DatePicker
                 selected={endTime}
                 onChange={setEndTime}
                 showTimeSelect
                 timeIntervals={10}
                 dateFormat="yyyy-MM-dd HH:mm"
-                className={`w-44 p-2 rounded-lg border border-gray-300 bg-white ${inputFocusClass}`}
+                placeholderText="종료"
+                className={`${inputStyle} w-44`}
               />
             </div>
           )}
@@ -207,38 +199,32 @@ export default function StudentPage() {
         {/* 지도교사 + 장소 */}
         {type !== '컴이석' && (
           <div className="flex gap-3">
-            <div className="flex-1 bg-white p-3 rounded-xl border border-gray-300">
-              <label className="block mb-1 text-gray-700 font-medium">지도교사</label>
-              <input
-                type="text"
-                value={teacher}
-                onChange={(e) => setTeacher(e.target.value)}
-                className={`block w-full p-2 rounded-lg border border-gray-300 bg-white ${inputFocusClass}`}
-              />
-            </div>
-            <div className="flex-1 bg-white p-3 rounded-xl border border-gray-300">
-              <label className="block mb-1 text-gray-700 font-medium">이석 장소</label>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className={`block w-full p-2 rounded-lg border border-gray-300 bg-white ${inputFocusClass}`}
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="지도교사"
+              value={teacher}
+              onChange={(e) => setTeacher(e.target.value)}
+              className={inputStyle}
+            />
+            <input
+              type="text"
+              placeholder="이석 장소"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className={inputStyle}
+            />
           </div>
         )}
 
         {/* 이석 사유 */}
         {type !== '컴이석' && (
-          <div className="bg-white p-3 rounded-xl border border-gray-300">
-            <label className="block mb-1 text-gray-700 font-medium">이석 사유</label>
-            <input
-              type="text"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className={`block w-full p-2 rounded-lg border border-gray-300 bg-white ${inputFocusClass}`}
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="이석 사유"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className={inputStyle + ' w-full'}
+          />
         )}
 
         <button
@@ -274,7 +260,7 @@ export default function StudentPage() {
                   <td className="px-4 py-2 border-b">{app.type}</td>
                   <td className="px-4 py-2 border-b">
                     {app.type === '외박'
-                      ? `${app.start_time || '-'} ~ ${app.end_time || '-'}`
+                      ? `${app.start_time || '-'} ~ ${app.end_time || '-'}` 
                       : app.period || '-'}
                   </td>
                   <td className="px-4 py-2 border-b">{app.teacher || '-'}</td>
