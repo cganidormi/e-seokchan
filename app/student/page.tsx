@@ -5,10 +5,21 @@ import { supabase } from '../../supabaseClient';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
-const LEAVE_TYPES = ['컴이석', '이석', '외출', '외박'];
+// --- DatePicker custom animation ---
+const popupCSS = `
+.react-datepicker {
+  animation: fadeIn 0.18s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+`;
+
+const LEAVE_TYPES = ['컴', '이', '출', '박'];
 const LECTURE_HOURS = {
-  주간: ['1','2','3','4','5','6','7','8','9'],
-  야간: ['1','2','3','4']
+  주간: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+  야간: ['1', '2', '3', '4']
 };
 
 export default function StudentPage() {
@@ -16,7 +27,7 @@ export default function StudentPage() {
   const [applications, setApplications] = useState([]);
 
   const [applicants, setApplicants] = useState([]);
-  const [type, setType] = useState('컴이석');
+  const [type, setType] = useState('컴');
   const [periodType, setPeriodType] = useState('주간');
   const [selectedHours, setSelectedHours] = useState([]);
 
@@ -26,6 +37,12 @@ export default function StudentPage() {
   const [teacher, setTeacher] = useState('');
   const [location, setLocation] = useState('');
   const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    const styleEl = document.createElement("style");
+    styleEl.innerHTML = popupCSS;
+    document.head.appendChild(styleEl);
+  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -50,24 +67,24 @@ export default function StudentPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!user || !type) return;
+    if (!user) return;
 
     const { error } = await supabase.from('applications').insert([{
       applicant_id: user.id,
       applicant_name: applicants.join(', '),
       type,
-      period: type === '외박' ? null : selectedHours.join(', '),
+      period: type === '박' || type === '출' ? null : selectedHours.join(', '),
       start_time: startTime ? startTime.toISOString() : null,
       end_time: endTime ? endTime.toISOString() : null,
       teacher,
       location,
-      reason: type === '컴이석' ? null : reason,
+      reason,
     }]);
 
     if (!error) {
       alert('신청 완료!');
       fetchApplications(user.id);
-      setType('컴이석');
+      setType('컴');
       setSelectedHours([]);
       setStartTime(null);
       setEndTime(null);
@@ -80,52 +97,51 @@ export default function StudentPage() {
     }
   };
 
-  const toggleSelection = (current, value) => {
-    if (current.includes(value)) return current.filter(v => v !== value);
-    return [...current, value];
+  const toggleSelection = (value) => {
+    if (selectedHours.includes(value)) return selectedHours.filter(v => v !== value);
+    return [...selectedHours, value];
   };
 
+  const inputClass = 'flex-1 p-1.5 rounded-full bg-gray-300 border-none focus:outline-none h-8 w-full text-[12px]';
+  const titleBtnClass = 'flex justify-center items-center bg-white rounded-full px-2 h-6 border border-gray-200 absolute left-1 top-1 text-[12px] font-bold';
+
   const typeBtn = (selected) =>
-    `px-4 py-1 m-1 rounded-full text-sm transition-all duration-150 transform ${
-      selected ? 'bg-black text-white scale-95' : 'bg-gray-200 text-gray-600 scale-100'
+    `px-3 py-0.5 m-1 rounded-full text-[12px] transition-colors ${selected ? 'bg-white text-black border border-gray-200' : 'text-gray-800 border border-transparent'}`;
+
+  const hourBtn = (selected) =>
+    `flex items-center justify-center w-7 h-7 m-1 rounded-full text-[12px] transition-all font-normal ${
+      selected
+        ? 'bg-black text-white shadow-lg'
+        : 'border border-gray-300 text-gray-800'
     }`;
-
-  const flatBtn = (selected) =>
-    `px-4 py-1 m-1 rounded-full text-sm transition-all duration-150 transform ${
-      selected ? 'bg-black text-white scale-95' : 'bg-gray-300 text-gray-600 scale-100'
-    }`;
-
-  const inputStyle = 'flex-1 p-2 rounded-full bg-gray-300 border-none focus:outline-none';
-
-  const boxHeightClass = 'min-h-[5.5rem]';
 
   return (
-    <div className="min-h-screen p-6 text-sm" style={{ backgroundColor: '#f5f5f5' }}>
-      <h1 className="text-3xl font-semibold mb-4 text-center text-gray-800">
-        이석 신청
-      </h1>
+    <div className="min-h-screen p-6" style={{ backgroundColor: '#f5f5f5' }}>
+      <h1 className="text-3xl font-semibold mb-4 text-center text-gray-800">이석 신청</h1>
 
       <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-3">
 
-        {/* 신청자 */}
-        <div className="flex items-center gap-2">
+        {/* 신청학생 */}
+        <div className="relative">
           <input
             type="text"
-            placeholder="신청자"
             value={applicants.join(', ')}
             onChange={(e) => {
               const base = user.user_metadata?.name || '';
               const extra = e.target.value.split(',').map(n => n.trim()).filter(Boolean);
               setApplicants([...new Set([base, ...extra.filter(n => n !== base)])]);
             }}
-            className={inputStyle}
+            className={inputClass}
+            placeholder="신청학생"
           />
+          <span className={titleBtnClass}>신청학생</span>
         </div>
 
-        {/* 이석 종류 */}
-        <div className="flex items-center gap-2">
-          <span className="text-gray-700 font-medium">이석 종류</span>
-          <div className="flex flex-wrap">
+        {/* 이석종류 */}
+        <div className="relative">
+          <input type="text" className={inputClass} readOnly />
+          <span className={titleBtnClass}>이석종류</span>
+          <div className="absolute left-20 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
             {LEAVE_TYPES.map((t) => (
               <button
                 key={t}
@@ -139,97 +155,93 @@ export default function StudentPage() {
           </div>
         </div>
 
-        {/* 외출 / 외박 박스 */}
-        <div className={`flex flex-col justify-center gap-3 ${boxHeightClass}`}>
-          {type !== '외박' && (
-            <div className="flex items-center gap-3">
-              {/* 주간/야간 토글 */}
-              <div className="relative w-20 h-8 rounded-full bg-gray-300 flex items-center cursor-pointer" onClick={() => {
+        {/* 교시 선택 */}
+        {(type === '컴' || type === '이') && (
+          <div className="relative">
+            <input type="text" className={inputClass} readOnly />
+
+            {/* 주간/야간 토글 */}
+            <div
+              className="absolute left-1 top-1 h-6 w-20 bg-gray-600 rounded-full flex items-center p-0.5 cursor-pointer"
+              onClick={() => {
                 setPeriodType(periodType === '주간' ? '야간' : '주간');
                 setSelectedHours([]);
-              }}>
-                <div
-                  className={`absolute top-0 left-0 w-10 h-8 bg-black rounded-full transition-all duration-300`}
-                  style={{ transform: periodType === '주간' ? 'translateX(0)' : 'translateX(100%)' }}
-                />
-                <span className="absolute left-2 text-xs text-white font-bold">주간</span>
-                <span className="absolute right-2 text-xs text-white font-bold">야간</span>
-              </div>
-
-              {/* 교시 버튼 */}
-              <div className="flex flex-wrap gap-1">
-                {LECTURE_HOURS[periodType].map((h) => (
-                  <button
-                    key={h}
-                    type="button"
-                    className={flatBtn(selectedHours.includes(h))}
-                    onClick={() => setSelectedHours(toggleSelection(selectedHours, h))}
-                  >
-                    {h}
-                  </button>
-                ))}
+              }}
+            >
+              <div
+                className={`h-5 w-14 bg-white rounded-full flex items-center justify-center text-[10px] text-black shadow-md transition-all duration-300 ease-in-out transform ${
+                  periodType === '주간'
+                    ? 'translate-x-0 shadow-lg'
+                    : 'translate-x-4 shadow-lg'
+                }`}
+              >
+                {periodType}
               </div>
             </div>
-          )}
 
-          {type === '외박' && (
-            <div className="flex items-center gap-3">
-              <DatePicker
-                selected={startTime}
-                onChange={setStartTime}
-                showTimeSelect
-                timeIntervals={10}
-                dateFormat="yyyy-MM-dd HH:mm"
-                placeholderText="시작"
-                className={`${inputStyle} w-44`}
-              />
-              <DatePicker
-                selected={endTime}
-                onChange={setEndTime}
-                showTimeSelect
-                timeIntervals={10}
-                dateFormat="yyyy-MM-dd HH:mm"
-                placeholderText="종료"
-                className={`${inputStyle} w-44`}
-              />
+            {/* 교시 버튼 */}
+            <div className="absolute left-24 top-1/2 transform -translate-y-1/2 flex gap-4">
+              {LECTURE_HOURS[periodType].map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  className={hourBtn(selectedHours.includes(h))}
+                  onClick={() => setSelectedHours(toggleSelection(h))}
+                >
+                  {h}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* 지도교사 + 장소 */}
-        {type !== '컴이석' && (
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="지도교사"
-              value={teacher}
-              onChange={(e) => setTeacher(e.target.value)}
-              className={inputStyle}
+        {/* 외출/외박 시간 */}
+        {(type === '박' || type === '출') && (
+          <div className="flex gap-6">
+            <DatePicker
+              selected={startTime}
+              onChange={setStartTime}
+              showTimeSelect
+              {...(type === '출' ? { showTimeSelectOnly: true, dateFormat: "HH:mm" } : { dateFormat: "yyyy-MM-dd HH:mm" })}
+              timeIntervals={10}
+              placeholderText="시작"
+              className={`${inputClass} w-44`}
+              popperPlacement="bottom-start"
             />
-            <input
-              type="text"
-              placeholder="이석 장소"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className={inputStyle}
+            <DatePicker
+              selected={endTime}
+              onChange={setEndTime}
+              showTimeSelect
+              {...(type === '출' ? { showTimeSelectOnly: true, dateFormat: "HH:mm" } : { dateFormat: "yyyy-MM-dd HH:mm" })}
+              timeIntervals={10}
+              placeholderText="종료"
+              className={`${inputClass} w-44`}
+              popperPlacement="bottom-start"
             />
           </div>
         )}
 
-        {/* 이석 사유 */}
-        {type !== '컴이석' && (
-          <input
-            type="text"
-            placeholder="이석 사유"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className={inputStyle + ' w-full'}
-          />
-        )}
+        {/* 지도교사 */}
+        <div className={type === '컴' ? 'hidden' : 'relative'}>
+          <input type="text" value={teacher} onChange={(e) => setTeacher(e.target.value)} className={inputClass} placeholder="지도교사"/>
+          <span className={titleBtnClass}>지도교사</span>
+        </div>
+
+        {/* 이석장소 */}
+        <div className={type === '컴' ? 'hidden' : 'relative'}>
+          <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className={inputClass} placeholder="이석장소"/>
+          <span className={titleBtnClass}>이석장소</span>
+        </div>
+
+        {/* 이석사유 */}
+        <div className={type === '컴' ? 'hidden' : 'relative'}>
+          <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} className={inputClass} placeholder="이석사유"/>
+          <span className={titleBtnClass}>이석사유</span>
+        </div>
 
         <button
           type="submit"
-          className="w-full py-3 rounded-full bg-black text-white font-bold text-base mt-1"
+          className="w-full py-2.5 rounded-full bg-black text-white font-bold text-base mt-1"
         >
           신청하기
         </button>
@@ -237,10 +249,7 @@ export default function StudentPage() {
 
       {/* 신청 현황 */}
       <div className="max-w-5xl mx-auto mt-6">
-        <h2 className="text-2xl font-semibold mb-2 text-gray-800">
-          신청 현황
-        </h2>
-
+        <h2 className="text-2xl font-semibold mb-2 text-gray-800">신청 현황</h2>
         <div className="overflow-x-auto rounded-lg border border-gray-300 bg-white">
           <table className="w-full text-left border-collapse text-sm">
             <thead className="bg-gray-200">
@@ -259,9 +268,9 @@ export default function StudentPage() {
                   <td className="px-4 py-2 border-b">{app.applicant_name}</td>
                   <td className="px-4 py-2 border-b">{app.type}</td>
                   <td className="px-4 py-2 border-b">
-                    {app.type === '외박'
-                      ? `${app.start_time || '-'} ~ ${app.end_time || '-'}` 
-                      : app.period || '-'}
+                    {app.type === '박' || app.type === '출'
+                      ? `${app.start_time || '-'} ~ ${app.end_time || '-'}`
+                      : selectedHours.join(', ') || '-'}
                   </td>
                   <td className="px-4 py-2 border-b">{app.teacher || '-'}</td>
                   <td className="px-4 py-2 border-b">{app.reason || '-'}</td>
