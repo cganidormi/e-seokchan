@@ -1,147 +1,186 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { supabase } from '../../../supabaseClient';
-import clsx from 'clsx';
+import { useState, useEffect } from "react";
+import { supabase } from "@/supabaseClient";
+import toast, { Toaster } from "react-hot-toast";
 
 interface Student {
-  id: number;
-  name: string;
   grade: number;
   class: number;
+  number: number;
+  name: string;
+  weekend: boolean;
 }
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
-  const [name, setName] = useState('');
-  const [grade, setGrade] = useState<number>(1);
-  const [classNum, setClassNum] = useState<number>(1);
-  const [loading, setLoading] = useState(false);
 
-  // 학생 목록 불러오기
-  const fetchStudents = async () => {
-    setLoading(true);
-    const { data, error } = await supabase.from('students').select('*').order('id', { ascending: true });
-    if (error) console.log('학생 조회 에러:', error);
-    else setStudents(data || []);
-    setLoading(false);
-  };
+  const grades = [1, 2, 3];
+  const classes = [1, 2, 3];
+  const numbers = Array.from({ length: 22 }, (_, i) => i + 1);
 
   useEffect(() => {
     fetchStudents();
   }, []);
 
-  // 학생 추가
-  const addStudent = async () => {
-    if (!name) return alert('이름을 입력하세요');
+  // DB에서 학생 정보 fetch
+  const fetchStudents = async () => {
     const { data, error } = await supabase
-      .from('students')
-      .insert([{ name, grade, class: classNum }]);
-
+      .from("students")
+      .select("*")
+      .order("grade")
+      .order("class")
+      .order("number");
     if (error) {
-      console.log('학생 추가 에러:', error);
-      alert('학생 추가 실패: ' + error.message);
-    } else {
-      console.log('추가 완료:', data);
-      setName('');
-      setGrade(1);
-      setClassNum(1);
-      fetchStudents(); // 테이블 업데이트
+      console.error(error);
+      toast.error("학생 정보 불러오기 실패");
+      return;
+    }
+
+    if (data) {
+      const formatted: Student[] = [];
+      grades.forEach((grade) =>
+        classes.forEach((cls) =>
+          numbers.forEach((num) => {
+            const s = data.find(
+              (d) => d.grade === grade && d.class === cls && d.number === num
+            );
+            formatted.push({
+              grade,
+              class: cls,
+              number: num,
+              name: s?.name || "",
+              weekend: s?.weekend || false,
+            });
+          })
+        )
+      );
+      setStudents(formatted);
     }
   };
 
-  // 학생 삭제
-  const deleteStudent = async (id: number) => {
-    const { error } = await supabase.from('students').delete().eq('id', id);
-    if (error) {
-      console.log('학생 삭제 에러:', error);
-      alert('삭제 실패: ' + error.message);
-    } else {
-      fetchStudents();
-    }
+  // 이름 변경
+  const handleNameChange = (grade: number, cls: number, num: number, value: string) => {
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.grade === grade && s.class === cls && s.number === num
+          ? { ...s, name: value }
+          : s
+      )
+    );
   };
 
-  const inputClass = 'p-2 rounded border border-gray-300 focus:outline-none';
+  // 매주귀가 toggle
+  const handleWeekendToggle = (grade: number, cls: number, num: number) => {
+    setStudents((prev) =>
+      prev.map((s) =>
+        s.grade === grade && s.class === cls && s.number === num
+          ? { ...s, weekend: !s.weekend }
+          : s
+      )
+    );
+  };
+
+  // 저장 (batch upsert)
+  const handleSave = async () => {
+    const { error } = await supabase.from("students").upsert(students, {
+      onConflict: ["grade", "class", "number"],
+    });
+    if (error) {
+      console.error(error);
+      toast.error("저장 실패");
+      return;
+    }
+    toast.success("저장 완료!");
+    fetchStudents();
+  };
+
+  // 초기화
+  const handleReset = async () => {
+    const resetStudents = students.map((s) => ({ ...s, name: "", weekend: false }));
+    setStudents(resetStudents);
+
+    const { error } = await supabase.from("students").upsert(resetStudents, {
+      onConflict: ["grade", "class", "number"],
+    });
+    if (error) {
+      console.error(error);
+      toast.error("초기화 실패");
+      return;
+    }
+    toast.success("초기화 완료!");
+    fetchStudents();
+  };
+
+  const getStudentNumber = (grade: number, cls: number, num: number) =>
+    grade * 1000 + cls * 100 + num;
 
   return (
-    <div className="min-h-screen p-6">
-      <h1 className="text-2xl font-bold mb-4">학생 관리</h1>
+    <div className="p-4 space-y-8 overflow-x-auto">
+      <Toaster position="top-right" />
+      {grades.map((grade) => (
+        <div key={grade}>
+          <div className="flex items-center mb-4 gap-2">
+            <h2 className="font-bold text-xl text-gray-800">{grade}학년</h2>
+            <button
+              onClick={handleSave}
+              className="px-3 py-1 bg-gray-200 rounded-xl shadow-inner hover:shadow-md hover:bg-gray-100 transition text-sm"
+            >
+              저장
+            </button>
+            <button
+              onClick={handleReset}
+              className="px-3 py-1 bg-red-200 rounded-xl shadow-inner hover:shadow-md hover:bg-red-100 transition text-sm"
+            >
+              초기화
+            </button>
+          </div>
 
-      {/* 학생 추가 폼 */}
-      <div className="flex gap-2 mb-4 items-end">
-        <input
-          type="text"
-          placeholder="이름"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className={inputClass}
-        />
-        <input
-          type="number"
-          placeholder="학년"
-          value={grade}
-          onChange={(e) => setGrade(Number(e.target.value))}
-          min={1}
-          max={3}
-          className={inputClass}
-        />
-        <input
-          type="number"
-          placeholder="반"
-          value={classNum}
-          onChange={(e) => setClassNum(Number(e.target.value))}
-          min={1}
-          max={10}
-          className={inputClass}
-        />
-        <button
-          onClick={addStudent}
-          className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800"
-        >
-          추가
-        </button>
-      </div>
+          <div className="flex flex-wrap gap-3 min-w-max">
+            {classes.map((cls) => (
+              <div
+                key={cls}
+                className="min-w-[200px] p-3 rounded-xl bg-gray-100 shadow-inner flex-shrink-0"
+              >
+                <h3 className="font-semibold mb-2 text-gray-700">{cls}반</h3>
+                <div className="flex flex-col gap-2">
+                  {numbers.map((num) => {
+                    const student = students.find(
+                      (s) => s.grade === grade && s.class === cls && s.number === num
+                    );
+                    if (!student) return null;
 
-      {/* 학생 테이블 */}
-      <table className="w-full border-collapse border border-gray-300">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="border border-gray-300 p-2">ID</th>
-            <th className="border border-gray-300 p-2">이름</th>
-            <th className="border border-gray-300 p-2">학년</th>
-            <th className="border border-gray-300 p-2">반</th>
-            <th className="border border-gray-300 p-2">삭제</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr>
-              <td colSpan={5} className="text-center p-4">로딩 중...</td>
-            </tr>
-          ) : students.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="text-center p-4">학생 데이터 없음</td>
-            </tr>
-          ) : (
-            students.map((s) => (
-              <tr key={s.id}>
-                <td className="border border-gray-300 p-2">{s.id}</td>
-                <td className="border border-gray-300 p-2">{s.name}</td>
-                <td className="border border-gray-300 p-2">{s.grade}</td>
-                <td className="border border-gray-300 p-2">{s.class}</td>
-                <td className="border border-gray-300 p-2">
-                  <button
-                    onClick={() => deleteStudent(s.id)}
-                    className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                  >
-                    삭제
-                  </button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+                    return (
+                      <div key={num} className="flex items-center gap-2 flex-wrap">
+                        <span className="w-12 text-right text-sm text-gray-600">
+                          {getStudentNumber(grade, cls, num)}
+                        </span>
+                        <input
+                          type="text"
+                          value={student.name}
+                          onChange={(e) =>
+                            handleNameChange(grade, cls, num, e.target.value)
+                          }
+                          className="flex-1 max-w-[80px] px-2 py-1 rounded-lg border border-gray-300 shadow-inner text-sm focus:shadow-md focus:outline-none transition"
+                        />
+                        <label className="flex items-center gap-1 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={student.weekend}
+                            onChange={() => handleWeekendToggle(grade, cls, num)}
+                            className="w-4 h-4 cursor-pointer"
+                          />
+                          <span className="text-sm">매주</span>
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
