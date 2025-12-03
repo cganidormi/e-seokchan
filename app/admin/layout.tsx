@@ -19,7 +19,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-gray-100">
       {/* 왼쪽 사이드바 */}
       <aside className="w-56 bg-gray-900 text-white p-4 flex flex-col gap-3">
-        <h2 classwqName="text-xl font-bold mb-4">관리자</h2>
+        <h2 className="text-xl font-bold mb-4">관리자</h2>
 
         {menuItems.map((item) => {
           const isActive = pathname === item.path;
