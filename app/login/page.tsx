@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FiLogIn } from "react-icons/fi";
+import { supabase } from "@/supabaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,25 +12,41 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
 
-  // 테스트용 계정
-  const TEST_USER = {
-    login_id: "kimteacher",
-    password: "1234",
-    name: "김선생",
-    role: "teacher", // student / teacher / admin
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
 
-    // 로그인 검증
-    if (loginId === TEST_USER.login_id && password === TEST_USER.password) {
-      // 역할 기반 페이지 이동
-      if (TEST_USER.role === "student") router.push("/student");
-      else if (TEST_USER.role === "teacher") router.push("/teacher");
-      else router.push("/admin");
+    // 1) Supabase users에서 username 조회
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("username", loginId)
+      .single();
+
+    if (userError || !user) {
+      setError("아이디 또는 비밀번호가 잘못되었습니다.");
+      return;
+    }
+
+    // 2) 비밀번호 비교
+    if (user.password !== password) {
+      setError("아이디 또는 비밀번호가 잘못되었습니다.");
+      return;
+    }
+
+    // 3) 비밀번호 변경 필요
+    if (user.must_change_password) {
+      router.push(`/change-password?uid=${user.id}`);
+      return;
+    }
+
+    // 4) 역할에 따라 이동
+    if (user.role === "student") {
+      router.push("/student");
+    } else if (user.role === "teacher") {
+      router.push("/teacher");
     } else {
-      setError("사용자를 찾을 수 없습니다.");
+      router.push("/admin");
     }
   };
 
@@ -57,7 +74,6 @@ export default function LoginPage() {
           boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
         }}
       >
-        {/* 타이틀 */}
         <h1
           style={{
             textAlign: "center",
@@ -73,7 +89,6 @@ export default function LoginPage() {
           이석찬
         </h1>
 
-        {/* 서브 타이틀 */}
         <p
           style={{
             textAlign: "center",
@@ -101,19 +116,7 @@ export default function LoginPage() {
               border: "1px solid rgba(255,255,255,0.45)",
               background: "rgba(255,255,255,0.16)",
               color: "#fff",
-              outline: "none",
-              transition: "0.25s",
-              boxShadow:
-                "inset 1px 1px 6px rgba(0,0,0,0.5), inset -2px -2px 6px rgba(255,255,255,0.2)",
             }}
-            onFocus={(e) =>
-              (e.target.style.boxShadow =
-                "inset 1px 1px 8px rgba(0,0,0,0.6), inset -2px -2px 6px rgba(255,255,255,0.25)")
-            }
-            onBlur={(e) =>
-              (e.target.style.boxShadow =
-                "inset 1px 1px 6px rgba(0,0,0,0.5), inset -2px -2px 6px rgba(255,255,255,0.2)")
-            }
           />
 
           {/* 비밀번호 */}
@@ -130,22 +133,10 @@ export default function LoginPage() {
               border: "1px solid rgba(255,255,255,0.45)",
               background: "rgba(255,255,255,0.16)",
               color: "#fff",
-              outline: "none",
-              transition: "0.25s",
-              boxShadow:
-                "inset 1px 1px 6px rgba(0,0,0,0.5), inset -2px -2px 6px rgba(255,255,255,0.2)",
             }}
-            onFocus={(e) =>
-              (e.target.style.boxShadow =
-                "inset 1px 1px 8px rgba(0,0,0,0.6), inset -2px -2px 6px rgba(255,255,255,0.25)")
-            }
-            onBlur={(e) =>
-              (e.target.style.boxShadow =
-                "inset 1px 1px 6px rgba(0,0,0,0.5), inset -2px -2px 6px rgba(255,255,255,0.2)")
-            }
           />
 
-          {/* 로그인 상태 유지 체크박스 */}
+          {/* 로그인 상태 유지 */}
           <div
             style={{
               display: "flex",
@@ -158,12 +149,6 @@ export default function LoginPage() {
             }}
             onClick={() => setKeepLoggedIn(!keepLoggedIn)}
           >
-            <input
-              type="checkbox"
-              checked={keepLoggedIn}
-              onChange={(e) => setKeepLoggedIn(e.target.checked)}
-              style={{ display: "none" }}
-            />
             <span
               style={{
                 width: "18px",
@@ -173,7 +158,6 @@ export default function LoginPage() {
                 display: "inline-block",
                 background: keepLoggedIn ? "#1A1A1A" : "transparent",
                 position: "relative",
-                transition: "0.25s",
               }}
             >
               {keepLoggedIn && (
@@ -193,7 +177,7 @@ export default function LoginPage() {
                 </svg>
               )}
             </span>
-            <label style={{ userSelect: "none" }}>로그인 상태 유지</label>
+            <label>로그인 상태 유지</label>
           </div>
 
           {/* 에러 메시지 */}
@@ -205,7 +189,6 @@ export default function LoginPage() {
                 fontSize: "12px",
                 textAlign: "center",
                 fontWeight: "500",
-                textShadow: "0 0 6px rgba(215,255,66,0.6)",
               }}
             >
               {error}
@@ -229,10 +212,7 @@ export default function LoginPage() {
               alignItems: "center",
               justifyContent: "center",
               gap: "10px",
-              transition: "0.25s",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#1d1d1d")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "#141414")}
           >
             <FiLogIn size={20} />
             로그인
