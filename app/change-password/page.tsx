@@ -1,53 +1,46 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { FiLogIn } from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/supabaseClient";
 
-export default function LoginPage() {
+export default function ChangePasswordPage() {
   const router = useRouter();
-  const [loginId, setLoginId] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  const searchParams = useSearchParams();
+  const uid = searchParams.get("uid") || "";
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
-    // 1) users 테이블에서 username 조회
-    const { data: user, error: userError } = await supabase
+    if (!newPassword || !confirmPassword) {
+      setError("비밀번호를 모두 입력해주세요.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    const { error: updateError } = await supabase
       .from("users")
-      .select("*")
-      .eq("username", loginId)
-      .single();
+      .update({ password: newPassword, must_change_password: false })
+      .eq("id", uid);
 
-    if (userError || !user) {
-      setError("아이디 또는 비밀번호가 잘못되었습니다.");
+    if (updateError) {
+      setError("비밀번호 변경 중 오류가 발생했습니다.");
       return;
     }
 
-    // 2) 비밀번호 비교
-    if (user.password !== password) {
-      setError("아이디 또는 비밀번호가 잘못되었습니다.");
-      return;
-    }
-
-    // 3) 강제 비밀번호 변경 체크
-    if (user.must_change_password) {
-      router.push(`/change-password?uid=${user.id}`);
-      return;
-    }
-
-    // 4) 역할에 따른 이동
-    if (user.role === "student") {
-      router.push("/student");
-    } else if (user.role === "teacher") {
-      router.push("/teacher");
-    } else {
-      router.push("/admin");
-    }
+    setSuccess("새로운 비번으로 변경하고\n다시 로그인 시 사용이 가능합니다.");
+    setNewPassword("");
+    setConfirmPassword("");
   };
 
   return (
@@ -86,7 +79,7 @@ export default function LoginPage() {
             WebkitTextFillColor: "transparent",
           }}
         >
-          이석찬
+          비밀번호 변경
         </h1>
 
         <p
@@ -96,32 +89,18 @@ export default function LoginPage() {
             marginBottom: "40px",
             fontSize: "14px",
             fontWeight: "500",
+            whiteSpace: "pre-line", // 줄바꿈 적용
           }}
         >
-          KSHS 통합 이석 관리 플랫폼
+          {success || "새로운 비번으로 변경하고\n다시 로그인 시 사용이 가능합니다."}
         </p>
 
-        <form onSubmit={handleLogin}>
-          <input
-            type="text"
-            placeholder="아이디"
-            value={loginId}
-            onChange={(e) => setLoginId(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginBottom: "14px",
-              borderRadius: "22px",
-              border: "1px solid rgba(255,255,255,0.45)",
-              background: "rgba(255,255,255,0.16)",
-              color: "#fff",
-            }}
-          />
+        <form onSubmit={handleChangePassword}>
           <input
             type="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            placeholder="새 비밀번호"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
             style={{
               width: "100%",
               padding: "12px",
@@ -133,48 +112,21 @@ export default function LoginPage() {
             }}
           />
 
-          <div
+          <input
+            type="password"
+            placeholder="비밀번호 확인"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "16px",
-              gap: "8px",
-              fontSize: "13px",
+              width: "100%",
+              padding: "12px",
+              marginBottom: "14px",
+              borderRadius: "22px",
+              border: "1px solid rgba(255,255,255,0.45)",
+              background: "rgba(255,255,255,0.16)",
               color: "#fff",
-              cursor: "pointer",
             }}
-            onClick={() => setKeepLoggedIn(!keepLoggedIn)}
-          >
-            <span
-              style={{
-                width: "18px",
-                height: "18px",
-                borderRadius: "6px",
-                border: "2px solid #fff",
-                display: "inline-block",
-                background: keepLoggedIn ? "#1A1A1A" : "transparent",
-                position: "relative",
-              }}
-            >
-              {keepLoggedIn && (
-                <svg
-                  viewBox="0 0 24 24"
-                  style={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    width: "12px",
-                    height: "12px",
-                    fill: "#D7FF42",
-                  }}
-                >
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              )}
-            </span>
-            <label>로그인 상태 유지</label>
-          </div>
+          />
 
           {error && (
             <p
@@ -208,8 +160,7 @@ export default function LoginPage() {
               gap: "10px",
             }}
           >
-            <FiLogIn size={20} />
-            로그인
+            비밀번호 변경
           </button>
         </form>
       </div>
