@@ -16,11 +16,11 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    // 1) users 테이블에서 username 조회
+    // students_auth 테이블에서 student_id로 조회 (1101홍길동)
     const { data: user, error: userError } = await supabase
-      .from("users")
+      .from("students_auth")
       .select("*")
-      .eq("username", loginId)
+      .eq("student_id", loginId)
       .single();
 
     if (userError || !user) {
@@ -28,26 +28,32 @@ export default function LoginPage() {
       return;
     }
 
-    // 2) 비밀번호 비교
-    if (user.password !== password) {
+    // temp_password 비교
+    if (String(user.temp_password) !== String(password)) {
       setError("아이디 또는 비밀번호가 잘못되었습니다.");
       return;
     }
 
-    // 3) 강제 비밀번호 변경 체크
-    if (user.must_change_password) {
-      router.push(`/change-password?uid=${user.id}`);
+    // 최초로그인 체크
+    const mustChange =
+      user.must_change_password === true ||
+      user.must_change_password === "true" ||
+      user.must_change_password === 1 ||
+      user.must_change_password === "1";
+
+    if (mustChange) {
+      router.push(
+        `/change-password?student_id=${encodeURIComponent(user.student_id)}`
+      );
       return;
     }
 
-    // 4) 역할에 따른 이동
-    if (user.role === "student") {
-      router.push("/student");
-    } else if (user.role === "teacher") {
-      router.push("/teacher");
-    } else {
-      router.push("/admin");
+    // 로그인 상태 유지
+    if (keepLoggedIn) {
+      localStorage.setItem("dormichan_keepLoggedIn", user.student_id);
     }
+
+    router.push("/student");
   };
 
   return (
@@ -104,7 +110,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin}>
           <input
             type="text"
-            placeholder="아이디"
+            placeholder="아이디 (학번+이름 예: 1101홍길동)"
             value={loginId}
             onChange={(e) => setLoginId(e.target.value)}
             style={{
@@ -132,49 +138,6 @@ export default function LoginPage() {
               color: "#fff",
             }}
           />
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "16px",
-              gap: "8px",
-              fontSize: "13px",
-              color: "#fff",
-              cursor: "pointer",
-            }}
-            onClick={() => setKeepLoggedIn(!keepLoggedIn)}
-          >
-            <span
-              style={{
-                width: "18px",
-                height: "18px",
-                borderRadius: "6px",
-                border: "2px solid #fff",
-                display: "inline-block",
-                background: keepLoggedIn ? "#1A1A1A" : "transparent",
-                position: "relative",
-              }}
-            >
-              {keepLoggedIn && (
-                <svg
-                  viewBox="0 0 24 24"
-                  style={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    width: "12px",
-                    height: "12px",
-                    fill: "#D7FF42",
-                  }}
-                >
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              )}
-            </span>
-            <label>로그인 상태 유지</label>
-          </div>
 
           {error && (
             <p

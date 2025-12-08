@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/supabaseClient";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const uid = searchParams.get("uid") || "";
+
+  // 로그인 페이지에서 전달된 student_id
+  const studentId = searchParams.get("student_id") || "";
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -28,19 +30,31 @@ export default function ChangePasswordPage() {
       return;
     }
 
+    // 1) students_auth 테이블에서 temp_password & must_change_password 업데이트
     const { error: updateError } = await supabase
-      .from("users")
-      .update({ password: newPassword, must_change_password: false })
-      .eq("id", uid);
+      .from("students_auth")
+      .update({
+        temp_password: newPassword,
+        must_change_password: false,
+      })
+      .eq("student_id", studentId);
 
     if (updateError) {
       setError("비밀번호 변경 중 오류가 발생했습니다.");
       return;
     }
 
+    // UI 문구 그대로 유지
     setSuccess("새로운 비번으로 변경하고\n다시 로그인 시 사용이 가능합니다.");
+
+    // 입력칸 초기화
     setNewPassword("");
     setConfirmPassword("");
+
+    // 1초 후 학생 페이지로 이동
+    setTimeout(() => {
+      router.push("/student");
+    }, 1000);
   };
 
   return (
@@ -89,7 +103,7 @@ export default function ChangePasswordPage() {
             marginBottom: "40px",
             fontSize: "14px",
             fontWeight: "500",
-            whiteSpace: "pre-line", // 줄바꿈 적용
+            whiteSpace: "pre-line",
           }}
         >
           {success || "새로운 비번으로 변경하고\n다시 로그인 시 사용이 가능합니다."}
