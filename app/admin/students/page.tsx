@@ -79,7 +79,12 @@ export default function StudentsPage() {
   // -------------------------
   // 이름 변경
   // -------------------------
-  const handleNameChange = (grade: number, cls: number, num: number, value: string) => {
+  const handleNameChange = (
+    grade: number,
+    cls: number,
+    num: number,
+    value: string
+  ) => {
     setStudents((prev) =>
       prev.map((s) =>
         s.grade === grade && s.class === cls && s.number === num
@@ -119,7 +124,7 @@ export default function StudentsPage() {
     // student_id 생성 (이름 없을 때는 계정 생성 X)
     const toStudentId = (s: Student) =>
       s.name && s.name.trim().length > 0
-        ? `${s.grade}${s.class}${String(s.number).padStart(2, "0")}-${s.name}`
+        ? `${s.grade}${s.class}${String(s.number).padStart(2, "0")}${s.name}`
         : null;
 
     // -------------------------
@@ -155,7 +160,16 @@ export default function StudentsPage() {
         await supabase
           .from("students_auth")
           .delete()
-          .eq("student_id", `${s.grade}${s.class}${String(s.number).padStart(2, "0")}-${originalStudents.find(o => o.grade===s.grade && o.class===s.class && o.number===s.number)?.name}`);
+          .eq(
+            "student_id",
+            `${s.grade}${s.class}${String(s.number).padStart(
+              2,
+              "0"
+            )}${originalStudents.find(
+              (o) =>
+                o.grade === s.grade && o.class === s.class && o.number === s.number
+            )?.name}`
+          );
         continue;
       }
 
@@ -173,7 +187,7 @@ export default function StudentsPage() {
           student_id,
           username: student_id,
           temp_password: tempPassword,
-          force_password_change: true,
+          must_change_password: true,
         },
         { onConflict: ["student_id"] }
       );
@@ -206,7 +220,10 @@ export default function StudentsPage() {
     }
 
     // students_auth 전체 삭제
-    const { error: authErr } = await supabase.from("students_auth").delete().neq("student_id", "");
+    const { error: authErr } = await supabase
+      .from("students_auth")
+      .delete()
+      .neq("student_id", "");
 
     if (authErr) {
       toast.error("초기화 실패 (auth)");
@@ -221,7 +238,7 @@ export default function StudentsPage() {
     g * 1000 + c * 100 + n;
 
   // -------------------------
-  // UI (절대 건드리지 않음)
+  // UI
   // -------------------------
   return (
     <div className="p-4 space-y-8 overflow-x-auto">
@@ -274,12 +291,7 @@ export default function StudentsPage() {
                           type="text"
                           value={s.name}
                           onChange={(e) =>
-                            handleNameChange(
-                              grade,
-                              cls,
-                              num,
-                              e.target.value
-                            )
+                            handleNameChange(grade, cls, num, e.target.value)
                           }
                           className="flex-1 max-w-[80px] px-2 py-1 rounded-lg border border-gray-300 text-sm shadow-inner"
                         />
@@ -289,11 +301,7 @@ export default function StudentsPage() {
                             type="checkbox"
                             checked={s.weekend}
                             onChange={() =>
-                              handleWeekendToggle(
-                                grade,
-                                cls,
-                                num
-                              )
+                              handleWeekendToggle(grade, cls, num)
                             }
                           />
                           매주
