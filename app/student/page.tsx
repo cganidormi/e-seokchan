@@ -2,378 +2,284 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/supabaseClient';
+import Select from 'react-select';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { BsSunFill, BsMoonFill } from 'react-icons/bs';
+import toast, { Toaster } from 'react-hot-toast';
 import clsx from 'clsx';
 
-/* --------------------
-   팝업 CSS (DatePicker z-index 애니메이션)
-   -------------------- */
-const popupCSS = `
-.react-datepicker {
-  animation: fadeIn 0.18s ease-out;
-  z-index: 9999;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-`;
-
-/* --------------------
-   상수
-   -------------------- */
-const LEAVE_TYPES = ['컴', '이', '출', '박'];
-const LECTURE_HOURS = {
-  주간: ['1','2','3','4','5','6','7','8','9'],
-  야간: ['1','2','3','4']
-};
-
-/* --------------------
-   단순 컴포넌트들 (내부 정의하여 한 파일로 유지)
-   - DayNightToggle, TimeRangePicker, TextInputField
-   -------------------- */
-
-function DayNightToggle({ periodType, onToggle }: { periodType: '주간' | '야간'; onToggle: () => void }) {
-  const toggleWidth = 48;
-  const togglePadding = 2;
-  const buttonWidth = 22;
-  const translateX = periodType === '주간' ? 0 : toggleWidth - buttonWidth - togglePadding * 2;
-  const bgColor = periodType === '주간' ? '#e0e0e0' : '#4b5563';
-
-  return (
-    <div
-      className="relative h-6 rounded-full flex items-center p-0.5 cursor-pointer transition-colors duration-300"
-      style={{ width: `${toggleWidth}px`, backgroundColor: bgColor }}
-      onClick={onToggle}
-    >
-      <div
-        className="h-5 bg-white rounded-full flex items-center justify-center shadow-md transition-transform duration-300 ease-in-out"
-        style={{ width: `${buttonWidth}px`, transform: `translateX(${translateX}px)` }}
-      >
-        {periodType === '주간' ? <BsSunFill className="text-yellow-400" /> : <BsMoonFill className="text-gray-800" />}
-      </div>
-    </div>
-  );
+interface Teacher {
+  id: string;
+  name: string;
 }
 
-function TimeRangePicker({
-  startTime,
-  endTime,
-  setStartTime,
-  setEndTime,
-  type,
-}: {
-  startTime: Date | null;
-  endTime: Date | null;
-  setStartTime: (d: Date | null) => void;
-  setEndTime: (d: Date | null) => void;
-  type: string;
-}) {
-  const timeInputClass = 'p-1.5 rounded-full bg-gray-300 border-none focus:outline-none h-8 w-44 text-[12px] text-left pr-3 box-border';
-
-  return (
-    <div className="flex gap-3 items-center">
-      <DatePicker
-        selected={startTime}
-        onChange={(d) => setStartTime(d as Date)}
-        showTimeSelect
-        {...(type === '출' ? { showTimeSelectOnly: true, dateFormat: 'HH:mm' } : { dateFormat: 'yyyy-MM-dd HH:mm' })}
-        timeIntervals={10}
-        placeholderText="시작"
-        className={timeInputClass}
-        popperPlacement="bottom-start"
-        portalId="time-picker-portal"
-      />
-      <DatePicker
-        selected={endTime}
-        onChange={(d) => setEndTime(d as Date)}
-        showTimeSelect
-        {...(type === '출' ? { showTimeSelectOnly: true, dateFormat: 'HH:mm' } : { dateFormat: 'yyyy-MM-dd HH:mm' })}
-        timeIntervals={10}
-        placeholderText="종료"
-        className={timeInputClass}
-        popperPlacement="bottom-start"
-        portalId="time-picker-portal"
-      />
-    </div>
-  );
+interface Student {
+  student_id: string;
+  name: string;
+  grade: number;
+  class: number;
 }
 
-function TextInputField({
-  value,
-  onChange,
-  placeholder,
-  hidden,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  hidden?: boolean;
-}) {
-  const inputClass = 'flex-1 p-1.5 rounded-full bg-gray-300 border-none focus:outline-none h-8 text-[12px] box-border';
-  const titleBtnClass = 'flex justify-center items-center bg-white rounded-full px-2 h-6 border border-gray-200 absolute left-1 top-1 text-[12px] font-bold';
+export default function LeaveRequestForm() {
+  const leaveTypes = ['컴이석', '이석', '외출', '외박', '자리비움'];
+  const leavePlaces = ['교실', '도서관', '식당', '기타'];
 
-  if (hidden) return null;
-  return (
-    <div className="relative">
-      <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={inputClass + ' w-full'} placeholder={placeholder} />
-      <span className={titleBtnClass}>{placeholder}</span>
-    </div>
-  );
-}
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
 
-/* --------------------
-   메인 페이지 컴포넌트
-   -------------------- */
-export default function StudentPage() {
-  /* 상태 */
-  const [user, setUser] = useState<any>(null);
-  const [applications, setApplications] = useState<any[]>([]);
-  const [applicants, setApplicants] = useState<string[]>([]);
-  const [type, setType] = useState<'컴' | '이' | '출' | '박'>('컴');
-  const [periodType, setPeriodType] = useState<'주간' | '야간'>('주간');
-  const [selectedHours, setSelectedHours] = useState<string[]>([]);
-  const [startTime, setStartTime] = useState<Date | null>(null);
-  const [endTime, setEndTime] = useState<Date | null>(null);
-  const [teacher, setTeacher] = useState('');
-  const [location, setLocation] = useState('');
+  const [studentId, setStudentId] = useState(''); // 로그인 학생
+  const [addedStudents, setAddedStudents] = useState<Student[]>([]); // 신청자 목록
+  const [leaveType, setLeaveType] = useState('');
+  const [teacherId, setTeacherId] = useState('');
+  const [place, setPlace] = useState('');
   const [reason, setReason] = useState('');
-  const [editId, setEditId] = useState<number | null>(null);
 
-  /* DatePicker CSS 삽입 (한번만) */
-  useEffect(() => {
-    const styleEl = document.createElement('style');
-    styleEl.innerHTML = popupCSS;
-    document.head.appendChild(styleEl);
-  }, []);
+  const [dayType, setDayType] = useState<'주간' | '야간'>('주간');
+  const [periods, setPeriods] = useState<string[]>([]);
 
-  /* 로그인된 사용자 및 신청내역 로드 */
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+
+  const periodOptions = {
+    주간: ['1교시','2교시','3교시','4교시','5교시','6교시','7교시','8교시','9교시'],
+    야간: ['1교시','2교시','3교시','4교시'],
+  };
+
   useEffect(() => {
-    const fetchUserAndApps = async () => {
-      const { data } = await supabase.auth.getUser();
-      const logged = data?.user ?? null;
-      if (logged) {
-        setUser(logged);
-        const name = logged.user_metadata?.name || '';
-        setApplicants([name]);
-        await fetchApplications(logged.id);
+    // 🔑 로그인 학생 ID 가져오기
+    const loginId = localStorage.getItem('dormichan_login_id');
+    if (loginId) setStudentId(loginId);
+
+    // 학생 리스트 불러오기
+    supabase.from('students').select('*').then(({ data }) => {
+      if (data) {
+        setStudents(data as Student[]);
+
+        // 로그인 학생 자동 추가
+        if (loginId) {
+          const loginStudent = data.find(s => s.student_id === loginId);
+          if (loginStudent) setAddedStudents([loginStudent]);
+        }
       }
-    };
-    fetchUserAndApps();
+    });
+
+    // 교사 리스트 불러오기
+    supabase.from('teachers').select('id, name').then(({ data }) => {
+      if (data) setTeachers(data as Teacher[]);
+    });
   }, []);
 
-  /* applications 불러오기 (사용자 기준) */
-  const fetchApplications = async (userId: string) => {
-    try {
-      const { data } = await supabase.from('applications').select('*').eq('applicant_id', userId).order('created_at', { ascending: false });
-      setApplications(data || []);
-    } catch (e) {
-      console.error('fetchApplications error', e);
+  const togglePeriod = (p: string) => {
+    setPeriods(prev =>
+      prev.includes(p) ? prev.filter(v => v !== p) : [...prev, p]
+    );
+  };
+
+  const changeDayType = (type: '주간' | '야간') => {
+    setDayType(type);
+    setPeriods([]);
+  };
+
+  const handleAddStudent = (student: Student) => {
+    if (!addedStudents.find(s => s.student_id === student.student_id)) {
+      setAddedStudents([...addedStudents, student]);
     }
   };
 
-  /* 교시 토글(선택) */
-  const toggleHour = (h: string) => {
-    setSelectedHours((prev) => (prev.includes(h) ? prev.filter((p) => p !== h) : [...prev, h]));
+  const handleRemoveStudent = (studentId: string) => {
+    setAddedStudents(prev => prev.filter(s => s.student_id !== studentId));
   };
 
-  /* 폼 제출(신규/수정) */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return alert('로그인되어 있지 않습니다.');
-
-    // payload 생성: 컴/이 -> period(교시), 출/박 -> start_time/end_time
-    const payload: any = {
-      applicant_id: user.id,
-      applicant_name: applicants.join(','),
-      type,
-      period: (type === '컴' || type === '이') ? selectedHours.join(',') : null,
-      start_time: (type === '출' || type === '박') ? (startTime ? startTime.toISOString() : null) : (startTime ? startTime.toISOString() : null),
-      end_time: (type === '출' || type === '박') ? (endTime ? endTime.toISOString() : null) : (endTime ? endTime.toISOString() : null),
-      teacher: type === '컴' ? null : teacher,
-      location: type === '컴' ? null : location,
-      reason: type === '컴' ? null : reason,
-    };
-
-    try {
-      if (editId) {
-        const { error } = await supabase.from('applications').update(payload).eq('id', editId);
-        if (error) throw error;
-        alert('수정 완료!');
-      } else {
-        const { error } = await supabase.from('applications').insert([payload]);
-        if (error) throw error;
-        alert('신청 완료!');
-      }
-      // 리로드
-      if (user) await fetchApplications(user.id);
-      resetForm();
-    } catch (err: any) {
-      console.error('submit error', err);
-      alert('저장 실패: ' + (err.message || JSON.stringify(err)));
+  const handleSubmit = async () => {
+    if (
+      !studentId ||
+      !leaveType ||
+      ((leaveType === '컴이석' || leaveType === '이석') && periods.length === 0) ||
+      ((leaveType === '외출' || leaveType === '외박') && (!startDate || !endDate))
+    ) {
+      toast.error('필수 항목을 모두 입력하세요.');
+      return;
     }
-  };
 
-  /* 폼 초기화 */
-  const resetForm = () => {
-    setType('컴');
-    setSelectedHours([]);
-    setStartTime(null);
-    setEndTime(null);
-    setTeacher('');
-    setLocation('');
+    const { data: leaveData, error: leaveError } = await supabase.from('leave_requests').insert([{
+      student_id: studentId,
+      leave_type: leaveType,
+      teacher_id: leaveType === '컴이석' ? null : teacherId,
+      place: leaveType === '컴이석' ? null : place,
+      reason: leaveType === '컴이석' ? null : reason,
+      period: periods.join(','),
+      start_time: startDate?.toISOString(),
+      end_time: endDate?.toISOString(),
+      status: '신청',
+    }]).select().single();
+
+    if (leaveError || !leaveData) {
+      toast.error('신청자 저장 실패');
+      return;
+    }
+
+    const leaveRequestId = leaveData.id;
+
+    const additionalStudents = addedStudents.filter(s => s.student_id !== studentId);
+    if (additionalStudents.length > 0) {
+      const { error } = await supabase.from('leave_request_students').insert(
+        additionalStudents.map(s => ({
+          leave_request_id: leaveRequestId,
+          student_id: s.student_id,
+        }))
+      );
+      if (error) {
+        toast.error('추가 학생 저장 실패');
+        return;
+      }
+    }
+
+    toast.success('이석 신청 완료!');
+    // 초기화
+    setLeaveType('');
+    setTeacherId('');
+    setPlace('');
     setReason('');
-    setEditId(null);
-    if (user) setApplicants([user.user_metadata?.name || '']);
+    setPeriods([]);
+    setStartDate(null);
+    setEndDate(null);
   };
-
-  /* 테이블 행 클릭 -> 수정 모드 진입 */
-  const enterEditMode = (app: any) => {
-    setEditId(app.id || null);
-    // applicants
-    setApplicants(app.applicant_name ? app.applicant_name.split(',').map((s: string) => s.trim()) : (user ? [user.user_metadata?.name || ''] : []));
-    // type
-    setType(app.type || '컴');
-    // period or time
-    if (app.type === '컴' || app.type === '이') {
-      setSelectedHours(app.period ? String(app.period).split(',') : []);
-      setStartTime(null);
-      setEndTime(null);
-    } else {
-      setSelectedHours([]);
-      setStartTime(app.start_time ? new Date(app.start_time) : null);
-      setEndTime(app.end_time ? new Date(app.end_time) : null);
-    }
-    // fields
-    setTeacher(app.teacher || '');
-    setLocation(app.location || '');
-    setReason(app.reason || '');
-    // scroll to top (optional)
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  /* helper: toggleSelection wrapper (원문 유지) */
-  const toggleSelection = (v: string) =>
-    selectedHours.includes(v) ? selectedHours.filter((x) => x !== v) : [...selectedHours, v];
-
-  /* 버튼 스타일 헬퍼 */
-  const typeBtn = (selected: boolean) => clsx(
-    'px-3 py-0.5 m-1 rounded-full text-[12px] transition-colors',
-    selected ? 'bg-white text-black border border-gray-200' : 'text-gray-800 border border-transparent'
-  );
-  const hourBtn = (selected: boolean) => clsx(
-    'flex items-center justify-center w-7 h-7 m-1 rounded-full text-[12px] transition-all font-normal',
-    selected ? 'bg-black text-white shadow-lg' : 'border border-gray-300 text-gray-800'
-  );
 
   return (
-    <div className="min-h-screen p-6" style={{ backgroundColor: '#f5f5f5' }}>
-      <h1 className="text-3xl font-semibold mb-4 text-center text-gray-800">이석 신청</h1>
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <Toaster />
+      <h1 className="text-2xl font-bold mb-6">이석 신청</h1>
 
-      {/* 신청 폼 */}
-      <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-3">
-        {/* 신청학생 */}
-        <div className="relative">
-          <input
-            type="text"
-            value={applicants.join(', ')}
-            onChange={(e) => {
-              const base = user?.user_metadata?.name || '';
-              const extra = e.target.value.split(',').map((n) => n.trim()).filter(Boolean);
-              // 항상 base(first) 유지하고 중복 제거
-              setApplicants([...new Set([base, ...extra.filter((n) => n !== base)])]);
-            }}
-            className={'flex-1 p-1.5 rounded-full bg-gray-300 border-none focus:outline-none h-8 text-[12px] box-border w-full'}
-            placeholder="신청학생"
+      <div className="flex flex-col gap-5 max-w-xl">
+        {/* 신청자 */}
+        <div className="flex flex-col gap-2">
+          <span>신청자</span>
+          <div className="flex flex-wrap gap-2">
+            {addedStudents.map(s => (
+              <div key={s.student_id} className="flex items-center bg-gray-200 p-1 px-2 rounded-xl">
+                {s.name} ({s.student_id})
+                {s.student_id !== studentId && (
+                  <button onClick={() => handleRemoveStudent(s.student_id)} className="ml-2 text-red-500 font-bold">×</button>
+                )}
+              </div>
+            ))}
+          </div>
+          <Select
+            options={students.filter(s => s.student_id !== studentId).map(s => ({
+              value: s.student_id,
+              label: `${s.name} (${s.student_id})`,
+              student: s
+            }))}
+            onChange={(option: any) => handleAddStudent(option.student)}
+            placeholder="학생 추가 (검색 가능)"
+            isClearable
           />
-          <span className="flex justify-center items-center bg-white rounded-full px-2 h-6 border border-gray-200 absolute left-1 top-1 text-[12px] font-bold">신청학생</span>
         </div>
 
         {/* 이석 종류 */}
-        <div className="relative">
-          <input type="text" className={'flex-1 p-1.5 rounded-full bg-gray-300 border-none focus:outline-none h-8 text-[12px] box-border w-full'} readOnly />
-          <span className="flex justify-center items-center bg-white rounded-full px-2 h-6 border border-gray-200 absolute left-1 top-1 text-[12px] font-bold">이석종류</span>
-          <div className="absolute left-20 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-            {LEAVE_TYPES.map((t) => (
-              <button key={t} type="button" className={typeBtn(type === t)} onClick={() => setType(t)}>{t}</button>
-            ))}
-          </div>
+        <div className="flex gap-2">
+          {leaveTypes.map((t) => (
+            <button
+              key={t}
+              onClick={() => setLeaveType(t)}
+              className={clsx(
+                'flex-1 p-2 rounded-xl shadow',
+                leaveType === t ? 'bg-yellow-400 text-white' : 'bg-gray-200'
+              )}
+            >
+              {t}
+            </button>
+          ))}
         </div>
 
-        {/* 컴/이 -> 교시 선택 (주간/야간 토글 + 교시 버튼) */}
-        {(type === '컴' || type === '이') && (
-          <div className="relative">
-            <input type="text" className={'flex-1 p-1.5 rounded-full bg-gray-300 border-none focus:outline-none h-8 text-[12px] box-border w-full'} readOnly />
-            <div className="absolute left-1 top-1 flex items-center gap-1">
-              <DayNightToggle periodType={periodType} onToggle={() => { setPeriodType(periodType === '주간' ? '야간' : '주간'); setSelectedHours([]); }} />
+        {/* 교시 선택 */}
+        {(leaveType === '컴이석' || leaveType === '이석') && (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              {(['주간','야간'] as const).map(d => (
+                <button
+                  key={d}
+                  onClick={() => changeDayType(d)}
+                  className={clsx('flex-1 p-2 rounded-xl', dayType === d ? 'bg-yellow-400 text-white' : 'bg-gray-200')}
+                >
+                  {d}
+                </button>
+              ))}
             </div>
-            <div className="absolute left-24 top-1/2 transform -translate-y-1/2 flex gap-4">
-              {LECTURE_HOURS[periodType].map((h) => (
-                <button key={h} type="button" className={hourBtn(selectedHours.includes(h))} onClick={() => setSelectedHours(toggleSelection(h))}>{h}</button>
+            <div className={clsx('flex gap-2 flex-wrap', dayType === '야간' ? 'mt-1' : '')}>
+              {periodOptions[dayType].map(p => (
+                <button
+                  key={p}
+                  onClick={() => togglePeriod(p)}
+                  className={clsx('px-2 py-1 text-sm rounded-lg',
+                    periods.includes(p) ? 'bg-yellow-400 text-white' : 'bg-gray-200')}
+                >
+                  {p}
+                </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* 출/박 -> 시간 선택 */}
-        {(type === '출' || type === '박') && (
-          <div className="relative">
-            <div className="absolute left-1 top-1">
-              {/* label 비슷한 위치 유지 */}
-              <span className="flex justify-center items-center bg-white rounded-full px-2 h-6 border border-gray-200 text-[12px] font-bold">시간선택</span>
+        {/* 시간 / 외출 외박 */}
+        {(leaveType === '외출' || leaveType === '외박') && (
+          <div className="flex justify-between">
+            <div className="w-[48%]">
+              <DatePicker
+                selected={startDate}
+                onChange={setStartDate}
+                showTimeSelect
+                showTimeSelectOnly={leaveType === '외출'}
+                timeIntervals={10}
+                dateFormat={leaveType === '외출' ? 'HH:mm' : 'yyyy-MM-dd HH:mm'}
+                className="p-2 rounded-xl bg-gray-200 w-full"
+              />
             </div>
-            <div className="pl-24">
-              <TimeRangePicker startTime={startTime} endTime={endTime} setStartTime={setStartTime} setEndTime={setEndTime} type={type} />
+            <div className="w-[48%]">
+              <DatePicker
+                selected={endDate}
+                onChange={setEndDate}
+                showTimeSelect
+                showTimeSelectOnly={leaveType === '외출'}
+                timeIntervals={10}
+                dateFormat={leaveType === '외출' ? 'HH:mm' : 'yyyy-MM-dd HH:mm'}
+                className="p-2 rounded-xl bg-gray-200 w-full"
+              />
             </div>
           </div>
         )}
 
-        {/* 지도교사 / 이석장소 / 사유 (컴일 때는 숨김) */}
-        <div className="space-y-2">
-          <TextInputField value={teacher} onChange={setTeacher} placeholder="지도교사" hidden={type === '컴'} />
-          <TextInputField value={location} onChange={setLocation} placeholder="이석장소" hidden={type === '컴'} />
-          <TextInputField value={reason} onChange={setReason} placeholder="사유" hidden={type === '컴'} />
-        </div>
-
-        {/* 제출 버튼 */}
-        <button type="submit" className="w-full py-2.5 rounded-full bg-black text-white font-bold text-base mt-1">{editId ? '수정하기' : '신청하기'}</button>
-      </form>
-
-      {/* 신청 현황 */}
-      <div className="max-w-6xl mx-auto mt-6">
-        <h2 className="text-2xl font-semibold mb-2 text-gray-800">신청 현황</h2>
-        <div className="overflow-x-auto rounded-lg border border-gray-300 bg-white">
-          <table className="w-full min-w-[700px] text-left border-collapse text-sm">
-            <thead className="bg-gray-200">
-              <tr>
-                <th className="px-2 py-2 border-b border-gray-400">종류</th>
-                <th className="px-2 py-2 border-b border-gray-400">신청학생</th>
-                <th className="px-2 py-2 border-b border-gray-400">시작</th>
-                <th className="px-2 py-2 border-b border-gray-400">종료</th>
-                <th className="px-2 py-2 border-b border-gray-400">사유</th>
-                <th className="px-2 py-2 border-b border-gray-400">지도교사</th>
-                <th className="px-2 py-2 border-b border-gray-400">장소</th>
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map((app) => (
-                <tr key={app.id} className="bg-white hover:bg-gray-50 cursor-pointer" onClick={() => enterEditMode(app)}>
-                  <td className="px-2 py-2 border-b border-gray-300" style={{ minWidth: '4ch' }}>{app.type}/{app.status ? '승인' : '대기'}</td>
-                  <td className="px-2 py-2 border-b border-gray-300" style={{ minWidth: '8ch' }}>
-                    {String(app.applicant_name || '').split(',').map((name: string, idx: number) => <div key={idx}>{name}</div>)}
-                  </td>
-                  <td className="px-2 py-2 border-b border-gray-300" style={{ minWidth: '16ch' }}>{app.start_time ? new Date(app.start_time).toLocaleString('ko-KR') : '-'}</td>
-                  <td className="px-2 py-2 border-b border-gray-300" style={{ minWidth: '16ch' }}>{app.end_time ? new Date(app.end_time).toLocaleString('ko-KR') : '-'}</td>
-                  <td className="px-2 py-2 border-b border-gray-300 break-words whitespace-pre-wrap" style={{ minWidth: '8ch' }}>{app.reason || '-'}</td>
-                  <td className="px-2 py-2 border-b border-gray-300" style={{ minWidth: '4ch' }}>{app.teacher || '-'}</td>
-                  <td className="px-2 py-2 border-b border-gray-300" style={{ minWidth: '8ch' }}>{app.location || '-'}</td>
-                </tr>
+        {/* 지도교사 / 장소 / 사유 */}
+        {leaveType !== '컴이석' && (
+          <>
+            <select onChange={e => setTeacherId(e.target.value)} className="p-2 rounded-xl bg-gray-200">
+              <option value="">지도교사</option>
+              {teachers.map(t => (
+                t.id && <option key={t.id} value={t.id}>{t.name}</option>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </select>
+
+            <select onChange={e => setPlace(e.target.value)} className="p-2 rounded-xl bg-gray-200">
+              <option value="">이석 장소</option>
+              {leavePlaces.map(p => (
+                <option key={p}>{p}</option>
+              ))}
+            </select>
+
+            <textarea
+              onChange={e => setReason(e.target.value)}
+              className="p-2 rounded-xl bg-gray-200"
+              placeholder="이석 사유"
+            />
+          </>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          className="p-3 rounded-xl bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold"
+        >
+          신청
+        </button>
       </div>
     </div>
   );
