@@ -43,6 +43,9 @@ export default function LeaveRequestForm() {
   const periodOptions = {
     주간: ['1교시','2교시','3교시','4교시','5교시','6교시','7교시','8교시','9교시'],
     야간: ['1교시','2교시','3교시','4교시'],
+    오전: ['1교시','2교시','3교시'],
+    오후: ['1교시','2교시','3교시'],
+    야간_공휴일: ['1교시','2교시','3교시'],
   };
 
   useEffect(() => {
@@ -100,26 +103,49 @@ export default function LeaveRequestForm() {
       toast.error('필수 항목을 모두 입력하세요.');
       return;
     }
-
-    const { data: leaveData, error: leaveError } = await supabase.from('leave_requests').insert([{
-      student_id: studentId,
-      leave_type: leaveType,
-      teacher_id: leaveType === '컴이석' ? null : teacherId,
-      place: leaveType === '컴이석' ? null : place,
-      reason: leaveType === '컴이석' ? null : reason,
-      period: periods.join(','),
-      start_time: startDate?.toISOString(),
-      end_time: endDate?.toISOString(),
-      status: '신청',
-    }]).select().single();
-
+  
+    // 중복 교시 체크
+    if (leaveType === '이석' || leaveType === '컴이석') {
+      const { data: existingLeaves } = await supabase
+        .from('leave_requests')
+        .select('period')
+        .eq('student_id', studentId)
+        .eq('status', '신청');
+      
+      const existingPeriods = existingLeaves?.flatMap(l => l.period?.split(',') || []) || [];
+      const duplicate = periods.some(p => existingPeriods.includes(p));
+      if (duplicate) {
+        toast.error('이미 신청된 교시가 있습니다.');
+        return;
+      }
+    }
+  
+    const { data: leaveData, error: leaveError } = await supabase
+      .from('leave_requests')
+      .insert([{
+        student_id: studentId,
+        leave_type: leaveType,
+        teacher_id: leaveType === '컴이석' ? null : teacherId,
+        place: leaveType === '컴이석' ? null : place,
+        reason: leaveType === '컴이석' ? null : reason,
+        period: periods.join(','),
+        start_time: startDate?.toISOString(),
+        end_time: endDate?.toISOString(),
+        status: '신청',
+      }])
+      .select()
+      .single();
+  
     if (leaveError || !leaveData) {
       toast.error('신청자 저장 실패');
       return;
     }
-
+  
+    // 로그인 학생 제외 후 나머지 학생 리셋
+    setAddedStudents(prev => prev.filter(s => s.student_id === studentId));
+  
+    // 추가학생 처리
     const leaveRequestId = leaveData.id;
-
     const additionalStudents = addedStudents.filter(s => s.student_id !== studentId);
     if (additionalStudents.length > 0) {
       const { error } = await supabase.from('leave_request_students').insert(
@@ -133,17 +159,19 @@ export default function LeaveRequestForm() {
         return;
       }
     }
-
-    toast.success('이석 신청 완료!');
-    // 초기화
-    setLeaveType('');
-    setTeacherId('');
+  
+    // 필드 초기화
+    setLeaveType(null);
+    setTeacherId(null);
     setPlace('');
     setReason('');
     setPeriods([]);
     setStartDate(null);
     setEndDate(null);
+  
+    toast.success('이석 신청이 완료되었습니다.');
   };
+  
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
@@ -152,29 +180,39 @@ export default function LeaveRequestForm() {
 
       <div className="flex flex-col gap-5 max-w-xl">
         {/* 신청자 */}
-        <div className="flex flex-col gap-2">
-          <span>신청자</span>
-          <div className="flex flex-wrap gap-2">
-            {addedStudents.map(s => (
-              <div key={s.student_id} className="flex items-center bg-gray-200 p-1 px-2 rounded-xl">
-                {s.name} ({s.student_id})
-                {s.student_id !== studentId && (
-                  <button onClick={() => handleRemoveStudent(s.student_id)} className="ml-2 text-red-500 font-bold">×</button>
-                )}
-              </div>
-            ))}
-          </div>
-          <Select
-            options={students.filter(s => s.student_id !== studentId).map(s => ({
-              value: s.student_id,
-              label: `${s.name} (${s.student_id})`,
-              student: s
-            }))}
-            onChange={(option: any) => handleAddStudent(option.student)}
-            placeholder="학생 추가 (검색 가능)"
-            isClearable
-          />
-        </div>
+<div className="flex flex-col gap-2">
+  <span>신청자</span>
+
+  <Select
+    isMulti
+    value={addedStudents.map(s => ({
+      value: s.student_id,
+      label: `${s.name} (${s.student_id})`,
+      student: s,
+    }))}
+    options={students.map(s => ({
+      value: s.student_id,
+      label: `${s.name} (${s.student_id})`,
+      student: s,
+    }))}
+    onChange={(options: any) => {
+      let selected = options
+        ? options.map((o: any) => o.student)
+        : [];
+
+      // 로그인 학생은 항상 포함
+      const loginStudent = students.find(s => s.student_id === studentId);
+      if (loginStudent && !selected.find(s => s.student_id === studentId)) {
+        selected = [loginStudent, ...selected];
+      }
+
+      setAddedStudents(selected);
+    }}
+    placeholder="신청자 선택 (검색 가능)"
+    classNamePrefix="react-select"
+  />
+</div>
+
 
         {/* 이석 종류 */}
         <div className="flex gap-2">
@@ -193,33 +231,69 @@ export default function LeaveRequestForm() {
         </div>
 
         {/* 교시 선택 */}
-        {(leaveType === '컴이석' || leaveType === '이석') && (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              {(['주간','야간'] as const).map(d => (
-                <button
-                  key={d}
-                  onClick={() => changeDayType(d)}
-                  className={clsx('flex-1 p-2 rounded-xl', dayType === d ? 'bg-yellow-400 text-white' : 'bg-gray-200')}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-            <div className={clsx('flex gap-2 flex-wrap', dayType === '야간' ? 'mt-1' : '')}>
-              {periodOptions[dayType].map(p => (
+{(leaveType === '컴이석' || leaveType === '이석') && (() => {
+  const today = new Date();
+  const day = today.getDay(); // 0:일, 6:토
+  const isWeekend = day === 0 || day === 6;
+
+  const typeConfigs = isWeekend
+    ? [
+        { key: '오전', label: '오전', periods: ['1','2','3'] },
+        { key: '오후', label: '오후', periods: ['1','2','3'] },
+        { key: '야간_공휴일', label: '야간', periods: ['1','2','3'] },
+      ]
+    : [
+        { key: '주간', label: '주간', periods: ['1','2','3','4','5','6','7','8','9'] },
+        { key: '야간', label: '야간', periods: ['1','2','3','4'] },
+      ];
+
+  return (
+    <div className="flex gap-3">
+      {typeConfigs.map(type => (
+        <div key={type.key} className="flex-1">
+          {/* 상위 버튼 */}
+          <button
+            onClick={() => {
+              setDayType(type.key as any);
+              setPeriods([]);
+            }}
+            className={clsx(
+              'w-full p-2 rounded-xl mb-2',
+              dayType === type.key
+                ? 'bg-yellow-400 text-white'
+                : 'bg-gray-200'
+            )}
+          >
+            {type.label}
+          </button>
+
+          {/* 교시 버튼 (선택된 경우만 표시) */}
+          {dayType === type.key && (
+            <div className="flex gap-2 flex-wrap justify-center">
+              {type.periods.map(p => (
                 <button
                   key={p}
-                  onClick={() => togglePeriod(p)}
-                  className={clsx('px-2 py-1 text-sm rounded-lg',
-                    periods.includes(p) ? 'bg-yellow-400 text-white' : 'bg-gray-200')}
+                  onClick={() => togglePeriod(`${type.label}${p}교시`)}
+                  className={clsx(
+                    'w-8 h-8 rounded-lg text-sm',
+                    periods.includes(`${type.label}${p}교시`)
+                      ? 'bg-yellow-400 text-white'
+                      : 'bg-gray-200'
+                  )}
                 >
                   {p}
                 </button>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      ))}
+    </div>
+  );
+})()}
+
+
+
 
         {/* 시간 / 외출 외박 */}
         {(leaveType === '외출' || leaveType === '외박') && (
