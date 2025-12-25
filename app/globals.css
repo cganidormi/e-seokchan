@@ -2,6 +2,9 @@
 
 body {
   font-family: 'Nanum Gothic', sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  scrollbar-gutter: stable;
 }
 
 :root {
@@ -12,8 +15,6 @@ body {
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,7 +24,95 @@ body {
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+/* 🎯 Global Focus Reset: Absolute Sharpness */
+*:focus,
+*:focus-visible,
+*:active {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* React DatePicker Premium Theme */
+.react-datepicker-portal {
+  z-index: 9999 !important;
+}
+
+.react-datepicker {
+  font-family: 'Nanum Gothic', sans-serif !important;
+  border-radius: 1.5rem !important;
+  border: 1px solid #f3f4f6 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  overflow: hidden;
+  background-color: #fff !important;
+}
+
+.react-datepicker__header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  padding: 1.5rem 0 0.75rem 0 !important;
+}
+
+.react-datepicker__current-month {
+  font-weight: 800 !important;
+  font-size: 1rem !important;
+  color: #374151 !important;
+}
+
+.react-datepicker__day-name {
+  color: #9ca3af !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__day {
+  border-radius: 0.75rem !important;
+  transition: all 0.2s !important;
+  margin: 0.15rem !important;
+  font-weight: 500 !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: #fef3c7 !important;
+  color: #854d0e !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background-color: #fbbf24 !important;
+  color: white !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 6px -1px rgba(251, 191, 36, 0.4) !important;
+}
+
+.react-datepicker__day--today {
+  border: 2px solid #fbbf24 !important;
+  color: #854d0e !important;
+  font-weight: 700 !important;
+}
+
+.react-datepicker__triangle {
+  display: none !important;
+}
+
+.react-datepicker__time-container {
+  border-left: 1px solid #f3f4f6 !important;
+  width: 100px !important;
+}
+
+.react-datepicker__time-header {
+  font-weight: 800 !important;
+  font-size: 0.875rem !important;
+}
+
+.react-datepicker__time-list-item--selected {
+  background-color: #fbbf24 !important;
+}
+
+/* 💎 Match the sharp look of React-Select on focus */
+.react-datepicker__input-container input:focus,
+.react-datepicker__input-container input:active {
+  border-color: #fbbf24 !important;
+  /* Only border change, no shadow/ring */
+  box-shadow: none !important;
+  outline: none !important;
 }

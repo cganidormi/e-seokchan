@@ -20,6 +20,25 @@ interface Student {
   class: number;
 }
 
+interface LeaveRequest {
+  id: number;
+  student_id: string;
+  leave_type: string;
+  period: string;
+  place: string;
+  reason: string;
+  status: string;
+  start_time: string;
+  end_time: string;
+  teacher_id: string;
+  teachers?: {
+    name: string;
+  };
+  leave_request_students?: {
+    student_id: string;
+  }[];
+}
+
 export default function LeaveRequestForm() {
   const leaveTypes = ['컴이석', '이석', '외출', '외박', '자리비움'];
   const leavePlaces = ['교실', '도서관', '식당', '기타'];
@@ -34,7 +53,10 @@ export default function LeaveRequestForm() {
   const [place, setPlace] = useState('');
   const [reason, setReason] = useState('');
 
-  const [dayType, setDayType] = useState<'주간' | '야간'>('주간');
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+
   const [periods, setPeriods] = useState<string[]>([]);
 
   const [startDate, setStartDate] = useState<Date | null>(null);
@@ -71,7 +93,61 @@ export default function LeaveRequestForm() {
     supabase.from('teachers').select('id, name').then(({ data }) => {
       if (data) setTeachers(data as Teacher[]);
     });
+
+    if (loginId) fetchLeaveRequests(loginId);
   }, []);
+
+  const fetchLeaveRequests = async (id: string) => {
+    try {
+      // 1. 기본 leave_requests 데이터만 가져오기 (JOIN 없이)
+      const { data: leaveData, error: leaveError } = await supabase
+        .from('leave_requests')
+        .select('*')
+        .eq('student_id', id)
+        .neq('status', '취소')
+        .order('created_at', { ascending: false });
+
+      if (leaveError) {
+        console.error('Leave requests fetch error:', leaveError);
+        return;
+      }
+
+      if (!leaveData || leaveData.length === 0) {
+        setLeaveRequests([]);
+        return;
+      }
+
+      // 2. 모든 teacher 정보 가져오기
+      const { data: teachersData } = await supabase
+        .from('teachers')
+        .select('id, name');
+
+      // 3. 각 leave_request에 대한 추가 학생 및 teacher 정보 병합
+      const requestsWithDetails = await Promise.all(
+        leaveData.map(async (req) => {
+          // 추가 학생 정보
+          const { data: additionalStudents } = await supabase
+            .from('leave_request_students')
+            .select('student_id')
+            .eq('leave_request_id', req.id);
+
+          // Teacher 정보 매칭
+          const teacher = teachersData?.find(t => t.id === req.teacher_id);
+
+          return {
+            ...req,
+            teachers: teacher ? { name: teacher.name } : null,
+            leave_request_students: additionalStudents || []
+          };
+        })
+      );
+
+      console.log('Fetched leave requests with details:', requestsWithDetails);
+      setLeaveRequests(requestsWithDetails as any[]);
+    } catch (err) {
+      console.error('Fetch error:', err);
+    }
+  };
 
   const togglePeriod = (p: string) => {
     setPeriods(prev =>
@@ -79,10 +155,7 @@ export default function LeaveRequestForm() {
     );
   };
 
-  const changeDayType = (type: '주간' | '야간') => {
-    setDayType(type);
-    setPeriods([]);
-  };
+
 
   const handleAddStudent = (student: Student) => {
     if (!addedStudents.find(s => s.student_id === student.student_id)) {
@@ -92,6 +165,22 @@ export default function LeaveRequestForm() {
 
   const handleRemoveStudent = (studentId: string) => {
     setAddedStudents(prev => prev.filter(s => s.student_id !== studentId));
+  };
+
+  const handleCancelRequest = async (requestId: number) => {
+    if (!confirm('신청을 취소하시겠습니까?')) return;
+
+    const { error } = await supabase
+      .from('leave_requests')
+      .update({ status: '취소' })
+      .eq('id', requestId);
+
+    if (error) {
+      toast.error('취소 실패');
+    } else {
+      toast.success('취소되었습니다.');
+      fetchLeaveRequests(studentId);
+    }
   };
 
   const handleSubmit = async () => {
@@ -140,7 +229,7 @@ export default function LeaveRequestForm() {
         period: periods.join(','),
         start_time: (leaveType === '컴이석' || leaveType === '이석') ? targetDate.toISOString() : startDate?.toISOString(),
         end_time: (leaveType === '컴이석' || leaveType === '이석') ? targetDate.toISOString() : endDate?.toISOString(),
-        status: '신청',
+        status: leaveType === '컴이석' ? '승인' : '신청',
       }])
       .select()
       .single();
@@ -150,12 +239,12 @@ export default function LeaveRequestForm() {
       return;
     }
 
-    // 로그인 학생 제외 후 나머지 학생 리셋
-    setAddedStudents(prev => prev.filter(s => s.student_id === studentId));
-
     // 추가학생 처리
     const leaveRequestId = leaveData.id;
     const additionalStudents = addedStudents.filter(s => s.student_id !== studentId);
+    console.log('Additional students to save:', additionalStudents);
+    console.log('Leave request ID:', leaveRequestId);
+
     if (additionalStudents.length > 0) {
       const { error } = await supabase.from('leave_request_students').insert(
         additionalStudents.map(s => ({
@@ -164,10 +253,18 @@ export default function LeaveRequestForm() {
         }))
       );
       if (error) {
+        console.error('Additional students insert error:', error);
         toast.error('추가 학생 저장 실패');
         return;
       }
+      console.log('Additional students saved successfully');
     }
+
+    // 현황 다시 불러오기 (추가 학생 저장 후 실행)
+    fetchLeaveRequests(studentId);
+
+    // 로그인 학생 제외 후 나머지 학생 리셋
+    setAddedStudents(prev => prev.filter(s => s.student_id === studentId));
 
     // 필드 초기화
     setLeaveType('');
@@ -187,13 +284,14 @@ export default function LeaveRequestForm() {
       <Toaster />
       <h1 className="text-2xl font-bold mb-6">이석 신청</h1>
 
-      <div className="flex flex-col gap-3 max-w-xl">
+      <div className="flex flex-col w-full max-w-xl mx-auto relative">
         {/* 신청자 */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 mb-3">
           <span>신청자</span>
 
           <Select
-            isMulti={leaveType === '컴이석' || leaveType === '이석'}
+            instanceId="student-select"
+            isMulti={true}
             value={addedStudents.map(s => ({
               value: s.student_id,
               label: s.student_id,
@@ -206,13 +304,16 @@ export default function LeaveRequestForm() {
             }))}
             onChange={(options: any) => {
               let selected = options
-                ? options.map((o: any) => o.student)
+                ? (Array.isArray(options) ? options.map((o: any) => o.student) : [options.student])
                 : [];
 
-              // 로그인 학생은 항상 포함
+              // 로그인 학생은 항상 포함 (중복 방지)
               const loginStudent = students.find(s => s.student_id === studentId);
-              if (loginStudent && !selected.find((s: Student) => s.student_id === studentId)) {
-                selected = [loginStudent, ...selected];
+              if (loginStudent) {
+                const alreadyIncluded = selected.some((s: Student) => s.student_id === studentId);
+                if (!alreadyIncluded) {
+                  selected = [loginStudent, ...selected];
+                }
               }
 
               setAddedStudents(selected);
@@ -269,12 +370,20 @@ export default function LeaveRequestForm() {
 
 
         {/* 이석 종류 */}
-        <div className="flex gap-2">
+        <div className="grid grid-cols-5 gap-2 mb-3">
           {leaveTypes.map((t) => (
             <button
               key={t}
               onClick={() => {
                 setLeaveType(t);
+                // 모든 입력 필드 초기화
+                setPeriods([]);
+                setTeacherId('');
+                setPlace('');
+                setReason('');
+                setStartDate(new Date());
+                setEndDate(new Date());
+
                 // 외출/외박/자리비움 전환 시 본인 외 선택 해제
                 if (t === '외출' || t === '외박' || t === '자리비움') {
                   const loginStudent = students.find(s => s.student_id === studentId);
@@ -282,7 +391,7 @@ export default function LeaveRequestForm() {
                 }
               }}
               className={clsx(
-                'flex-1 h-12 rounded-2xl shadow-sm border transition-all duration-200 active:scale-95 font-medium',
+                'h-12 rounded-2xl shadow-sm border transition-all duration-200 active:scale-95 font-medium w-full flex items-center justify-center',
                 leaveType === t
                   ? 'bg-yellow-400 text-white border-yellow-400 shadow-md font-bold'
                   : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
@@ -294,143 +403,340 @@ export default function LeaveRequestForm() {
         </div>
 
         {/* 교시 선택 */}
-        {(leaveType === '컴이석' || leaveType === '이석') && (() => {
-          const day = targetDate.getDay(); // 0:일, 6:토
-          const isWeekend = day === 0 || day === 6;
+        <div className={clsx(
+          "grid transition-all duration-300 ease-in-out overflow-hidden",
+          (leaveType === '컴이석' || leaveType === '이석') ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        )}>
+          <div className="min-h-0">
+            {(() => {
+              const day = targetDate.getDay(); // 0:일, 6:토
+              const isWeekend = day === 0 || day === 6;
 
-          const typeConfigs = isWeekend
-            ? [
-              { key: '오전', label: '오전', periods: ['1', '2', '3'] },
-              { key: '오후', label: '오후', periods: ['1', '2', '3'] },
-              { key: '야간_공휴일', label: '야간', periods: ['1', '2', '3'] },
-            ]
-            : [
-              { key: '주간', label: '주간', periods: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] },
-              { key: '야간', label: '야간', periods: ['1', '2', '3', '4'] },
-            ];
+              const typeConfigs = isWeekend
+                ? [
+                  { key: '오전', label: '오전', periods: ['1', '2', '3'] },
+                  { key: '오후', label: '오후', periods: ['1', '2', '3'] },
+                  { key: '야간_공휴일', label: '야간', periods: ['1', '2', '3'] },
+                ]
+                : [
+                  { key: '주간', label: '주간', periods: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] },
+                  { key: '야간', label: '야간', periods: ['1', '2', '3', '4'] },
+                ];
 
-          return (
-            <div className="flex flex-col gap-3">
-              <div className="w-full">
-                <DatePicker
-                  selected={targetDate}
-                  onChange={(date) => {
-                    if (date) {
-                      setTargetDate(date);
-                      setPeriods([]); // 날짜 변경시 선택된 교시 초기화
-                    }
-                  }}
-                  dateFormat="yyyy-MM-dd"
-                  className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent font-bold text-center shadow-sm cursor-pointer hover:bg-gray-50 transition-colors"
-                />
-              </div>
-
-              <div className="flex gap-3">
-                {typeConfigs.map(type => (
-                  <div key={type.key} className="flex-1">
-                    {/* 상위 버튼 */}
-                    <button
-                      onClick={() => {
-                        setDayType(type.key as any);
-                        setPeriods([]);
+              return (
+                <div className="flex flex-col gap-4 pb-3">
+                  <div className="w-full">
+                    <DatePicker
+                      selected={targetDate}
+                      onChange={(date) => {
+                        if (date) {
+                          setTargetDate(date);
+                          setPeriods([]); // 날짜 변경시 선택된 교시 초기화
+                        }
                       }}
-                      className={clsx(
-                        'w-full h-12 rounded-2xl mb-2 font-medium shadow-sm border transition-all duration-200',
-                        dayType === type.key
-                          ? 'bg-yellow-400 text-white border-yellow-400 font-bold'
-                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                      )}
-                    >
-                      {type.label}
-                    </button>
-
-                    {/* 교시 버튼 (선택된 경우만 표시) */}
-                    {dayType === type.key && (
-                      <div className="flex gap-1 justify-center flex-nowrap">
-                        {type.periods.map(p => (
-                          <button
-                            key={p}
-                            onClick={() => togglePeriod(`${type.label}${p}교시`)}
-                            className={clsx(
-                              'w-10 h-10 rounded-xl text-sm font-medium shadow-sm border transition-all duration-200',
-                              periods.includes(`${type.label}${p}교시`)
-                                ? 'bg-yellow-400 text-white border-yellow-400 font-bold'
-                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                            )}
-                          >
-                            {p}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                      dateFormat="yyyy-MM-dd"
+                      portalId="datepicker-portal"
+                      className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full outline-none focus:outline-none hover:border-yellow-400 focus:border-yellow-400 font-bold text-center shadow-sm cursor-pointer transition-all"
+                    />
                   </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+
+                  <div className={clsx(
+                    "bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden",
+                    isWeekend ? "grid grid-cols-3 divide-x divide-gray-100" : "flex flex-col p-4 gap-4"
+                  )}>
+                    {typeConfigs.map((type, idx) => (
+                      <div
+                        key={type.key}
+                        className={clsx(
+                          "flex flex-col gap-2",
+                          isWeekend ? "p-2 w-full" : "w-full"
+                        )}
+                      >
+                        <div className="flex items-center gap-2 px-1">
+                          <div className="w-1 h-4 bg-yellow-400 rounded-full"></div>
+                          <span className="text-sm font-bold text-gray-700 whitespace-nowrap">{type.label} 교시</span>
+                        </div>
+
+                        <div className={clsx(
+                          "flex gap-1.5",
+                          isWeekend ? "flex-nowrap" : "flex-wrap"
+                        )}>
+                          {type.periods.map(p => {
+                            const periodLabel = `${type.label}${p}교시`;
+                            const isSelected = periods.includes(periodLabel);
+                            return (
+                              <button
+                                key={p}
+                                onClick={() => togglePeriod(periodLabel)}
+                                className={clsx(
+                                  'w-10 h-10 rounded-xl text-sm font-bold transition-all duration-200 border shadow-sm flex items-center justify-center',
+                                  isSelected
+                                    ? 'bg-yellow-400 text-white border-yellow-400 scale-105'
+                                    : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100 hover:border-gray-200'
+                                )}
+                              >
+                                {p}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
 
 
 
 
         {/* 시간 / 외출 외박 */}
-        {(leaveType === '외출' || leaveType === '외박') && (
-          <div className="flex flex-col md:flex-row justify-between gap-4 md:gap-0">
-            <div className="w-full md:w-[48%]">
-              <DatePicker
-                selected={startDate}
-                onChange={setStartDate}
-                showTimeSelect
-                timeIntervals={10}
-                dateFormat="yyyy-MM-dd HH:mm"
-                className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent shadow-sm cursor-pointer transition-all"
-              />
+        <div className={clsx(
+          "grid transition-all duration-300 ease-in-out overflow-hidden",
+          (leaveType === '외출' || leaveType === '외박') ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        )}>
+          <div className="min-h-0">
+            <div className="flex flex-col md:flex-row justify-between gap-4 md:gap-0 pb-3">
+              <div className="w-full md:w-[48%]">
+                <DatePicker
+                  selected={startDate}
+                  onChange={setStartDate}
+                  showTimeSelect
+                  timeIntervals={10}
+                  dateFormat="yyyy-MM-dd HH:mm"
+                  portalId="datepicker-portal"
+                  className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full outline-none focus:outline-none hover:border-yellow-400 focus:border-yellow-400 shadow-sm cursor-pointer transition-all"
+                />
+              </div>
+              <div className="w-full md:w-[48%]">
+                <DatePicker
+                  selected={endDate}
+                  onChange={setEndDate}
+                  showTimeSelect
+                  timeIntervals={10}
+                  dateFormat="yyyy-MM-dd HH:mm"
+                  portalId="datepicker-portal"
+                  className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full outline-none focus:outline-none hover:border-yellow-400 focus:border-yellow-400 shadow-sm cursor-pointer transition-all"
+                />
+              </div>
             </div>
-            <div className="w-full md:w-[48%]">
-              <DatePicker
-                selected={endDate}
-                onChange={setEndDate}
-                showTimeSelect
-                timeIntervals={10}
-                dateFormat="yyyy-MM-dd HH:mm"
-                className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent shadow-sm cursor-pointer transition-all"
+          </div>
+        </div>
+
+        {/* 지도교사 / 장소 / 사유 */}
+        <div className={clsx(
+          "grid transition-all duration-300 ease-in-out overflow-hidden",
+          leaveType !== '컴이석' ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        )}>
+          <div className="min-h-0">
+            <div className="flex flex-col gap-3 pb-3">
+              <select onChange={e => setTeacherId(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent shadow-sm appearance-none cursor-pointer transition-all w-full">
+                <option value="">지도교사</option>
+                {teachers.map(t => (
+                  t.id && <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+
+              <select onChange={e => setPlace(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent shadow-sm appearance-none cursor-pointer transition-all w-full">
+                <option value="">이석 장소</option>
+                {leavePlaces.map(p => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+
+              <input
+                type="text"
+                onChange={e => setReason(e.target.value)}
+                className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent shadow-sm w-full transition-all"
+                placeholder="이석 사유"
               />
             </div>
           </div>
-        )}
-
-        {/* 지도교사 / 장소 / 사유 */}
-        {leaveType !== '컴이석' && (
-          <>
-            <select onChange={e => setTeacherId(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent shadow-sm appearance-none cursor-pointer transition-all">
-              <option value="">지도교사</option>
-              {teachers.map(t => (
-                t.id && <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-
-            <select onChange={e => setPlace(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent shadow-sm appearance-none cursor-pointer transition-all">
-              <option value="">이석 장소</option>
-              {leavePlaces.map(p => (
-                <option key={p}>{p}</option>
-              ))}
-            </select>
-
-            <input
-              type="text"
-              onChange={e => setReason(e.target.value)}
-              className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent shadow-sm w-full transition-all"
-              placeholder="이석 사유"
-            />
-          </>
-        )}
+        </div>
 
         <button
           onClick={handleSubmit}
-          className="h-14 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold text-lg shadow-md hover:shadow-lg transform active:scale-95 transition-all duration-200"
+          className="h-14 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold text-lg shadow-md hover:shadow-lg transform active:scale-95 transition-all duration-200 mb-8"
         >
           신청
         </button>
+
+        {/* 이석현황 섹션 */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
+            <h2 className="text-xl font-extrabold text-gray-800">이석현황</h2>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {leaveRequests.length === 0 ? (
+              <div className="bg-[#1a1a1a] p-6 rounded-[2rem] border border-dashed border-white/10 text-center text-gray-500 font-bold text-sm">
+                신청 내역이 없습니다.
+              </div>
+            ) : (
+              leaveRequests.map((req) => {
+                const statusConfig = {
+                  '신청': { dot: 'bg-amber-500', text: 'text-amber-500', label: '대기' },
+                  '승인': { dot: 'bg-green-500', text: 'text-green-500', label: '승인' },
+                  '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
+                  '취소': { dot: 'bg-gray-500', text: 'text-gray-500', label: '취소' },
+                }[req.status] || { dot: 'bg-gray-500', text: 'text-gray-500', label: req.status };
+
+                const additionalIds = req.leave_request_students?.map(lrs => lrs.student_id).filter(Boolean) || [];
+                const allStudents = [req.student_id, ...additionalIds].filter(Boolean);
+
+                const isExpanded = expandedId === req.id;
+
+                return (
+                  <div
+                    key={req.id}
+                    onClick={() => setExpandedId(isExpanded ? null : req.id)}
+                    className={clsx(
+                      "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-hidden",
+                      isExpanded ? "rounded-[2rem] p-6" : "rounded-full py-3 px-6 h-auto"
+                    )}
+                  >
+                    {/* Main Row: Optimized for a single elliptical line */}
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[11px] font-black tracking-tight w-full">
+
+                      {/* 1. 이석종류 / 승인상태 */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className={clsx("w-1.5 h-1.5 rounded-full animate-pulse", statusConfig.dot)}></div>
+                        <span className="text-white text-sm whitespace-nowrap">{req.leave_type}</span>
+                        {req.leave_type !== '컴이석' && (
+                          <span className={clsx("px-2 py-0.5 rounded-full border border-opacity-30 border-current text-[10px]", statusConfig.text)}>
+                            {statusConfig.label}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 2. 신청자 */}
+                      <div className="flex flex-col gap-0.5 shrink-0">
+                        {allStudents.map((studentId, idx) => (
+                          <span key={idx} className="text-gray-200 text-[11px] leading-tight">
+                            {studentId}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* 3. 시작시간 / 4. 종료시간 OR 교시 */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {req.period ? (
+                          // 교시 기반 이석 (컴이석, 이석)
+                          <>
+                            <span className="text-yellow-400 font-bold">
+                              {req.period.split(',').join(', ')}
+                            </span>
+                            <span className="text-gray-500 opacity-60 ml-1">
+                              ({new Date(req.start_time).toLocaleDateString([], { month: 'numeric', day: 'numeric' })})
+                            </span>
+                          </>
+                        ) : (
+                          // 시간 기반 이석 (외출, 외박)
+                          <>
+                            <div className="flex items-center">
+                              <span className="text-white">
+                                <span className="text-yellow-400">
+                                  {new Date(req.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                </span>
+                              </span>
+                            </div>
+                            <span className="text-gray-600 font-normal">~</span>
+                            <div className="flex items-center">
+                              <span className="text-white">
+                                <span className="text-orange-400">
+                                  {new Date(req.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                                </span>
+                              </span>
+                            </div>
+                            <span className="text-gray-500 opacity-60 ml-1">
+                              ({new Date(req.start_time).toLocaleDateString([], { month: 'numeric', day: 'numeric' })})
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+
+                      {/* Quick Summary or Cancel for unexpanded */}
+                      {!isExpanded && (
+                        <div className="ml-auto flex items-center gap-3">
+                          {/* 5. 이석사유 (컴이석 제외, 한줄 마지막으로 이동) */}
+                          {req.leave_type !== '컴이석' && (
+                            <div className="hidden sm:flex items-center max-w-[150px]">
+                              <span className="text-gray-400 truncate italic">"{req.reason || '없음'}"</span>
+                            </div>
+                          )}
+
+                          {(req.status === '신청' || (req.status === '승인' && req.leave_type === '컴이석')) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleCancelRequest(req.id); }}
+                              className="text-red-500 hover:text-red-400 font-black underline underline-offset-2 shrink-0"
+                            >
+                              신청 취소
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Expanded Detail View */}
+                    {isExpanded && (
+                      <div className="mt-4 pt-4 border-t border-white/5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {req.leave_type !== '컴이석' && (
+                            <div className="flex flex-col gap-2">
+                              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">이석 상세 사유</span>
+                              <p className="text-sm text-gray-300 italic leading-relaxed">"{req.reason || '입력된 사유가 없습니다.'}"</p>
+                            </div>
+                          )}
+                          <div className="flex flex-col gap-2">
+                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">모든 신청자</span>
+                            <div className="flex flex-wrap gap-2">
+                              {allStudents.map(name => (
+                                <span key={name} className="px-3 py-1 bg-white/5 rounded-lg text-xs text-gray-200 font-bold">{name}</span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          {req.leave_type !== '컴이석' && (
+                            <>
+                              <div className="bg-white/5 rounded-2xl p-3 flex flex-col gap-1">
+                                <span className="text-[9px] font-black text-gray-500 uppercase">지도교사</span>
+                                <span className="text-xs text-white font-black">{req.teachers?.name || '미지정'}</span>
+                              </div>
+                              <div className="bg-white/5 rounded-2xl p-3 flex flex-col gap-1">
+                                <span className="text-[9px] font-black text-gray-500 uppercase">이석 장소</span>
+                                <span className="text-xs text-white font-black">{req.place || '미지정'}</span>
+                              </div>
+                            </>
+                          )}
+                          <div className="bg-white/5 rounded-2xl p-3 flex flex-col gap-1 group">
+                            <span className="text-[9px] font-black text-gray-500 uppercase group-hover:text-amber-500 transition-colors">신청 일시</span>
+                            <span className="text-[10px] text-gray-300 font-medium">관리번호 #{req.id}</span>
+                          </div>
+                          <div className="flex items-center">
+                            {(req.status === '신청' || (req.status === '승인' && req.leave_type === '컴이석')) && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleCancelRequest(req.id); }}
+                                className="w-full h-full rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-black transition-all"
+                              >
+                                신청 취소
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
