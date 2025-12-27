@@ -56,6 +56,8 @@ export default function LeaveRequestForm() {
 
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'active' | 'past'>('active');
+  const [filterType, setFilterType] = useState('전체');
 
 
   const [periods, setPeriods] = useState<string[]>([]);
@@ -645,14 +647,67 @@ export default function LeaveRequestForm() {
 
           {/* FIX: 맨 아래 카드가 없더라도 두줄정도의 여유공간이 있도록 하단 패딩(pb-24) 추가 */}
           <div className="flex flex-col gap-3 pb-24">
-            {leaveRequests.length === 0 ? (
-              <div className="bg-[#1a1a1a] p-6 rounded-[2rem] border border-dashed border-white/10 text-center text-gray-500 font-bold text-sm">
-                신청 내역이 없습니다.
-              </div>
-            ) : (
-              leaveRequests.map((req) => {
+            {/* 탭 전환 UI */}
+            <div className="flex bg-[#1a1a1a] rounded-xl p-1 gap-1 w-fit mb-2">
+              <button
+                onClick={() => setViewMode('active')}
+                className={clsx(
+                  "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                  viewMode === 'active' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"
+                )}
+              >
+                진행 중
+              </button>
+              <button
+                onClick={() => setViewMode('past')}
+                className={clsx(
+                  "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                  viewMode === 'past' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"
+                )}
+              >
+                지난 내역
+              </button>
+            </div>
+
+            {/* 이석 종류 필터 (전체/컴이석/이석/외출/외박/자리비움) */}
+            <div className="flex gap-2 pb-2 overflow-x-auto no-scrollbar">
+              {['전체', ...leaveTypes].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  className={clsx(
+                    "px-3 py-1 rounded-full text-[11px] font-bold transition-all whitespace-nowrap border",
+                    filterType === type
+                      ? "bg-amber-400 text-black border-amber-400"
+                      : "bg-transparent text-gray-500 border-white/10 hover:border-white/20"
+                  )}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+
+            {(() => {
+              const now = new Date();
+              const activeRequests = leaveRequests.filter(req => new Date(req.end_time) >= now);
+              const pastRequests = leaveRequests.filter(req => new Date(req.end_time) < now);
+              const displayList = (viewMode === 'active' ? activeRequests : pastRequests)
+                .filter(req => filterType === '전체' || req.leave_type === filterType);
+
+              if (displayList.length === 0) {
+                return (
+                  <div className="bg-[#1a1a1a] p-10 rounded-[2rem] border border-dashed border-white/10 text-center text-gray-600 text-xs italic">
+                    {filterType === '전체'
+                      ? (viewMode === 'active' ? '진행 중인 이석 내역이 없습니다.' : '지난 이석 내역이 없습니다.')
+                      : `${viewMode === 'active' ? '진행 중인' : '지난'} '${filterType}' 내역이 없습니다.`
+                    }
+                  </div>
+                );
+              }
+
+              return displayList.map((req) => {
                 const statusConfig = {
-                  '신청': { dot: 'bg-amber-500', text: 'text-amber-500', label: '대기' },
+                  '신청': { dot: 'bg-blue-500', text: 'text-blue-500', label: '대기' },
                   '승인': { dot: 'bg-green-500', text: 'text-green-500', label: '승인' },
                   '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
                   '취소': { dot: 'bg-gray-500', text: 'text-gray-500', label: '취소' },
@@ -660,8 +715,8 @@ export default function LeaveRequestForm() {
 
                 const additionalIds = req.leave_request_students?.map(lrs => lrs.student_id).filter(Boolean) || [];
                 const allStudents = [req.student_id, ...additionalIds].filter(Boolean);
-
                 const isExpanded = expandedId === req.id;
+                const isPast = viewMode === 'past';
 
                 return (
                   <div
@@ -669,114 +724,205 @@ export default function LeaveRequestForm() {
                     onClick={() => setExpandedId(isExpanded ? null : req.id)}
                     className={clsx(
                       "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-hidden",
-                      // FIX: 한 줄 이상 늘어날 때 타원형이 깨지지 않도록 rounded-full 대신 고정 라운드값(rounded-2xl) 사용
-                      isExpanded ? "rounded-[2rem] p-6" : "rounded-2xl py-3 px-6 h-auto"
+                      isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-5 py-3 min-h-[60px] h-auto",
+                      isPast && "opacity-60"
                     )}
                   >
-                    {/* FIX: 현황 카드 상단 레이아웃 재구성 (이석종류, 상태, 아이디, 일시, 취소버튼 순) */}
-                    <div className="flex items-center gap-x-4 text-[11px] font-black tracking-tight w-full overflow-hidden">
+                    {/* 상단 한 줄 요약 (Collapsed & Expanded Header) */}
+                    <div className="flex items-center w-full h-full gap-4">
 
-                      {/* 1. 이석종류 & 승인상태 */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className={clsx("w-1.5 h-1.5 rounded-full animate-pulse", statusConfig.dot)}></div>
-                        <span className="text-white text-sm whitespace-nowrap">{req.leave_type}</span>
+                      {/* 1. 상태 아이콘 & 이석 종류 */}
+                      <div className="flex items-center gap-2 shrink-0 min-w-[80px]">
+                        <div className={clsx(
+                          "w-2 h-2 rounded-full",
+                          statusConfig.dot,
+                          req.status === '신청' && "animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"
+                        )}></div>
+                        <span className="text-white font-bold text-xs">{req.leave_type}</span>
                         {req.leave_type !== '컴이석' && (
-                          <span className={clsx("px-2 py-0.5 rounded-full border border-opacity-30 border-current text-[10px] shrink-0", statusConfig.text)}>
+                          <span className={clsx("text-[10px] px-1.5 py-0.5 rounded border border-opacity-30", statusConfig.text, "border-current")}>
                             {statusConfig.label}
                           </span>
                         )}
                       </div>
 
-                      {/* 2. 신청자 ID */}
-                      <div className="flex flex-col gap-0.5 shrink-0 min-w-[50px]">
-                        {allStudents.map((sid, idx) => (
-                          <span key={idx} className="text-gray-200 text-[11px] leading-tight truncate">
-                            {sid}
-                          </span>
-                        ))}
-                      </div>
+                      {/* 신청자, 시간, 사유를 그룹화하여 간격 좁힘 (gap-2) */}
+                      <div className="flex flex-1 items-center gap-2 min-w-0">
+                        {/* 2. 신청자 (세로 나열) */}
+                        <div className="flex flex-col gap-1 shrink-0 justify-center">
+                          {allStudents.map((id, idx) => (
+                            <span key={idx} className="text-gray-200 text-xs leading-tight">
+                              {id}
+                            </span>
+                          ))}
+                        </div>
 
-                      {/* 3. 일시 (날짜 및 시간 통합 표시) */}
-                      <div className="flex items-center gap-1 shrink-0 text-white overflow-hidden whitespace-nowrap">
-                        {req.period ? (
-                          <>
-                            <span className="text-yellow-400 font-bold">{req.period.split(',').join(', ')}</span>
-                            <span className="text-gray-500 text-[10px]">
-                              ({new Date(req.start_time).toLocaleDateString([], { month: 'numeric', day: 'numeric' })})
-                            </span>
-                          </>
-                        ) : (
-                          <div className="flex items-center gap-1">
-                            <span className="text-yellow-400">
-                              {new Date(req.start_time).toLocaleDateString([], { month: 'numeric', day: 'numeric' })} {new Date(req.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                            </span>
-                            <span className="text-gray-600">~</span>
-                            <span className="text-orange-400">
-                              {new Date(req.end_time).toLocaleDateString([], { month: 'numeric', day: 'numeric' })} {new Date(req.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        {/* 3. 시간 (Time - 교시 램프 스타일 & 날짜 조건부 표시) */}
+                        <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center min-w-fit ml-2">
+                          {(() => {
+                            const start = new Date(req.start_time);
+                            const now = new Date();
+                            const isToday = start.toDateString() === now.toDateString();
+                            const day = start.getDay();
+                            const isWeekend = day === 0 || day === 6;
+
+                            if (req.period) {
+                              // 교시 그룹 정의
+                              const groups = isWeekend
+                                ? [
+                                  { label: '오전', periods: ['1', '2', '3'] },
+                                  { label: '오후', periods: ['1', '2', '3'] },
+                                  { label: '야간', periods: ['1', '2', '3'] }
+                                ]
+                                : [
+                                  { label: '주간', periods: ['8', '9'] },
+                                  { label: '야간', periods: ['1', '2', '3', '4'] }
+                                ];
+
+                              const activePeriods = req.period.split(',').map(p => p.trim());
+
+                              return (
+                                <div className="flex flex-col gap-1.5">
+                                  {!isToday && (
+                                    <span className="text-gray-500 mb-0.5">
+                                      {start.toLocaleDateString([], { month: 'numeric', day: 'numeric' })}
+                                    </span>
+                                  )}
+                                  <div className="flex flex-col gap-1">
+                                    {groups.map((group, gIdx) => (
+                                      <div key={gIdx} className="flex gap-1 items-center">
+                                        {group.periods.map(p => {
+                                          const periodLabel = `${group.label}${p}교시`;
+                                          const isActive = activePeriods.includes(periodLabel);
+                                          return (
+                                            <div
+                                              key={p}
+                                              className={clsx(
+                                                "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all",
+                                                isActive
+                                                  ? "bg-yellow-400 text-black shadow-[0_0_8px_rgba(250,204,21,0.6)]"
+                                                  : "bg-white/5 text-white/20 border border-white/5"
+                                              )}
+                                            >
+                                              {p}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            } else {
+                              // 외출/외박 시간 표시
+                              const end = new Date(req.end_time);
+                              const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                              const formatDate = (d: Date) => d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+
+                              return (
+                                <div className="flex flex-col gap-0.5 leading-tight">
+                                  {isToday ? (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-yellow-400">{formatTime(start)}</span>
+                                      <span className="text-gray-600 text-xs">~</span>
+                                      <span className="text-orange-400">{formatTime(end)}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col gap-0.5">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-gray-500 text-xs min-w-[35px]">{formatDate(start)}</span>
+                                        <span className="text-yellow-400">{formatTime(start)}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-gray-500 text-xs min-w-[35px]">{formatDate(end)}</span>
+                                        <span className="text-orange-400">{formatTime(end)}</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+                          })()}
+                        </div>
+
+                        {/* 4. 사유 (Reason) - 시간 옆에 표시 (간격 조정) */}
+                        {!isExpanded && req.reason && (
+                          <div className="flex items-center min-w-0 ml-4">
+                            <span className="text-gray-400 text-xs truncate">
+                              {req.reason}
                             </span>
                           </div>
                         )}
                       </div>
 
-                      {/* 4. 취소 버튼 (불꺼지지 않게 고정 표시) */}
-                      <div className="ml-auto flex items-center shrink-0">
-                        {(req.status === '신청' || (req.status === '승인' && req.leave_type === '컴이석')) && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleCancelRequest(req.id); }}
-                            className="text-red-500 hover:text-red-400 font-black underline underline-offset-2 shrink-0 bg-red-500/10 px-3 py-1.5 rounded-full"
-                          >
-                            신청 취소
-                          </button>
-                        )}
-                      </div>
+                      {/* 5. 취소 버튼 (우측 끝) */}
+                      {!isPast && (
+                        <div className="ml-auto flex items-center shrink-0">
+                          {(req.status === '신청' || (req.status === '승인' && req.leave_type === '컴이석')) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleCancelRequest(req.id); }}
+                              className="text-gray-500 hover:text-red-500 transition-colors p-1"
+                              title="취소"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Expanded Detail View */}
+
+                    {/* 확장 상세 정보 (Expanded Details) */}
                     {isExpanded && (
-                      // FIX: 상세 정보 UI 최종 최적화 (지도교사/장소 나열, 사유 줄바꿈, 취소 버튼 제거, 폭 축소)
-                      <div className="mt-1.5 pt-1.5 border-t border-white/5 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1">
-                        <div className="flex flex-wrap items-start gap-x-4 gap-y-1.5 px-1">
+                      <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
+                        {/* 상세 정보 그리드 */}
+                        <div className="grid grid-cols-2 gap-4 text-xs">
                           {req.leave_type !== '컴이석' && (
                             <>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">교사:</span>
-                                <span className="text-[11px] text-white font-bold">{req.teachers?.name || '미지정'}</span>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-gray-500 font-bold">지도교사</span>
+                                <span className="text-white">{req.teachers?.name || '-'}</span>
                               </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">장소:</span>
-                                <span className="text-[11px] text-white font-bold">{req.place || '미지정'}</span>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-gray-500 font-bold">장소</span>
+                                <span className="text-white">{req.place || '-'}</span>
                               </div>
                             </>
                           )}
-                          <div className="flex items-center gap-1.5 shrink-0 group">
-                            <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest group-hover:text-amber-500 transition-colors">신청:</span>
-                            <span className="text-[10px] text-gray-300 font-medium">
-                              {new Date(req.created_at).toLocaleString([], {
-                                month: 'numeric',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false
-                              })}
+                          <div className="flex flex-col gap-1 col-span-2">
+                            <span className="text-gray-500 font-bold">사유</span>
+                            <span className="text-white">{req.reason || '-'}</span>
+                          </div>
+
+                          {/* 전체 신청자 목록 */}
+                          {additionalIds.length > 0 && (
+                            <div className="flex flex-col gap-1 col-span-2">
+                              <span className="text-gray-500 font-bold">함께하는 학생들</span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {allStudents.map(id => (
+                                  <span key={id} className="bg-gray-800 px-2 py-1 rounded text-gray-300">
+                                    {id}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex flex-col gap-1 col-span-2">
+                            <span className="text-gray-500 font-bold">신청 일시</span>
+                            <span className="text-gray-400">
+                              {new Date(req.created_at).toLocaleString()}
                             </span>
                           </div>
                         </div>
-
-                        {req.leave_type !== '컴이석' && req.reason && (
-                          <div className="flex flex-col gap-0.5 px-1 border-l-2 border-yellow-400/30 ml-0.5 pl-2">
-                            <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">이석 상세 사유</span>
-                            {/* FIX: 사유가 길어질 경우 줄바꿈 되도록 처리 (8자 내외 폭 예상) */}
-                            <p className="text-xs text-gray-400 italic leading-tight break-all max-w-[150px]">
-                              "{req.reason}"
-                            </p>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
                 );
-              })
-            )}
+              });
+            })()}
           </div>
         </div>
       </div>
