@@ -73,12 +73,17 @@ export default function LoginPage() {
     }
 
     // 6️⃣ 로그인 상태 저장
-    localStorage.setItem("dormichan_login_id", loginId);
-    localStorage.setItem("dormichan_role", role);
+    const storage = keepLoggedIn ? localStorage : sessionStorage;
 
-    if (keepLoggedIn) {
-      localStorage.setItem("dormichan_keepLoggedIn", "true");
-    }
+    // 다른 저장소에 있는 기존 세션은 삭제하여 충돌 방지
+    const otherStorage = keepLoggedIn ? sessionStorage : localStorage;
+    otherStorage.removeItem("dormichan_login_id");
+    otherStorage.removeItem("dormichan_role");
+    otherStorage.removeItem("dormichan_keepLoggedIn");
+
+    storage.setItem("dormichan_login_id", loginId);
+    storage.setItem("dormichan_role", role);
+    storage.setItem("dormichan_keepLoggedIn", keepLoggedIn ? "true" : "false");
 
     // 7️⃣ 역할별 페이지 이동
     if (role === "student") {
@@ -185,6 +190,38 @@ export default function LoginPage() {
               {error}
             </p>
           )}
+
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "20px",
+            paddingLeft: "8px"
+          }}>
+            <input
+              type="checkbox"
+              id="keepLoggedIn"
+              checked={keepLoggedIn}
+              onChange={(e) => setKeepLoggedIn(e.target.checked)}
+              style={{
+                width: "16px",
+                height: "16px",
+                cursor: "pointer",
+                accentColor: "#D7FF42"
+              }}
+            />
+            <label
+              htmlFor="keepLoggedIn"
+              style={{
+                color: "#fff",
+                fontSize: "13px",
+                cursor: "pointer",
+                fontWeight: "500"
+              }}
+            >
+              로그인 유지
+            </label>
+          </div>
 
           <button
             type="submit"

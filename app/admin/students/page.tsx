@@ -30,7 +30,7 @@ export default function StudentsPage() {
   const generateTempPassword = () => {
     const num = Math.floor(1000 + Math.random() * 9000).toString();
     const letters = Array.from({ length: 2 }, () =>
-      String.fromCharCode(65 + Math.floor(Math.random() * 26))
+      String.fromCharCode(97 + Math.floor(Math.random() * 26))
     ).join("");
     return num + letters;
   };
@@ -141,7 +141,7 @@ export default function StudentsPage() {
 
     const { error: studentsErr } = await supabase
       .from("students")
-      .upsert(studentsUpserts, { onConflict: ["grade", "class", "number"] });
+      .upsert(studentsUpserts, { onConflict: "grade,class,number" });
 
     if (studentsErr) {
       toast.error("학생 정보 저장 실패");
@@ -189,7 +189,7 @@ export default function StudentsPage() {
           temp_password: tempPassword,
           must_change_password: true,
         },
-        { onConflict: ["student_id"] }
+        { onConflict: "student_id" }
       );
     }
 
@@ -212,7 +212,7 @@ export default function StudentsPage() {
     // students 초기화
     const { error: studentsErr } = await supabase
       .from("students")
-      .upsert(resetStudents, { onConflict: ["grade", "class", "number"] });
+      .upsert(resetStudents, { onConflict: "grade,class,number" });
 
     if (studentsErr) {
       toast.error("초기화 실패 (students)");

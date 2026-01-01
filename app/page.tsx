@@ -1,26 +1,35 @@
 'use client'
 import { useEffect } from 'react'
-import { supabase } from '../supabaseClient'
+import { useRouter } from 'next/navigation'
 
 export default function Home() {
+  const router = useRouter()
+
   useEffect(() => {
-    async function fetchData() {
-      // 모든 학생 불러오기
-      const { data: students, error: studentError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('role', 'student')
-      console.log('학생 데이터:', students, studentError)
+    // localStorage 또는 sessionStorage에서 로그인 정보 확인
+    const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id')
+    const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role')
 
-      // 출결 신청 가져오기
-      const { data: requests, error: requestError } = await supabase
-        .from('requests')
-        .select('*')
-      console.log('출결 신청 데이터:', requests, requestError)
+    if (loginId && role) {
+      // 로그인 상태가 있으면 역할에 맞는 페이지로 이동
+      if (role === 'student') {
+        router.push('/student')
+      } else if (role === 'teacher') {
+        router.push('/teacher')
+      } else {
+        router.push('/login')
+      }
+    } else {
+      // 로그인 상태가 없으면 로그인 페이지로 이동
+      router.push('/login')
     }
+  }, [router])
 
-    fetchData()
-  }, [])
-
-  return <h1>Supabase 연결 테스트</h1>
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '24px', marginBottom: '16px' }}>로딩 중...</div>
+      </div>
+    </div>
+  )
 }

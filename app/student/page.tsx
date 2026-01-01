@@ -70,13 +70,13 @@ export default function LeaveRequestForm() {
     주간: ['1교시', '2교시', '3교시', '4교시', '5교시', '6교시', '7교시', '8교시', '9교시'],
     야간: ['1교시', '2교시', '3교시', '4교시'],
     오전: ['1교시', '2교시', '3교시'],
-    오후: ['1교시', '2교시', '3교시'],
+    오후: ['4교시', '5교시', '6교시'],
     야간_공휴일: ['1교시', '2교시', '3교시'],
   };
 
   useEffect(() => {
     // 🔑 로그인 학생 ID 가져오기
-    const loginId = localStorage.getItem('dormichan_login_id');
+    const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
     if (loginId) setStudentId(loginId);
 
     // 학생 리스트 불러오기
@@ -97,25 +97,77 @@ export default function LeaveRequestForm() {
       if (data) setTeachers(data as Teacher[]);
     });
 
-    if (loginId) fetchLeaveRequests(loginId);
+    if (loginId) {
+      fetchLeaveRequests(loginId);
+
+      // 🔑 실시간 구독 추가
+      const channel = supabase
+        .channel('leave_requests_student')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'leave_requests' },
+          () => {
+            console.log('Realtime update detected, refetching...');
+            fetchLeaveRequests(loginId);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
   }, []);
 
   const fetchLeaveRequests = async (id: string) => {
     try {
-      // 1. 기본 leave_requests 데이터만 가져오기 (JOIN 없이)
-      const { data: leaveData, error: leaveError } = await supabase
+      // 1. 내가 신청자인 경우와 추가 신청자로 등록된 경우를 모두 가져오기
+      // 1-1. 내가 메인 신청자인 이석들
+      const { data: mainRequests, error: mainError } = await supabase
         .from('leave_requests')
         .select('*')
         .eq('student_id', id)
-        .neq('status', '취소')
-        .order('created_at', { ascending: false });
+        .neq('status', '취소');
 
-      if (leaveError) {
-        console.error('Leave requests fetch error:', leaveError);
-        return;
+      if (mainError) throw mainError;
+
+      // 1-2. 내가 추가 신청자인 이석 ID들 가져오기
+      const { data: coStudentData, error: coError } = await supabase
+        .from('leave_request_students')
+        .select('leave_request_id')
+        .eq('student_id', id);
+
+      if (coError) throw coError;
+
+      const coRequestIds = coStudentData?.map(c => c.leave_request_id) || [];
+
+      // 1-3. 추가 신청자로 등록된 이석 정보 가져오기
+      let coRequests: any[] = [];
+      if (coRequestIds.length > 0) {
+        const { data: fetchedCoRequests, error: fetchCoError } = await supabase
+          .from('leave_requests')
+          .select('*')
+          .in('id', coRequestIds)
+          .neq('status', '취소');
+
+        if (fetchCoError) throw fetchCoError;
+        coRequests = fetchedCoRequests || [];
       }
 
-      if (!leaveData || leaveData.length === 0) {
+      // 두 목록 합치기 및 중복 제거 (혹시 모를)
+      const allRequestIds = new Set([...(mainRequests?.map(r => r.id) || []), ...coRequests.map(r => r.id)]);
+      const combinedRequests = [...(mainRequests || []), ...coRequests].filter(r => {
+        if (allRequestIds.has(r.id)) {
+          allRequestIds.delete(r.id);
+          return true;
+        }
+        return false;
+      });
+
+      // 작성일 기준 정렬
+      combinedRequests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      if (combinedRequests.length === 0) {
         setLeaveRequests([]);
         return;
       }
@@ -127,7 +179,7 @@ export default function LeaveRequestForm() {
 
       // 3. 각 leave_request에 대한 추가 학생 및 teacher 정보 병합
       const requestsWithDetails = await Promise.all(
-        leaveData.map(async (req) => {
+        combinedRequests.map(async (req) => {
           // 추가 학생 정보
           const { data: additionalStudents } = await supabase
             .from('leave_request_students')
@@ -259,42 +311,140 @@ export default function LeaveRequestForm() {
       }
     }
 
-    // FIX: 중복 교시 체크 보완 (추가 신청자 포함 전체 검사, 신청/승인 상태 포함)
-    if (leaveType === '이석' || leaveType === '컴이석') {
-      const startOfDay = new Date(targetDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(targetDate);
-      endOfDay.setHours(23, 59, 59, 999);
+    // FIX: 중복 교시/시간 체크 보완 (추가 신청자 포함 전체 검사, 신청/승인 상태 포함)
+    // 1. 기간 설정 (당일 0시 ~ 24시 스캔이 아니라, 신청하려는 시간대 기준 전후로 넓게 검사 필요하지만
+    //    DB 쿼리 효율을 위해 신청일(targetDate/startDate) 기준 해당 날짜의 전체 기록을 가져와 JS에서 필터링하는 전략 사용)
+    const checkDate = (leaveType === '외출' || leaveType === '외박') ? startDate : targetDate;
+    if (!checkDate) return;
 
-      const { data: existingLeaves } = await supabase
+    const startOfDay = new Date(checkDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = (leaveType === '외박' && endDate) ? new Date(endDate) : new Date(checkDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // 내(신청자들) 관련 유효한 이석 기록 가져오기 (메인 신청자 또는 추가 신청자로 포함된 모든 경우)
+    const studentIds = addedStudents.map(s => s.student_id);
+
+    // 1-1. 내가 메인 신청자인 경우
+    const { data: mainExist } = await supabase
+      .from('leave_requests')
+      .select('id, leave_type, start_time, end_time, period, student_id, status')
+      .in('student_id', studentIds)
+      .in('status', ['신청', '승인'])
+      .lte('start_time', endOfDay.toISOString())
+      .gte('end_time', startOfDay.toISOString());
+
+    // 1-2. 내가 추가 신청자로 등록된 경우
+    const { data: coData } = await supabase
+      .from('leave_request_students')
+      .select('leave_request_id')
+      .in('student_id', studentIds);
+
+    const coIds = coData?.map(c => c.leave_request_id) || [];
+    let coExist: any[] = [];
+    if (coIds.length > 0) {
+      const { data: fetchedCo } = await supabase
         .from('leave_requests')
-        .select('period, student_id')
-        .in('student_id', addedStudents.map(s => s.student_id))
+        .select('id, leave_type, start_time, end_time, period, student_id, status')
+        .in('id', coIds)
         .in('status', ['신청', '승인'])
-        .gte('start_time', startOfDay.toISOString())
-        .lte('end_time', endOfDay.toISOString());
+        .lte('start_time', endOfDay.toISOString())
+        .gte('end_time', startOfDay.toISOString());
+      coExist = fetchedCo || [];
+    }
 
-      const existingPeriods = existingLeaves?.flatMap(l => l.period?.split(',') || []) || [];
-      const duplicate = periods.some(p => existingPeriods.includes(p));
-      if (duplicate) {
-        toast.error('이미 해당 교시에 이석 신청이 있습니다');
-        return;
+    // 목록 합치기 및 중복 제거
+    const combinedExist = [...(mainExist || []), ...coExist];
+    const existingLeaves = combinedExist.filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i);
+
+    if (existingLeaves && existingLeaves.length > 0) {
+      // 신규 신청 시간 범위 계산
+      let newStart: Date, newEnd: Date;
+
+      if (leaveType === '외출' || leaveType === '외박') {
+        if (!startDate || !endDate) return;
+        newStart = new Date(startDate);
+        newEnd = new Date(endDate);
+      } else {
+        // 주간/야간 이석 등 (교시 기반)
+        // 교시를 대략적 시간으로 환산하거나, '같은 교시 문자열'이 있는지 체크
+        // 여기서는 단순 교시 문자열 매칭 + 시간 겹침 둘 다 확인
+        newStart = new Date(targetDate); // 임시 (교시 로직은 별도)
+        newEnd = new Date(targetDate);
+      }
+
+      // 충돌 검사
+      for (const exist of existingLeaves) {
+        const existStatus = exist.status;
+        const existDate = new Date(exist.start_time).toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+
+        // 1. 교시 기반 중복 체크 (이석 <-> 이석)
+        // 둘 다 교시 정보가 있는 경우 (이석, 컴이석)
+        if (exist.period) {
+          const existPeriods = exist.period.split(',');
+          const duplicatePeriod = periods.find(p => existPeriods.includes(p));
+          if (duplicatePeriod) {
+            toast.error(`[중복] ${exist.student_id} 학생: 이미 ${duplicatePeriod}에 '${exist.leave_type}(${existStatus})' 신청이 있습니다. (ID: ${exist.id}, 날짜: ${existDate})`);
+            return;
+          }
+        }
+
+        // 2. 시간 기반 중복 체크
+        // 기존 이석이 '시간 기반(외출/외박)'이거나, 신규 이석이 '시간 기반'인 경우
+        // (단, '이석-이석' 간에는 교시로만 체크하므로 제외... 가 아니라 교시->시간 변환이 어려우니 일단 패스하고)
+        // "외출 vs 외출", "외출 vs 이석" 등을 체크해야 함.
+        // 하지만 '이석(교시)' 신청 시에는 정확한 시간(Time)을 모르므로(교시 정보만 있음), '외출' 시간과 비교하기가 모호함.
+        // 여기서는 '사용자 요청 이슈(컴이석 8,9 vs 야자 1,2)'에 집중하여,
+        // 혹시 컴이석이 '시간 범위'로 잡혀서 충돌나는지 확인하려 했으나, '컴이석'은 'period'를 가짐.
+        // 따라서 위 1번 블록에서 걸렸을 것임.
+
+        // 만약 신규 신청이 '외출/외박'이라면 시간 비교 수행
+        if (leaveType === '외출' || leaveType === '외박') {
+          const existStart = new Date(exist.start_time);
+          const existEnd = new Date(exist.end_time);
+
+          if (existStart < newEnd && existEnd > newStart) { // Overlap logic
+            const formatTime = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+            toast.error(`[시간 중복] ${exist.student_id} 학생: 기존 '${exist.leave_type}' (${formatTime(existStart)}~${formatTime(existEnd)})과 겹칩니다.`);
+            return;
+          }
+        }
       }
     }
 
-    // FIX: 데이터 저장 처리 개선 (외출/외박 시 period: null)
+    // FIX: 이석/컴이석의 end_time을 당일 23:59:59로 설정하여 '진행 중' 목록에 유지되도록 함
+    // 자리비움 로직: 현재 시간 + 10분, 승인 상태
+    let finalStartTime = startDate?.toISOString();
+    let finalEndTime = endDate?.toISOString();
+    let finalStatus = '신청';
+    let finalPeriod = (leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움') ? null : periods.join(',');
+
+    if (leaveType === '컴이석' || leaveType === '이석') {
+      const periodEndTime = new Date(targetDate);
+      periodEndTime.setHours(23, 59, 59, 999);
+      finalStartTime = targetDate.toISOString();
+      finalEndTime = periodEndTime.toISOString();
+      if (leaveType === '컴이석') finalStatus = '승인'; // 컴이석 자동승인
+    } else if (leaveType === '자리비움') {
+      const now = new Date();
+      const tenMinsLater = new Date(now.getTime() + 10 * 60000); // 10 minutes later
+      finalStartTime = now.toISOString();
+      finalEndTime = tenMinsLater.toISOString();
+      finalStatus = '승인'; // 자리비움 자동승인
+    }
+
     const { data: leaveData, error: leaveError } = await supabase
       .from('leave_requests')
       .insert([{
         student_id: studentId,
         leave_type: leaveType,
-        teacher_id: leaveType === '컴이석' ? null : teacherId,
-        place: leaveType === '컴이석' ? null : place,
-        reason: leaveType === '컴이석' ? null : reason,
-        period: (leaveType === '외출' || leaveType === '외박') ? null : periods.join(','),
-        start_time: (leaveType === '컴이석' || leaveType === '이석') ? targetDate.toISOString() : startDate?.toISOString(),
-        end_time: (leaveType === '컴이석' || leaveType === '이석') ? targetDate.toISOString() : endDate?.toISOString(),
-        status: leaveType === '컴이석' ? '승인' : '신청',
+        teacher_id: (leaveType === '컴이석' || leaveType === '자리비움') ? null : teacherId,
+        place: (leaveType === '컴이석' || leaveType === '자리비움') ? null : place,
+        reason: (leaveType === '컴이석' || leaveType === '자리비움') ? (leaveType === '자리비움' ? '10분간 자리비움' : null) : reason,
+        period: finalPeriod,
+        start_time: finalStartTime,
+        end_time: finalEndTime,
+        status: finalStatus,
       }])
       .select()
       .single();
@@ -340,16 +490,20 @@ export default function LeaveRequestForm() {
     setStartDate(null);
     setEndDate(null);
 
-    toast.success('이석 신청이 완료되었습니다.');
+    toast.success(leaveType === '자리비움' ? '10분간 자리비움이 승인되었습니다.' : '이석 신청이 완료되었습니다.');
   };
 
 
   return (
     <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
       <Toaster />
-      <h1 className="text-2xl font-bold mb-6">이석 신청</h1>
 
       <div className="flex flex-col w-full max-w-xl mx-auto relative">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
+          <h1 className="text-xl font-extrabold text-gray-800">이석 신청</h1>
+        </div>
+
         {/* 신청자 */}
         <div className="flex flex-col gap-2 mb-3">
           <span>신청자</span>
@@ -470,6 +624,7 @@ export default function LeaveRequestForm() {
         {/* 교시 선택 */}
         <div className={clsx(
           "grid transition-all duration-300 ease-in-out overflow-hidden",
+          // 자리비움일 땐 시간 선택 숨김
           (leaveType === '컴이석' || leaveType === '이석') ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
         )}>
           <div className="min-h-0">
@@ -480,7 +635,7 @@ export default function LeaveRequestForm() {
               const typeConfigs = isWeekend
                 ? [
                   { key: '오전', label: '오전', periods: ['1', '2', '3'] },
-                  { key: '오후', label: '오후', periods: ['1', '2', '3'] },
+                  { key: '오후', label: '오후', periods: ['4', '5', '6'] },
                   { key: '야간_공휴일', label: '야간', periods: ['1', '2', '3'] },
                 ]
                 : [
@@ -593,7 +748,8 @@ export default function LeaveRequestForm() {
         {/* 지도교사 / 장소 / 사유 */}
         <div className={clsx(
           "grid transition-all duration-300 ease-in-out overflow-hidden",
-          leaveType !== '컴이석' ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          // 자리비움일 땐 입력 숨김
+          (leaveType !== '컴이석' && leaveType !== '자리비움') ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
         )}>
           <div className="min-h-0">
             <div className="flex flex-col gap-3 pb-3">
@@ -723,16 +879,16 @@ export default function LeaveRequestForm() {
                     key={req.id}
                     onClick={() => setExpandedId(isExpanded ? null : req.id)}
                     className={clsx(
-                      "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-hidden",
-                      isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-5 py-3 min-h-[60px] h-auto",
+                      "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
+                      isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-5 py-3 min-h-[60px]",
                       isPast && "opacity-60"
                     )}
                   >
                     {/* 상단 한 줄 요약 (Collapsed & Expanded Header) */}
-                    <div className="flex items-center w-full h-full gap-4">
+                    <div className="flex items-center w-full gap-3">
 
                       {/* 1. 상태 아이콘 & 이석 종류 */}
-                      <div className="flex items-center gap-2 shrink-0 min-w-[80px]">
+                      <div className="flex items-center gap-2 shrink-0 w-[85px]">
                         <div className={clsx(
                           "w-2 h-2 rounded-full",
                           statusConfig.dot,
@@ -749,16 +905,16 @@ export default function LeaveRequestForm() {
                       {/* 신청자, 시간, 사유를 그룹화하여 간격 좁힘 (gap-2) */}
                       <div className="flex flex-1 items-center gap-2 min-w-0">
                         {/* 2. 신청자 (세로 나열) */}
-                        <div className="flex flex-col gap-1 shrink-0 justify-center">
+                        <div className="flex flex-col gap-1 shrink-0 justify-center min-w-[3rem]">
                           {allStudents.map((id, idx) => (
-                            <span key={idx} className="text-gray-200 text-xs leading-tight">
+                            <span key={idx} className="text-gray-200 text-xs leading-tight whitespace-nowrap">
                               {id}
                             </span>
                           ))}
                         </div>
 
                         {/* 3. 시간 (Time - 교시 램프 스타일 & 날짜 조건부 표시) */}
-                        <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center min-w-fit ml-2">
+                        <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-32">
                           {(() => {
                             const start = new Date(req.start_time);
                             const now = new Date();
@@ -771,7 +927,7 @@ export default function LeaveRequestForm() {
                               const groups = isWeekend
                                 ? [
                                   { label: '오전', periods: ['1', '2', '3'] },
-                                  { label: '오후', periods: ['1', '2', '3'] },
+                                  { label: '오후', periods: ['4', '5', '6'] },
                                   { label: '야간', periods: ['1', '2', '3'] }
                                 ]
                                 : [
@@ -783,31 +939,31 @@ export default function LeaveRequestForm() {
 
                               return (
                                 <div className="flex flex-col gap-1.5">
-                                  {!isToday && (
-                                    <span className="text-gray-500 mb-0.5">
-                                      {start.toLocaleDateString([], { month: 'numeric', day: 'numeric' })}
-                                    </span>
-                                  )}
                                   <div className="flex flex-col gap-1">
                                     {groups.map((group, gIdx) => (
                                       <div key={gIdx} className="flex gap-1 items-center">
-                                        {group.periods.map(p => {
-                                          const periodLabel = `${group.label}${p}교시`;
-                                          const isActive = activePeriods.includes(periodLabel);
-                                          return (
-                                            <div
-                                              key={p}
-                                              className={clsx(
-                                                "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all",
-                                                isActive
-                                                  ? "bg-yellow-400 text-black shadow-[0_0_8px_rgba(250,204,21,0.6)]"
-                                                  : "bg-white/5 text-white/20 border border-white/5"
-                                              )}
-                                            >
-                                              {p}
-                                            </div>
-                                          );
-                                        })}
+                                        <span className="text-[11px] text-gray-400 font-medium w-7 text-left">
+                                          {gIdx === 0 ? start.toLocaleDateString([], { month: 'numeric', day: 'numeric' }) : ""}
+                                        </span>
+                                        <div className="flex gap-1 items-center">
+                                          {group.periods.map(p => {
+                                            const periodLabel = `${group.label}${p}교시`;
+                                            const isActive = activePeriods.includes(periodLabel);
+                                            return (
+                                              <div
+                                                key={p}
+                                                className={clsx(
+                                                  "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all",
+                                                  isActive
+                                                    ? "bg-yellow-400 text-black shadow-[0_0_8px_rgba(250,204,21,0.6)]"
+                                                    : "bg-white/5 text-white/20 border border-white/5"
+                                                )}
+                                              >
+                                                {p}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
                                       </div>
                                     ))}
                                   </div>
@@ -821,34 +977,26 @@ export default function LeaveRequestForm() {
 
                               return (
                                 <div className="flex flex-col gap-0.5 leading-tight">
-                                  {isToday ? (
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-yellow-400">{formatTime(start)}</span>
-                                      <span className="text-gray-600 text-xs">~</span>
-                                      <span className="text-orange-400">{formatTime(end)}</span>
+                                  <div className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-gray-400 text-[11px] w-7 text-left">{formatDate(start)}</span>
+                                      <span className="text-yellow-400 text-[11px] font-bold">{formatTime(start)}</span>
                                     </div>
-                                  ) : (
-                                    <div className="flex flex-col gap-0.5">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-gray-500 text-xs min-w-[35px]">{formatDate(start)}</span>
-                                        <span className="text-yellow-400">{formatTime(start)}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-gray-500 text-xs min-w-[35px]">{formatDate(end)}</span>
-                                        <span className="text-orange-400">{formatTime(end)}</span>
-                                      </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-gray-400 text-[11px] w-7 text-left">{formatDate(end)}</span>
+                                      <span className="text-orange-400 text-[11px] font-bold">{formatTime(end)}</span>
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
                               );
                             }
                           })()}
                         </div>
 
-                        {/* 4. 사유 (Reason) - 시간 옆에 표시 (간격 조정) */}
+                        {/* 4. 사유 (Reason) - 16자 이상 줄바꿈, 주말 이석사유 위치로 통일 */}
                         {!isExpanded && req.reason && (
-                          <div className="flex items-center min-w-0 ml-4">
-                            <span className="text-gray-400 text-xs truncate">
+                          <div className="flex items-center min-w-0 ml-1 max-w-[120px]">
+                            <span className="text-gray-400 text-[11px] break-words leading-tight">
                               {req.reason}
                             </span>
                           </div>
@@ -858,7 +1006,7 @@ export default function LeaveRequestForm() {
                       {/* 5. 취소 버튼 (우측 끝) */}
                       {!isPast && (
                         <div className="ml-auto flex items-center shrink-0">
-                          {(req.status === '신청' || (req.status === '승인' && req.leave_type === '컴이석')) && (
+                          {req.status !== '취소' && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleCancelRequest(req.id); }}
                               className="text-gray-500 hover:text-red-500 transition-colors p-1"
@@ -874,31 +1022,35 @@ export default function LeaveRequestForm() {
                     </div>
 
 
-                    {/* 확장 상세 정보 (Expanded Details) */}
-                    {isExpanded && (
-                      <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
-                        {/* 상세 정보 그리드 */}
-                        <div className="grid grid-cols-2 gap-4 text-xs">
-                          {req.leave_type !== '컴이석' && (
-                            <>
-                              <div className="flex flex-col gap-1">
-                                <span className="text-gray-500 font-bold">지도교사</span>
-                                <span className="text-white">{req.teachers?.name || '-'}</span>
+                    {
+                      isExpanded && (
+                        <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+                          <div className="grid grid-cols-3 gap-4 text-xs">
+                            {req.leave_type !== '컴이석' ? (
+                              <>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-gray-500 font-bold">지도교사</span>
+                                  <span className="text-white">{(req as any).teachers?.name || '-'}</span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-gray-500 font-bold">장소</span>
+                                  <span className="text-white">{req.place || '-'}</span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-gray-500 font-bold">사유</span>
+                                  <span className="text-white">{req.reason || '-'}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex flex-col gap-1 col-span-3">
+                                <span className="text-gray-500 font-bold italic text-[10px]">컴이석은 별도 장소/사유가 필요하지 않습니다.</span>
                               </div>
-                              <div className="flex flex-col gap-1">
-                                <span className="text-gray-500 font-bold">장소</span>
-                                <span className="text-white">{req.place || '-'}</span>
-                              </div>
-                            </>
-                          )}
-                          <div className="flex flex-col gap-1 col-span-2">
-                            <span className="text-gray-500 font-bold">사유</span>
-                            <span className="text-white">{req.reason || '-'}</span>
+                            )}
                           </div>
 
                           {/* 전체 신청자 목록 */}
                           {additionalIds.length > 0 && (
-                            <div className="flex flex-col gap-1 col-span-2">
+                            <div className="flex flex-col gap-1">
                               <span className="text-gray-500 font-bold">함께하는 학생들</span>
                               <div className="flex flex-wrap gap-1.5">
                                 {allStudents.map(id => (
@@ -910,22 +1062,22 @@ export default function LeaveRequestForm() {
                             </div>
                           )}
 
-                          <div className="flex flex-col gap-1 col-span-2">
+                          <div className="flex flex-col gap-1">
                             <span className="text-gray-500 font-bold">신청 일시</span>
-                            <span className="text-gray-400">
+                            <span className="text-gray-400 text-xs">
                               {new Date(req.created_at).toLocaleString()}
                             </span>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )
+                    }
                   </div>
                 );
-              });
+              })
             })()}
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
