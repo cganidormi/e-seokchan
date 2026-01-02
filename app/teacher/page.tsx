@@ -74,7 +74,6 @@ export default function TeacherPage() {
         .from('leave_requests')
         .select('*')
         .eq('teacher_id', id)
-        .neq('status', '취소')
         .order('created_at', { ascending: false });
 
       if (error) {

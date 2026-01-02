@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import clsx from 'clsx';
 import { LeaveRequest } from './types';
 import { LeaveStatusCard } from './LeaveStatusCard';
+import { supabase } from '@/supabaseClient';
 
 interface LeaveStatusListProps {
     leaveRequests: LeaveRequest[];
@@ -19,10 +20,53 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const [viewMode, setViewMode] = useState<'active' | 'past'>('active');
     const [filterType, setFilterType] = useState('전체');
+    const [now, setNow] = useState(new Date());
+    const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
 
-    const now = new Date();
-    const activeRequests = leaveRequests.filter(req => new Date(req.end_time) >= now);
-    const pastRequests = leaveRequests.filter(req => new Date(req.end_time) < now);
+    React.useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 30000);
+
+        const fetchHolidays = async () => {
+            const { data } = await supabase.from('special_holidays').select('date');
+            if (data) setSpecialHolidays(data.map((h: { date: string }) => h.date));
+        };
+        fetchHolidays();
+
+        return () => clearInterval(timer);
+    }, []);
+
+    const isDateHoliday = (date: Date) => {
+        const day = date.getDay();
+        const isWeekend = day === 0 || day === 6;
+        if (isWeekend) return true;
+        const dateStr = date.toLocaleDateString('en-CA');
+        return specialHolidays.includes(dateStr);
+    };
+
+    const isRequestActive = (req: any) => {
+        if (req.status === '취소' || req.status === '반려') return false;
+        const endTime = new Date(req.end_time);
+
+        // If it's already significantly past the end time, it's definitely past
+        if (endTime < now) return false;
+
+        // Special handling for "end of day" legacy timestamps (e.g., 23:59) 
+        // that might keep daytime sessions active too long.
+        // If the end time is essentially midnight and it contains Daytime (주간),
+        // we should expire it earlier (e.g., after 19:00).
+        if (endTime.getHours() >= 23 && req.period) {
+            const isDaytime = req.period.includes('주간') || req.period.includes('오전') || req.period.includes('오후');
+            const isHoliday = isDateHoliday(now);
+
+            if (isDaytime && !isHoliday && now.getHours() >= 19) return false;
+            if (isDaytime && isHoliday && now.getHours() >= 18) return false;
+        }
+
+        return true;
+    };
+
+    const activeRequests = leaveRequests.filter(req => isRequestActive(req));
+    const pastRequests = leaveRequests.filter(req => !isRequestActive(req));
     const displayList = (viewMode === 'active' ? activeRequests : pastRequests)
         .filter(req => filterType === '전체' || req.leave_type === filterType);
 

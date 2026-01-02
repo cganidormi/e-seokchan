@@ -21,12 +21,29 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     const [viewMode, setViewMode] = useState<'active' | 'past'>('active');
     const [expandedId, setExpandedId] = useState<string | number | null>(null);
     const [statusMenuId, setStatusMenuId] = useState<string | number | null>(null);
+    const [now, setNow] = useState(new Date());
 
-    const now = new Date();
-    const filtered = (leaveRequests || []).filter(req => {
+    React.useEffect(() => {
+        const timer = setInterval(() => setNow(new Date()), 30000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const isRequestActive = (req: any) => {
+        if (req.status === '취소' || req.status === '반려') return false;
         const endTime = new Date(req.end_time);
-        const isPast = endTime < now;
-        return viewMode === 'active' ? !isPast : isPast;
+        if (endTime < now) return false;
+        if (endTime.getHours() >= 23 && req.period) {
+            const isDaytime = req.period.includes('주간') || req.period.includes('오전') || req.period.includes('오후');
+            const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+            if (isDaytime && !isWeekend && now.getHours() >= 19) return false;
+            if (isDaytime && isWeekend && now.getHours() >= 18) return false;
+        }
+        return true;
+    };
+
+    const filtered = (leaveRequests || []).filter(req => {
+        const isActive = isRequestActive(req);
+        return viewMode === 'active' ? isActive : !isActive;
     });
 
     return (

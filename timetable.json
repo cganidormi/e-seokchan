@@ -1,0 +1,222 @@
+[
+  {
+    "id": 1,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday day 1",
+    "period_type": "day",
+    "period_number": 1,
+    "description": "평일주간1교시",
+    "start_time": "09:00:00",
+    "end_time": "09:50:00"
+  },
+  {
+    "id": 3,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday day 3",
+    "period_type": "day",
+    "period_number": 3,
+    "description": "평일주간3교시",
+    "start_time": "11:00:00",
+    "end_time": "11:50:00"
+  },
+  {
+    "id": 2,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday day 2",
+    "period_type": "day",
+    "period_number": 2,
+    "description": "평일주간2교시",
+    "start_time": "10:00:00",
+    "end_time": "10:50:00"
+  },
+  {
+    "id": 4,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday day 4",
+    "period_type": "day",
+    "period_number": 4,
+    "description": "평일주간4교시",
+    "start_time": "12:00:00",
+    "end_time": "12:50:00"
+  },
+  {
+    "id": 5,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday day 5",
+    "period_type": "day",
+    "period_number": 5,
+    "description": "평일주간5교시",
+    "start_time": "13:00:00",
+    "end_time": "13:50:00"
+  },
+  {
+    "id": 6,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday day 6",
+    "period_type": "day",
+    "period_number": 6,
+    "description": "평일주간6교시",
+    "start_time": "14:00:00",
+    "end_time": "14:50:00"
+  },
+  {
+    "id": 7,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday day 7",
+    "period_type": "day",
+    "period_number": 7,
+    "description": "평일주간7교시",
+    "start_time": "15:00:00",
+    "end_time": "15:50:00"
+  },
+  {
+    "id": 8,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday day 8",
+    "period_type": "day",
+    "period_number": 8,
+    "description": "평일주간8교시",
+    "start_time": "16:00:00",
+    "end_time": "16:50:00"
+  },
+  {
+    "id": 9,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday day 9",
+    "period_type": "day",
+    "period_number": 9,
+    "description": "평일주간9교시",
+    "start_time": "17:00:00",
+    "end_time": "17:50:00"
+  },
+  {
+    "id": 10,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday night 1",
+    "period_type": "night",
+    "period_number": 1,
+    "description": "평일야간1교시",
+    "start_time": "18:00:00",
+    "end_time": "18:50:00"
+  },
+  {
+    "id": 14,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekend day 1",
+    "period_type": "day",
+    "period_number": 1,
+    "description": "주말주간1교시",
+    "start_time": "09:00:00",
+    "end_time": "09:50:00"
+  },
+  {
+    "id": 15,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekend day 2",
+    "period_type": "day",
+    "period_number": 2,
+    "description": "주말주간2교시",
+    "start_time": "10:00:00",
+    "end_time": "10:50:00"
+  },
+  {
+    "id": 16,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekend day 3",
+    "period_type": "day",
+    "period_number": 3,
+    "description": "주말주간3교시",
+    "start_time": "11:00:00",
+    "end_time": "11:50:00"
+  },
+  {
+    "id": 17,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekend day 4",
+    "period_type": "day",
+    "period_number": 4,
+    "description": "주말주간4교시",
+    "start_time": "12:00:00",
+    "end_time": "12:50:00"
+  },
+  {
+    "id": 18,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekend day 5",
+    "period_type": "day",
+    "period_number": 5,
+    "description": "주말주간5교시",
+    "start_time": "13:00:00",
+    "end_time": "13:50:00"
+  },
+  {
+    "id": 19,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekend day 6",
+    "period_type": "day",
+    "period_number": 6,
+    "description": "주말주간6교시",
+    "start_time": "14:00:00",
+    "end_time": "14:50:00"
+  },
+  {
+    "id": 20,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekend night 1",
+    "period_type": "night",
+    "period_number": 1,
+    "description": "주말야간1교시",
+    "start_time": "18:00:00",
+    "end_time": "18:50:00"
+  },
+  {
+    "id": 21,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekend night 2",
+    "period_type": "night",
+    "period_number": 2,
+    "description": "주말야간2교시",
+    "start_time": "19:00:00",
+    "end_time": "19:50:00"
+  },
+  {
+    "id": 22,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekend night 3",
+    "period_type": "night",
+    "period_number": 3,
+    "description": "주말야간3교시",
+    "start_time": "20:00:00",
+    "end_time": "20:50:00"
+  },
+  {
+    "id": 11,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday night 2",
+    "period_type": "night",
+    "period_number": 2,
+    "description": "평일야간2교시",
+    "start_time": "19:00:00",
+    "end_time": "19:50:00"
+  },
+  {
+    "id": 12,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday night 3",
+    "period_type": "night",
+    "period_number": 3,
+    "description": "평일야간3교시",
+    "start_time": "20:00:00",
+    "end_time": "20:50:00"
+  },
+  {
+    "id": 13,
+    "created_at": "2025-12-05T19:35:49.822469+00:00",
+    "day_type": "weekday night 4",
+    "period_type": "night",
+    "period_number": 4,
+    "description": "평일야간4교시",
+    "start_time": "21:00:00",
+    "end_time": "21:50:00"
+  }
+]

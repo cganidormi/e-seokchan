@@ -34,12 +34,28 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
     const [startDate, setStartDate] = useState<Date | null>(null);
     const [endDate, setEndDate] = useState<Date | null>(null);
     const [targetDate, setTargetDate] = useState<Date>(new Date());
+    const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
 
-    // Initialize login student
+    // Initialize login student and fetch holidays
     React.useEffect(() => {
         const loginStudent = students.find(s => s.student_id === studentId);
         if (loginStudent) setAddedStudents([loginStudent]);
+
+        const fetchHolidays = async () => {
+            const { data } = await supabase.from('special_holidays').select('date');
+            if (data) setSpecialHolidays(data.map(h => h.date));
+        };
+        fetchHolidays();
     }, [studentId, students]);
+
+    const isDateHoliday = (date: Date) => {
+        const day = date.getDay();
+        const isWeekend = day === 0 || day === 6;
+        if (isWeekend) return true;
+
+        const dateStr = date.toLocaleDateString('en-CA'); // YYYY-MM-DD
+        return specialHolidays.includes(dateStr);
+    };
 
     const togglePeriod = (p: string) => {
         setPeriods(prev =>
@@ -52,8 +68,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
         const isToday = targetDate.toDateString() === now.toDateString();
 
         if (isToday && (leaveType === '이석' || leaveType === '컴이석') && periods.length > 0) {
-            const day = targetDate.getDay();
-            const isWeekend = day === 0 || day === 6;
+            const isHoliday = isDateHoliday(targetDate);
 
             const { data: timetable } = await supabase.from('timetable_entries').select('*');
 
@@ -63,7 +78,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     const periodNum = p.match(/\d+/) ? p.match(/\d+/)![0] : '';
 
                     if (p.startsWith('주간')) matchType = 'weekday day';
-                    else if (p.startsWith('야간')) matchType = isWeekend ? 'weekend night' : 'weekday night';
+                    else if (p.startsWith('야간')) matchType = isHoliday ? 'weekend night' : 'weekday night';
                     else if (p.startsWith('오전')) matchType = 'weekend morning';
                     else if (p.startsWith('오후')) matchType = 'weekend afternoon';
 
@@ -124,7 +139,8 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             .in('student_id', studentIds)
             .in('status', ['신청', '승인'])
             .lte('start_time', endOfDay.toISOString())
-            .gte('end_time', startOfDay.toISOString());
+            .gte('end_time', startOfDay.toISOString())
+            .gt('end_time', now.toISOString()); // Ignore past requests
 
         const { data: coData } = await supabase
             .from('leave_request_students')
@@ -140,7 +156,8 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 .in('id', coIds)
                 .in('status', ['신청', '승인'])
                 .lte('start_time', endOfDay.toISOString())
-                .gte('end_time', startOfDay.toISOString());
+                .gte('end_time', startOfDay.toISOString())
+                .gt('end_time', now.toISOString()); // Ignore past requests
             coExist = fetchedCo || [];
         }
 
@@ -185,10 +202,44 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
         let finalPeriod = (leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움') ? null : periods.join(',');
 
         if (leaveType === '컴이석' || leaveType === '이석') {
-            const periodEndTime = new Date(targetDate);
-            periodEndTime.setHours(23, 59, 59, 999);
             finalStartTime = targetDate.toISOString();
-            finalEndTime = periodEndTime.toISOString();
+
+            // Find the latest end time from selected periods
+            let maxEndTime = new Date(targetDate);
+            maxEndTime.setHours(23, 59, 59, 999); // Default fallback
+
+            const { data: timetable } = await supabase.from('timetable_entries').select('*');
+            if (timetable && periods.length > 0) {
+                let latestDate = new Date(0);
+                const isHoliday = isDateHoliday(targetDate);
+
+                for (const p of periods) {
+                    let matchType = '';
+                    const periodNum = p.match(/\d+/) ? p.match(/\d+/)![0] : '';
+                    if (p.startsWith('주간')) matchType = 'weekday day';
+                    else if (p.startsWith('야간')) matchType = isHoliday ? 'weekend night' : 'weekday night';
+                    else if (p.startsWith('오전')) matchType = 'weekend morning';
+                    else if (p.startsWith('오후')) matchType = 'weekend afternoon';
+
+                    const entry = timetable.find(t => {
+                        const dt = t.day_type.toLowerCase();
+                        const desc = t.description?.toLowerCase() || '';
+                        const normalizedMatchType = matchType.toLowerCase();
+                        return dt.includes(normalizedMatchType) && (dt.includes(periodNum) || desc.includes(periodNum));
+                    });
+
+                    if (entry && entry.end_time) {
+                        const [hours, minutes] = entry.end_time.split(':').map(Number);
+                        const d = new Date(targetDate);
+                        d.setHours(hours, minutes, 59, 999);
+                        if (d > latestDate) latestDate = d;
+                    }
+                }
+                if (latestDate.getTime() > 0) {
+                    maxEndTime = latestDate;
+                }
+            }
+            finalEndTime = maxEndTime.toISOString();
             if (leaveType === '컴이석') finalStatus = '승인';
         } else if (leaveType === '자리비움') {
             const now = new Date();
@@ -319,9 +370,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                             />
                             <div className={clsx(
                                 "bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden",
-                                targetDate.getDay() === 0 || targetDate.getDay() === 6 ? "grid grid-cols-3 divide-x divide-gray-100" : "flex flex-col p-3 gap-1"
+                                isDateHoliday(targetDate) ? "grid grid-cols-3 divide-x divide-gray-100" : "flex flex-col p-3 gap-1"
                             )}>
-                                {(targetDate.getDay() === 0 || targetDate.getDay() === 6
+                                {(isDateHoliday(targetDate)
                                     ? [{ key: '오전', label: '오전', p: ['1', '2', '3'] }, { key: '오후', label: '오후', p: ['4', '5', '6'] }, { key: '야간_공휴일', label: '야간', p: ['1', '2', '3'] }]
                                     : [{ key: '주간', label: '주간', p: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] }, { key: '야간', label: '야간', p: ['1', '2', '3', '4'] }]
                                 ).map((type) => (

@@ -27,6 +27,14 @@ interface RoomLayout {
     total_seats: number;
 }
 
+interface TimetableEntry {
+    id: number;
+    day_type: string;
+    description: string;
+    start_time: string;
+    end_time: string;
+}
+
 export default function SeatManagementPage() {
     const [selectedRoom, setSelectedRoom] = useState(1);
     const [mode, setMode] = useState<'monitor' | 'edit'>('monitor'); // 'monitor' | 'edit'
@@ -35,6 +43,8 @@ export default function SeatManagementPage() {
     const [assignments, setAssignments] = useState<SeatAssignment[]>([]);
     const [layout, setLayout] = useState<RoomLayout>({ room_number: 1, columns: 6, total_seats: 30 });
     const [activeLeaves, setActiveLeaves] = useState<any[]>([]);
+    const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
+    const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
     const [currentTime, setCurrentTime] = useState(new Date());
 
     // Edit Mode for Layout
@@ -76,8 +86,14 @@ export default function SeatManagementPage() {
     }, [selectedRoom, mode]);
 
     const fetchCommonData = async () => {
-        const { data } = await supabase.from('students').select('*').order('student_id');
-        if (data) setStudents(data);
+        const { data: studentsData } = await supabase.from('students').select('*').order('student_id');
+        if (studentsData) setStudents(studentsData);
+
+        const { data: timetableData } = await supabase.from('timetable_entries').select('*');
+        if (timetableData) setTimetable(timetableData);
+
+        const { data: holidayData } = await supabase.from('special_holidays').select('date');
+        if (holidayData) setSpecialHolidays(holidayData.map(h => h.date));
     };
 
     const fetchLiveStatus = async (roomNum: number) => {
@@ -356,31 +372,49 @@ export default function SeatManagementPage() {
                                     let isAwayBlinking = false;
                                     let activeLeaveReq: any = null; // For seat-level click actions (Away)
 
-                                    // Period Config (Dynamic Visibility)
-                                    const hour = currentTime.getHours();
+                                    // Period Config (Database Driven)
                                     const day = currentTime.getDay();
-                                    const isWeekend = day === 0 || day === 6;
+                                    const dateStr = currentTime.toLocaleDateString('en-CA'); // YYYY-MM-DD
+                                    const isHoliday = (day === 0 || day === 6) || specialHolidays.includes(dateStr);
+                                    const currentHHmm = currentTime.getHours().toString().padStart(2, '0') + ':' + currentTime.getMinutes().toString().padStart(2, '0');
 
                                     let periodGroups: { label: string, periods: string[] }[] = [];
 
-                                    if (isWeekend) {
-                                        if (hour < 12) {
-                                            // Morning (Until 12:00)
-                                            periodGroups = [{ label: '오전', periods: ['1', '2', '3'] }];
-                                        } else if (hour >= 12 && hour < 18) {
-                                            // Afternoon (12:00 - 18:00)
-                                            periodGroups = [{ label: '오후', periods: ['4', '5', '6'] }];
+                                    if (timetable.length > 0) {
+                                        const typeFilter = isHoliday ? 'weekend' : 'weekday';
+                                        const dayPeriods = timetable
+                                            .filter(t => t.day_type.includes(typeFilter) && t.day_type.includes('day'))
+                                            .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                                            .map(t => ({ label: isHoliday ? '오후' : '주간', p: t.description.replace(/[^0-9]/g, '') }));
+
+                                        const nightPeriods = timetable
+                                            .filter(t => t.day_type.includes(typeFilter) && t.day_type.includes('night'))
+                                            .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                                            .map(t => ({ label: '야간', p: t.description.replace(/[^0-9]/g, '') }));
+
+                                        // Weekends might have morning too
+                                        const morningPeriods = isHoliday ? timetable
+                                            .filter(t => t.day_type.includes('weekend morning')) // hypothetical, but handle if any
+                                            .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                                            .map(t => ({ label: '오전', p: t.description.replace(/[^0-9]/g, '') })) : [];
+
+                                        // Pick the most relevant group based on current hour
+                                        // Simplified: show the group that is currently active or upcoming
+                                        // For Weekday: if before 18:00 show Day, else Night
+                                        // For Weekend: if before 12:00 show Morning, 12-18 Afternoon, else Night
+                                        const hour = currentTime.getHours();
+                                        if (isHoliday) {
+                                            if (hour < 12 && morningPeriods.length > 0) periodGroups = [{ label: '오전', periods: morningPeriods.map(x => x.p) }];
+                                            else if (hour < 18) periodGroups = [{ label: '오후', periods: dayPeriods.map(x => x.p) }];
+                                            else periodGroups = [{ label: '야간', periods: nightPeriods.map(x => x.p) }];
                                         } else {
-                                            // Night (After 18:00)
-                                            periodGroups = [{ label: '야간', periods: ['1', '2', '3'] }];
+                                            if (hour < 18) periodGroups = [{ label: '주간', periods: dayPeriods.map(x => x.p) }];
+                                            else periodGroups = [{ label: '야간', periods: nightPeriods.map(x => x.p) }];
                                         }
-                                    } else {
-                                        if (hour < 18) {
-                                            // Weekday Day
-                                            periodGroups = [{ label: '주간', periods: ['6', '7', '8', '9'] }];
-                                        } else {
-                                            // Weekday Night
-                                            periodGroups = [{ label: '야간', periods: ['1', '2', '3', '4'] }];
+
+                                        // Fallback if groups are empty
+                                        if (periodGroups.length === 0 || periodGroups[0].periods.length === 0) {
+                                            if (dayPeriods.length > 0) periodGroups = [{ label: isHoliday ? '오후' : '주간', periods: dayPeriods.map(x => x.p) }];
                                         }
                                     }
 
@@ -409,40 +443,29 @@ export default function SeatManagementPage() {
 
                                     // --- Period Status Helper ---
                                     const getPeriodStatus = (label: string, periodName: string) => {
-                                        // 1. Check if 'Past'
-                                        let periodEndHour = 0;
-                                        if (label === '주간' && periodName === '6') periodEndHour = 15;
-                                        if (label === '주간' && periodName === '7') periodEndHour = 16;
-                                        if (label === '주간' && periodName === '8') periodEndHour = 17;
-                                        if (label === '주간' && periodName === '9') periodEndHour = 18;
-                                        if (label === '야간' && periodName === '1') periodEndHour = 20;
-                                        if (label === '야간' && periodName === '2') periodEndHour = 21;
-                                        if (label === '야간' && periodName === '3') periodEndHour = 22;
-                                        if (label === '야간' && periodName === '4') periodEndHour = 23;
+                                        // 1. Check if 'Past' based on database timetable
+                                        const typeFilter = isHoliday ? 'weekend' : 'weekday';
+                                        // Label check: if '야간' look for night, otherwise day
+                                        const isNight = label === '야간';
+                                        const entry = timetable.find(t =>
+                                            t.day_type.includes(typeFilter) &&
+                                            (isNight ? t.day_type.includes('night') : t.day_type.includes('day')) &&
+                                            t.description.includes(periodName)
+                                        );
 
-                                        if (isWeekend) {
-                                            if (label === '오전') periodEndHour = 9 + parseInt(periodName);
-                                            if (label === '오후') periodEndHour = 12 + parseInt(periodName); // 4->16? Wait. 13+p. 4->17?
-                                            // Let's approximate: 
-                                            // Morn: 1(10), 2(11), 3(12)
-                                            // Aft: 4(14), 5(15), 6(16)
-                                            // Night: 1(20)...
-                                            if (label === '야간') periodEndHour = 18 + parseInt(periodName);
-                                        }
+                                        if (!entry) return { status: 'future', type: null };
 
-                                        const isPast = hour >= periodEndHour;
+                                        const entryEndTime = entry.end_time.substring(0, 5); // HH:mm
+                                        const isPast = currentHHmm > entryEndTime;
 
                                         // 2. Check Assignments for this period
                                         if (assignment && activeLeaves.length > 0) {
-                                            // Find leave for this specific period
-                                            // We need to check all approved leaves for this student targeting TODAY
                                             const studentLeaves = activeLeaves.filter(req => {
                                                 const isTargetStudent = (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id));
                                                 if (!isTargetStudent) return false;
 
-                                                // Date Validation: Must be today (Local Date check)
                                                 const leaveDate = new Date(req.start_time);
-                                                const now = new Date(); // Use actual current clock
+                                                const now = new Date();
                                                 const isSameDay =
                                                     leaveDate.getFullYear() === now.getFullYear() &&
                                                     leaveDate.getMonth() === now.getMonth() &&
@@ -451,18 +474,17 @@ export default function SeatManagementPage() {
                                                 return isSameDay;
                                             });
 
-                                            // 2a. Special check for 'Away' (Seat-wide, but shows in individual block)
+                                            // Active Away check
                                             const activeAway = studentLeaves.find(leave => leave.leave_type === '자리비움');
                                             if (activeAway) {
-                                                // Only show '비' in the block that matches the exact current hour
-                                                const isCurrentPeriod = hour === periodEndHour - 1;
+                                                const entryStartTime = entry.start_time.substring(0, 5);
+                                                const isCurrentPeriod = currentHHmm >= entryStartTime && currentHHmm <= entryEndTime;
                                                 if (isCurrentPeriod) {
                                                     return { status: 'active', type: '자리비움' };
                                                 }
                                             }
 
                                             for (const leave of studentLeaves) {
-                                                // Check text match in 'period' field
                                                 const fullLabel = `${label}${periodName}교시`;
                                                 if (leave.period && leave.period.includes(fullLabel)) {
                                                     return { status: 'active', type: leave.leave_type };

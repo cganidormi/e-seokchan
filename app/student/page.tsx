@@ -47,13 +47,13 @@ export default function StudentPage() {
 
   const fetchLeaveRequests = async (id: string) => {
     try {
-      const { data: mainRequests } = await supabase.from('leave_requests').select('*').eq('student_id', id).neq('status', '취소');
+      const { data: mainRequests } = await supabase.from('leave_requests').select('*').eq('student_id', id);
       const { data: coStudentData } = await supabase.from('leave_request_students').select('leave_request_id').eq('student_id', id);
       const coRequestIds = coStudentData?.map(c => c.leave_request_id) || [];
 
       let coRequests: any[] = [];
       if (coRequestIds.length > 0) {
-        const { data: fetchedCoRequests } = await supabase.from('leave_requests').select('*').in('id', coRequestIds).neq('status', '취소');
+        const { data: fetchedCoRequests } = await supabase.from('leave_requests').select('*').in('id', coRequestIds);
         coRequests = fetchedCoRequests || [];
       }
 
