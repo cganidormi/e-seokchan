@@ -47,8 +47,8 @@ export default function SeatManagementPage() {
 
     useEffect(() => {
         fetchCommonData();
-        // Clock for Monitor Mode
-        const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
+        // Clock for Monitor Mode - 1 second precision for "Real-time" feel
+        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
@@ -56,9 +56,22 @@ export default function SeatManagementPage() {
         fetchRoomData(selectedRoom);
         if (mode === 'monitor') {
             fetchLiveStatus(selectedRoom);
-            // Auto-refresh every 30 seconds for live status
+
+            // Subscribe to real-time changes
+            const channel = supabase
+                .channel('monitor_leave_changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, () => {
+                    fetchLiveStatus(selectedRoom);
+                })
+                .subscribe();
+
+            // Auto-refresh every 30 seconds as a fallback
             const refreshTimer = setInterval(() => fetchLiveStatus(selectedRoom), 30000);
-            return () => clearInterval(refreshTimer);
+
+            return () => {
+                supabase.removeChannel(channel);
+                clearInterval(refreshTimer);
+            };
         }
     }, [selectedRoom, mode]);
 
@@ -198,57 +211,57 @@ export default function SeatManagementPage() {
             <Toaster />
 
             <div className="flex flex-col w-full max-w-6xl mx-auto">
-                <div className="flex items-center justify-between mb-6">
+                {/* Header & Controls */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
-                        <h1 className="text-xl font-extrabold text-gray-800">학습감독 자리배치 관리</h1>
+                        <h1 className="text-xl font-extrabold text-gray-800">양현재 자리배치 관리</h1>
                     </div>
-                    <button
-                        onClick={() => window.location.href = '/teacher'}
-                        className="text-gray-500 hover:text-gray-800 font-bold"
-                    >
-                        ← 뒤로가기
-                    </button>
-                </div>
 
-                {/* Room Tabs & Mode Toggle */}
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-                    <div className="flex gap-2">
-                        {[1, 2, 3].map(room => (
+                    <div className="flex flex-wrap items-center gap-3">
+                        {/* Room Dropdown */}
+                        <div className="bg-white p-1 rounded-xl flex border border-gray-100 shadow-sm">
+                            <select
+                                value={selectedRoom}
+                                onChange={(e) => setSelectedRoom(Number(e.target.value))}
+                                className="bg-transparent px-4 py-2 text-sm font-bold text-gray-700 focus:outline-none cursor-pointer"
+                            >
+                                <option value={1}>제 1 실</option>
+                                <option value={2}>제 2 실</option>
+                                <option value={3}>제 3 실</option>
+                            </select>
+                        </div>
+
+                        {/* List Button */}
+                        <button
+                            onClick={() => window.location.href = '/teacher'}
+                            className="bg-white px-4 py-3 rounded-xl border border-gray-100 shadow-sm text-gray-500 hover:text-gray-800 font-bold text-sm transition-all flex items-center gap-1"
+                        >
+                            <span>←</span>
+                            <span>이석현황 목록</span>
+                        </button>
+
+                        {/* Mode Toggle */}
+                        <div className="bg-white p-1 rounded-xl flex border border-gray-100 shadow-sm">
                             <button
-                                key={room}
-                                onClick={() => setSelectedRoom(room)}
+                                onClick={() => setMode('monitor')}
                                 className={clsx(
-                                    "px-6 py-3 rounded-2xl font-bold text-lg transition-all shadow-sm",
-                                    selectedRoom === room
-                                        ? "bg-yellow-400 text-white shadow-md scale-105"
-                                        : "bg-white text-gray-400 hover:bg-gray-50"
+                                    "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                                    mode === 'monitor' ? "bg-gray-800 text-white shadow-md" : "text-gray-400 hover:bg-gray-50"
                                 )}
                             >
-                                제 {room} 열람실
+                                현황 모니터
                             </button>
-                        ))}
-                    </div>
-
-                    <div className="bg-white p-1 rounded-xl flex border border-gray-100 shadow-sm">
-                        <button
-                            onClick={() => setMode('monitor')}
-                            className={clsx(
-                                "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                                mode === 'monitor' ? "bg-gray-800 text-white shadow-md" : "text-gray-400 hover:bg-gray-50"
-                            )}
-                        >
-                            📺 현황 모니터
-                        </button>
-                        <button
-                            onClick={() => setMode('edit')}
-                            className={clsx(
-                                "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                                mode === 'edit' ? "bg-gray-800 text-white shadow-md" : "text-gray-400 hover:bg-gray-50"
-                            )}
-                        >
-                            ✏️ 좌석 관리
-                        </button>
+                            <button
+                                onClick={() => setMode('edit')}
+                                className={clsx(
+                                    "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                                    mode === 'edit' ? "bg-gray-800 text-white shadow-md" : "text-gray-400 hover:bg-gray-50"
+                                )}
+                            >
+                                좌석 관리
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -321,224 +334,277 @@ export default function SeatManagementPage() {
                 )}
 
                 {/* Seat Grid */}
-                <div className="bg-white p-6 md:p-10 rounded-[2.5rem] shadow-sm border border-gray-100 min-h-[500px]">
+                <div className="min-h-[500px]">
                     {isLoading ? (
                         <div className="flex items-center justify-center h-40">
                             <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
                         </div>
                     ) : (
-                        <div
-                            className="grid gap-1.5 md:gap-2 mx-auto w-fit"
-                            style={{
-                                gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`
-                            }}
-                        >
-                            {Array.from({ length: layout.total_seats }).map((_, idx) => {
-                                const seatNum = idx + 1;
-                                const assignment = assignments.find(a => a.seat_number === seatNum);
+                        <div className="w-full">
+                            <div
+                                className="grid gap-0 text-left w-full border-t border-l border-gray-200"
+                                style={{
+                                    gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`
+                                }}
+                            >
+                                {Array.from({ length: layout.total_seats }).map((_, idx) => {
+                                    const seatNum = idx + 1;
+                                    const assignment = assignments.find(a => a.seat_number === seatNum);
 
-                                // --- Monitor Mode Variables ---
-                                let seatStatusColor = "bg-[#e0e5ec]"; // Neumorphic base
-                                let isAwayBlinking = false;
-                                let activeLeaveReq: any = null; // For seat-level click actions (Away)
+                                    // --- Monitor Mode Variables ---
+                                    let seatStatusColor = "bg-[#e0e5ec]"; // Neumorphic base
+                                    let isAwayBlinking = false;
+                                    let activeLeaveReq: any = null; // For seat-level click actions (Away)
 
-                                // Period Config (Dynamic Visibility)
-                                const hour = currentTime.getHours();
-                                const day = currentTime.getDay();
-                                const isWeekend = day === 0 || day === 6;
+                                    // Period Config (Dynamic Visibility)
+                                    const hour = currentTime.getHours();
+                                    const day = currentTime.getDay();
+                                    const isWeekend = day === 0 || day === 6;
 
-                                let periodGroups: { label: string, periods: string[] }[] = [];
-
-                                if (isWeekend) {
-                                    if (hour < 12) {
-                                        // Morning (Until 12:00)
-                                        periodGroups = [{ label: '오전', periods: ['1', '2', '3'] }];
-                                    } else if (hour >= 12 && hour < 18) {
-                                        // Afternoon (12:00 - 18:00)
-                                        periodGroups = [{ label: '오후', periods: ['4', '5', '6'] }];
-                                    } else {
-                                        // Night (After 18:00)
-                                        periodGroups = [{ label: '야간', periods: ['1', '2', '3'] }];
-                                    }
-                                } else {
-                                    if (hour < 18) {
-                                        // Weekday Day
-                                        periodGroups = [{ label: '주간', periods: ['8', '9'] }];
-                                    } else {
-                                        // Weekday Night
-                                        periodGroups = [{ label: '야간', periods: ['1', '2', '3', '4'] }];
-                                    }
-                                }
-
-                                // --- Monitor Logic (Seat Level) ---
-                                if (assignment && mode === 'monitor' && activeLeaves.length > 0) {
-                                    // Check for 'Away' (Seat Level Status)
-                                    const awayReq = activeLeaves.find(req =>
-                                        (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id)) &&
-                                        req.leave_type === '자리비움' &&
-                                        new Date(req.start_time) <= currentTime && new Date(req.end_time) >= currentTime
-                                    );
-
-                                    if (awayReq) {
-                                        activeLeaveReq = awayReq;
-                                        seatStatusColor = "bg-red-50 border-red-200"; // Light red tint for seat
-                                        const start = new Date(awayReq.start_time);
-                                        const diffMins = (currentTime.getTime() - start.getTime()) / 60000;
-                                        if (diffMins >= 10) isAwayBlinking = true;
-                                    }
-                                } else if (mode === 'edit' && assignment) {
-                                    seatStatusColor = "bg-yellow-50 border-yellow-200";
-                                }
-
-                                // --- Period Status Helper ---
-                                const getPeriodStatus = (label: string, periodName: string) => {
-                                    // 1. Check if 'Past'
-                                    let periodEndHour = 0;
-                                    if (label === '주간' && periodName === '8') periodEndHour = 17;
-                                    if (label === '주간' && periodName === '9') periodEndHour = 18;
-                                    if (label === '야간' && periodName === '1') periodEndHour = 20;
-                                    if (label === '야간' && periodName === '2') periodEndHour = 21;
-                                    if (label === '야간' && periodName === '3') periodEndHour = 22;
-                                    if (label === '야간' && periodName === '4') periodEndHour = 23;
+                                    let periodGroups: { label: string, periods: string[] }[] = [];
 
                                     if (isWeekend) {
-                                        if (label === '오전') periodEndHour = 9 + parseInt(periodName);
-                                        if (label === '오후') periodEndHour = 12 + parseInt(periodName); // 4->16? Wait. 13+p. 4->17?
-                                        // Let's approximate: 
-                                        // Morn: 1(10), 2(11), 3(12)
-                                        // Aft: 4(14), 5(15), 6(16)
-                                        // Night: 1(20)...
-                                        if (label === '야간') periodEndHour = 18 + parseInt(periodName);
+                                        if (hour < 12) {
+                                            // Morning (Until 12:00)
+                                            periodGroups = [{ label: '오전', periods: ['1', '2', '3'] }];
+                                        } else if (hour >= 12 && hour < 18) {
+                                            // Afternoon (12:00 - 18:00)
+                                            periodGroups = [{ label: '오후', periods: ['4', '5', '6'] }];
+                                        } else {
+                                            // Night (After 18:00)
+                                            periodGroups = [{ label: '야간', periods: ['1', '2', '3'] }];
+                                        }
+                                    } else {
+                                        if (hour < 18) {
+                                            // Weekday Day
+                                            periodGroups = [{ label: '주간', periods: ['6', '7', '8', '9'] }];
+                                        } else {
+                                            // Weekday Night
+                                            periodGroups = [{ label: '야간', periods: ['1', '2', '3', '4'] }];
+                                        }
                                     }
 
-                                    const isPast = hour >= periodEndHour;
+                                    // --- Monitor Logic (Seat Level) ---
+                                    if (assignment && mode === 'monitor' && activeLeaves.length > 0) {
+                                        // Check for 'Away' (Seat Level Status)
+                                        const awayReq = activeLeaves.find(req =>
+                                            (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id)) &&
+                                            req.leave_type === '자리비움' &&
+                                            new Date(req.start_time) <= currentTime
+                                        );
 
-                                    // 2. Check Assignments for this period
-                                    if (assignment && activeLeaves.length > 0) {
-                                        // Find leave for this specific period
-                                        // We need to check all approved leaves for this student targeting TODAY
-                                        const studentLeaves = activeLeaves.filter(req => {
-                                            const isTargetStudent = (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id));
-                                            if (!isTargetStudent) return false;
+                                        if (awayReq) {
+                                            activeLeaveReq = awayReq;
+                                            const start = new Date(awayReq.start_time);
+                                            const diffMins = (currentTime.getTime() - start.getTime()) / 60000;
 
-                                            // Date Validation: Must be today (Local Date check)
-                                            const leaveDate = new Date(req.start_time);
-                                            const now = new Date(); // Use actual current clock
-                                            const isSameDay =
-                                                leaveDate.getFullYear() === now.getFullYear() &&
-                                                leaveDate.getMonth() === now.getMonth() &&
-                                                leaveDate.getDate() === now.getDate();
+                                            // Away status: Strong Red
+                                            seatStatusColor = "bg-red-500 border-red-600";
+                                            // >10m: Blinking (intensive flash) as a nudge
+                                            if (diffMins >= 10) isAwayBlinking = true;
+                                        }
+                                    } else if (mode === 'edit' && assignment) {
+                                        seatStatusColor = "bg-yellow-50 border-yellow-200";
+                                    }
 
-                                            return isSameDay;
-                                        });
+                                    // --- Period Status Helper ---
+                                    const getPeriodStatus = (label: string, periodName: string) => {
+                                        // 1. Check if 'Past'
+                                        let periodEndHour = 0;
+                                        if (label === '주간' && periodName === '6') periodEndHour = 15;
+                                        if (label === '주간' && periodName === '7') periodEndHour = 16;
+                                        if (label === '주간' && periodName === '8') periodEndHour = 17;
+                                        if (label === '주간' && periodName === '9') periodEndHour = 18;
+                                        if (label === '야간' && periodName === '1') periodEndHour = 20;
+                                        if (label === '야간' && periodName === '2') periodEndHour = 21;
+                                        if (label === '야간' && periodName === '3') periodEndHour = 22;
+                                        if (label === '야간' && periodName === '4') periodEndHour = 23;
 
-                                        for (const leave of studentLeaves) {
-                                            // Check text match in 'period' field
-                                            const fullLabel = `${label}${periodName}교시`;
-                                            if (leave.period && leave.period.includes(fullLabel)) {
-                                                return { status: 'active', type: leave.leave_type };
+                                        if (isWeekend) {
+                                            if (label === '오전') periodEndHour = 9 + parseInt(periodName);
+                                            if (label === '오후') periodEndHour = 12 + parseInt(periodName); // 4->16? Wait. 13+p. 4->17?
+                                            // Let's approximate: 
+                                            // Morn: 1(10), 2(11), 3(12)
+                                            // Aft: 4(14), 5(15), 6(16)
+                                            // Night: 1(20)...
+                                            if (label === '야간') periodEndHour = 18 + parseInt(periodName);
+                                        }
+
+                                        const isPast = hour >= periodEndHour;
+
+                                        // 2. Check Assignments for this period
+                                        if (assignment && activeLeaves.length > 0) {
+                                            // Find leave for this specific period
+                                            // We need to check all approved leaves for this student targeting TODAY
+                                            const studentLeaves = activeLeaves.filter(req => {
+                                                const isTargetStudent = (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id));
+                                                if (!isTargetStudent) return false;
+
+                                                // Date Validation: Must be today (Local Date check)
+                                                const leaveDate = new Date(req.start_time);
+                                                const now = new Date(); // Use actual current clock
+                                                const isSameDay =
+                                                    leaveDate.getFullYear() === now.getFullYear() &&
+                                                    leaveDate.getMonth() === now.getMonth() &&
+                                                    leaveDate.getDate() === now.getDate();
+
+                                                return isSameDay;
+                                            });
+
+                                            // 2a. Special check for 'Away' (Seat-wide, but shows in individual block)
+                                            const activeAway = studentLeaves.find(leave => leave.leave_type === '자리비움');
+                                            if (activeAway) {
+                                                // Only show '비' in the block that matches the exact current hour
+                                                const isCurrentPeriod = hour === periodEndHour - 1;
+                                                if (isCurrentPeriod) {
+                                                    return { status: 'active', type: '자리비움' };
+                                                }
+                                            }
+
+                                            for (const leave of studentLeaves) {
+                                                // Check text match in 'period' field
+                                                const fullLabel = `${label}${periodName}교시`;
+                                                if (leave.period && leave.period.includes(fullLabel)) {
+                                                    return { status: 'active', type: leave.leave_type };
+                                                }
+                                            }
+                                        }
+
+                                        if (isPast) return { status: 'past', type: null };
+                                        return { status: 'future', type: null };
+                                    };
+
+                                    // Determine Header Color based on first active period
+                                    let headerBgClass = "bg-white";
+                                    let studentIdTextColor = "text-gray-800";
+
+                                    if (assignment && periodGroups[0]) {
+                                        const firstActiveP = periodGroups[0].periods.find(p => getPeriodStatus(periodGroups[0].label, p).status === 'active');
+                                        if (firstActiveP) {
+                                            const { type } = getPeriodStatus(periodGroups[0].label, firstActiveP);
+                                            switch (type) {
+                                                case '컴이석': headerBgClass = "bg-blue-100"; studentIdTextColor = "text-blue-800"; break;
+                                                case '이석': headerBgClass = "bg-orange-100"; studentIdTextColor = "text-orange-800"; break;
+                                                case '외출': headerBgClass = "bg-yellow-100"; studentIdTextColor = "text-yellow-800"; break;
+                                                case '외박': headerBgClass = "bg-purple-100"; studentIdTextColor = "text-purple-800"; break;
                                             }
                                         }
                                     }
 
-                                    if (isPast) return { status: 'past', type: null };
-                                    return { status: 'future', type: null };
-                                };
+                                    return (
+                                        <div key={seatNum} className="relative group">
+                                            {/* Rectangular Seat Card */}
+                                            <div
+                                                onClick={() => {
+                                                    if (mode === 'edit') {
+                                                        setSelectedSeat(seatNum);
+                                                        setIsModalOpen(true);
+                                                    } else if (mode === 'monitor' && activeLeaveReq && activeLeaveReq.leave_type === '자리비움') {
+                                                        if (confirm('자리비움을 해제하시겠습니까?')) {
+                                                            supabase.from('leave_requests')
+                                                                .update({ status: '취소' })
+                                                                .eq('id', activeLeaveReq.id)
+                                                                .then(() => {
+                                                                    fetchLiveStatus(selectedRoom);
+                                                                });
+                                                        }
+                                                    }
+                                                }}
+                                                className={clsx(
+                                                    "relative flex flex-col border-r border-b border-gray-200 overflow-hidden transition-all bg-white",
+                                                    !assignment && "bg-gray-50/50",
+                                                    "w-full h-[54px]",
+                                                    mode === 'edit' && "cursor-pointer hover:bg-yellow-50/50 hover:border-yellow-400 group/card z-10",
+                                                    activeLeaveReq?.leave_type === '자리비움' && !isAwayBlinking && "bg-red-50",
+                                                    isAwayBlinking && "animate-[pulse_1s_infinite] bg-red-100 ring-2 ring-red-500 ring-inset"
+                                                )}
+                                            >
+                                                {/* Seat Number on Top-Right Inside */}
+                                                <span className={clsx(
+                                                    "absolute top-0.5 right-1 text-[8px] font-medium select-none z-20",
+                                                    activeLeaveReq?.leave_type === '자리비움' ? "text-white/80" : "text-gray-300"
+                                                )}>
+                                                    {seatNum}
+                                                </span>
 
-                                // Font Size Calculation
-                                const studentIdFontSize = "text-[10px]";
+                                                {assignment ? (
+                                                    <>
+                                                        {/* Top Section: Student ID Only */}
+                                                        {/* Top Section: Student ID Only */}
+                                                        <div className={clsx(
+                                                            "flex-1 flex items-center px-1.5 border-b border-gray-100 transition-colors",
+                                                            activeLeaveReq?.leave_type === '자리비움' ? (isAwayBlinking ? "bg-red-600" : "bg-red-500") : headerBgClass
+                                                        )}>
+                                                            <span className={clsx("text-[11px] truncate font-medium", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
+                                                                {assignment.student?.student_id}
+                                                                {activeLeaveReq?.leave_type === '자리비움' && (
+                                                                    <span className={clsx("ml-auto text-[7px] text-white font-bold", isAwayBlinking ? "animate-bounce" : "animate-pulse")}>자리비움</span>
+                                                                )}
+                                                            </span>
+                                                        </div>
 
-                                return (
-                                    <div
-                                        key={seatNum}
-                                        onClick={() => {
-                                            if (mode === 'edit') {
-                                                setSelectedSeat(seatNum);
-                                                setIsModalOpen(true);
-                                            } else if (mode === 'monitor' && activeLeaveReq && activeLeaveReq.leave_type === '자리비움') {
-                                                if (confirm('자리비움을 해제하시겠습니까?')) {
-                                                    supabase.from('leave_requests')
-                                                        .update({ status: '취소' })
-                                                        .eq('id', activeLeaveReq.id)
-                                                        .then(() => {
-                                                            fetchLiveStatus(selectedRoom);
-                                                        });
-                                                }
-                                            }
-                                        }}
-                                        className={clsx(
-                                            "relative flex flex-col items-center justify-center transition-all overflow-hidden p-1.5",
-                                            // V9.2 Scaled-up Pill Design
-                                            assignment ? "bg-black rounded-[20px] shadow-lg border border-white/10 active:scale-95" : "bg-gray-100 border border-dashed border-gray-300 rounded-[20px]",
-                                            "w-full h-13 md:h-14 min-w-0 px-2",
-                                            mode === 'edit' ? "cursor-pointer hover:border-yellow-400 group" : "cursor-default",
-                                            seatStatusColor !== "bg-black" && !assignment && seatStatusColor,
-                                            isAwayBlinking && "animate-pulse ring-2 ring-red-500"
-                                        )}
-                                    >
-                                        {/* Seat Number - Sub-layer in Edit Mode */}
-                                        {mode === 'edit' && (
-                                            <span className="absolute top-1 left-2 text-[7px] font-bold text-gray-400">
-                                                {seatNum}
-                                            </span>
-                                        )}
+                                                        {/* Bottom Section: Period Blocks */}
+                                                        <div className="h-5 flex divide-x divide-gray-100 bg-gray-50/30">
+                                                            {mode === 'monitor' && periodGroups[0]?.periods.map(p => {
+                                                                const { status, type } = getPeriodStatus(periodGroups[0].label, p);
 
-                                        {assignment ? (
-                                            <>
-                                                {/* 1. Student ID - Top Center (10px) */}
-                                                <div className="text-gray-300 text-[10px] font-extrabold tracking-tighter leading-none mb-1.5">
-                                                    {assignment.student?.student_id}
-                                                </div>
-
-                                                {/* 2. Period Buttons: Larger circles */}
-                                                <div className="flex items-center justify-center gap-1 w-full h-6 md:h-7 px-1">
-                                                    {mode === 'monitor' && periodGroups.map((group) => (
-                                                        <Fragment key={group.label}>
-                                                            {group.periods.map(p => {
-                                                                const { status, type } = getPeriodStatus(group.label, p);
-
-                                                                let btnClass = "bg-zinc-800 text-zinc-600 border border-zinc-700/50";
+                                                                let blockClass = "";
+                                                                let textClass = "text-transparent";
                                                                 let content = p;
 
-                                                                if (status === 'past') {
-                                                                    btnClass = "bg-zinc-700 text-zinc-500 border-zinc-600";
-                                                                } else if (status === 'active' && type) {
-                                                                    const baseStyle = "text-black font-black border-transparent shadow-[0_0_10px_rgba(255,255,255,0.2)]";
+                                                                if (status === 'active' && type) {
+                                                                    textClass = "font-bold";
                                                                     switch (type) {
-                                                                        case '컴이석': btnClass = `bg-blue-300 ${baseStyle}`; content = '컴'; break;
-                                                                        case '이석': btnClass = `bg-orange-400 ${baseStyle}`; content = '이'; break;
-                                                                        case '외출': btnClass = `bg-[#808000] ${baseStyle}`; content = '출'; break;
-                                                                        case '외박': btnClass = `bg-purple-400 ${baseStyle}`; content = '박'; break;
-                                                                        default: btnClass = `bg-orange-400 ${baseStyle}`; content = '이';
+                                                                        case '컴이석':
+                                                                            blockClass = "bg-blue-100";
+                                                                            textClass = "text-blue-700";
+                                                                            content = '컴';
+                                                                            break;
+                                                                        case '이석':
+                                                                            blockClass = "bg-orange-100";
+                                                                            textClass = "text-orange-700";
+                                                                            content = '이';
+                                                                            break;
+                                                                        case '외출':
+                                                                            blockClass = "bg-yellow-100";
+                                                                            textClass = "text-yellow-800";
+                                                                            content = '출';
+                                                                            break;
+                                                                        case '외박':
+                                                                            blockClass = "bg-purple-100";
+                                                                            textClass = "text-purple-700";
+                                                                            content = '박';
+                                                                            break;
+                                                                        case '자리비움':
+                                                                            blockClass = isAwayBlinking ? "bg-red-600" : "bg-red-500";
+                                                                            textClass = "text-white";
+                                                                            content = '비';
+                                                                            break;
                                                                     }
+                                                                } else if (status === 'past') {
+                                                                    blockClass = "bg-gray-100/50";
                                                                 }
 
                                                                 return (
-                                                                    <div key={p}
-                                                                        className={clsx(
-                                                                            "h-full aspect-square rounded-full flex items-center justify-center text-[9px] md:text-[10px] transition-all select-none",
-                                                                            btnClass
-                                                                        )}
-                                                                        title={`${group.label} ${p}교시`}
-                                                                    >
+                                                                    <div key={p} className={clsx("flex-1 flex items-center justify-center text-[7px] md:text-[9px] transition-colors", blockClass, textClass)}>
                                                                         {content}
                                                                     </div>
                                                                 );
                                                             })}
-                                                        </Fragment>
-                                                    ))}
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <div className="flex items-center justify-center w-full h-full">
-                                                <span className="text-gray-400 text-[10px] group-hover:text-yellow-500 transition-colors">
-                                                    {mode === 'edit' ? "+" : ""}
-                                                </span>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="flex-1 flex items-center justify-center">
+                                                        <span className="text-gray-300 text-[12px] group-hover:text-yellow-500 transition-colors">
+                                                            {mode === 'edit' ? "+" : ""}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                 </div>
