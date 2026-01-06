@@ -51,7 +51,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                     <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
-                    <h1 className="text-xl font-extrabold text-gray-800">이석 처리 ({teacherName} 교사)</h1>
+                    <h1 className="text-xl font-extrabold text-gray-800">이석 처리 ({teacherName} 감독선생님)</h1>
                 </div>
             </div>
 

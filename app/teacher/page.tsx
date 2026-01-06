@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
 import { LeaveProcessList } from '@/components/teacher/LeaveProcessList';
@@ -13,29 +14,56 @@ export default function TeacherPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
 
+  const router = useRouter(); // Initialized useRouter
+
   useEffect(() => {
+    const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
+    const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
+
+    console.log('[DEBUG_TEACHER] Session Check - ID:', loginId, 'Role:', role);
+
+    if (!loginId || role !== 'teacher') {
+      console.warn('[DEBUG_TEACHER] Invalid session. Redirecting to login.');
+      router.push('/login');
+      return;
+    }
+
+    setTeacherId(loginId); // Set teacherId from loginId if session is valid
+
     const resolveTeacherInfo = async () => {
       try {
-        const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
-        const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
+        // The loginId and role are already checked above, so we can use them directly here.
+        // const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
+        // const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
+
+        console.log('[DEBUG] resolving session:', { loginId, role });
 
         if (loginId && role === 'teacher') {
+          console.log('[DEBUG] fetching teacher info for:', loginId);
           const { data: teacher, error } = await supabase
             .from('teachers')
             .select('id, name')
             .eq('teacher_id', loginId)
             .single();
 
+          if (error) {
+            console.error('[DEBUG] teacher fetch error:', error);
+          }
+
           if (teacher) {
+            console.log('[DEBUG] teacher found:', teacher);
             setTeacherId(teacher.id);
             setTeacherName(teacher.name);
             await fetchLeaveRequests(teacher.id, teacher.name);
           } else {
-            console.error('Teacher record not found for login ID:', loginId);
+            console.error('[DEBUG] Teacher record not found in teachers table for login ID:', loginId);
+            toast.error('교사 정보를 찾을 수 없습니다. 관리자에게 문의하세요.');
           }
+        } else {
+          console.log('[DEBUG] No valid session found');
         }
       } catch (err) {
-        console.error('Session resolution error:', err);
+        console.error('[DEBUG] Session resolution error:', err);
       } finally {
         const { data: studentData } = await supabase.from('students').select('*');
         if (studentData) setStudents(studentData);
@@ -159,9 +187,33 @@ export default function TeacherPage() {
     );
   }
 
+  const handleLogout = () => {
+    localStorage.removeItem('dormichan_login_id');
+    localStorage.removeItem('dormichan_role');
+    localStorage.removeItem('dormichan_keepLoggedIn');
+    sessionStorage.removeItem('dormichan_login_id');
+    sessionStorage.removeItem('dormichan_role');
+    sessionStorage.removeItem('dormichan_keepLoggedIn');
+    router.push('/login');
+  };
+
   return (
     <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
       <Toaster />
+
+      {/* Header with Logout */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-bold text-gray-800">
+          {teacherName} 선생님
+        </h1>
+        <button
+          onClick={handleLogout}
+          className="bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+        >
+          로그아웃
+        </button>
+      </div>
+
       <LeaveProcessList
         leaveRequests={leaveRequests}
         onUpdateStatus={handleUpdateStatus}

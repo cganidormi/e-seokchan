@@ -2,26 +2,30 @@
 
 import React, { useState } from 'react';
 import clsx from 'clsx';
-import { LeaveRequest } from './types';
+import { LeaveRequest, Student } from './types';
 import { LeaveStatusCard } from './LeaveStatusCard';
 import { supabase } from '@/supabaseClient';
+import toast from 'react-hot-toast';
 
 interface LeaveStatusListProps {
     leaveRequests: LeaveRequest[];
     onCancel: (id: number) => void;
     leaveTypes: string[];
+    students: Student[];
 }
 
 export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
     leaveRequests,
     onCancel,
-    leaveTypes
+    leaveTypes,
+    students
 }) => {
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const [viewMode, setViewMode] = useState<'active' | 'past'>('active');
     const [filterType, setFilterType] = useState('전체');
     const [now, setNow] = useState(new Date());
     const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
+    const [timetable, setTimetable] = useState<any[]>([]);
 
     React.useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 30000);
@@ -30,7 +34,14 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
             const { data } = await supabase.from('special_holidays').select('date');
             if (data) setSpecialHolidays(data.map((h: { date: string }) => h.date));
         };
+
+        const fetchTimetable = async () => {
+            const { data } = await supabase.from('timetable_entries').select('*');
+            if (data) setTimetable(data);
+        };
+
         fetchHolidays();
+        fetchTimetable();
 
         return () => clearInterval(timer);
     }, []);
@@ -43,9 +54,60 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
         return specialHolidays.includes(dateStr);
     };
 
+    const getDynamicEndTime = (req: any) => {
+        // 이미 취소/반려된 건은 제외
+        if (req.status === '취소' || req.status === '반려') return null;
+
+        // 1. 시간표 데이터가 없거나, period 정보가 없으면 기존 end_time 사용 (fallback)
+        if (!timetable || timetable.length === 0 || !req.period) {
+            return new Date(req.end_time);
+        }
+
+        // 2. req.period 파싱 (예: "주간 8교시", "야간 1교시")
+        // DB의 timetable_entries.description과 매칭해야 함 (예: "평일주간8교시", "평일야간1교시" 등)
+        const isWeekendOrHoliday = isDateHoliday(now);
+        const dayPrefix = isWeekendOrHoliday ? '주말' : '평일';
+
+        // req.period에서 숫자와 "주간"/"야간" 추출
+        // 예: "주간 8교시" -> type: "주간", number: 8
+        let type = '';
+        if (req.period.includes('주간') || req.period.includes('오전') || req.period.includes('오후')) type = '주간';
+        else if (req.period.includes('야간')) type = '야간';
+
+        // 숫자 추출 (모든 숫자를 찾아서 배열로 만듦)
+        // 예: "야간 1,2교시" -> matches: ["1", "2"]
+        const matches = req.period.match(/(\d+)/g);
+
+        if (!type || !matches || matches.length === 0) {
+            return new Date(req.end_time);
+        }
+
+        // 여러 교시가 있을 경우 마지막 교시(가장 큰 숫자)를 사용
+        // 예: "1,2교시" -> "2" 교시의 종료 시간을 기준점으로 잡음
+        const numbers = matches.map(Number);
+        const lastPeriodNumber = Math.max(...numbers);
+
+        const targetDescription = `${dayPrefix}${type}${lastPeriodNumber}교시`;
+
+        // timetable에서 매칭되는 교시 찾기
+        const entry = timetable.find((t: any) => t.description === targetDescription);
+
+        if (entry) {
+            // 현재 날짜에 해당 교시의 종료 시간 적용
+            const [hours, minutes, seconds] = entry.end_time.split(':').map(Number);
+            const dynamicEnd = new Date(now);
+            dynamicEnd.setHours(hours, minutes, seconds || 0, 0);
+            return dynamicEnd;
+        }
+
+        return new Date(req.end_time);
+    };
+
     const isRequestActive = (req: any) => {
         if (req.status === '취소' || req.status === '반려') return false;
-        const endTime = new Date(req.end_time);
+
+        const endTime = getDynamicEndTime(req);
+        if (!endTime) return false;
 
         // If it's already significantly past the end time, it's definitely past
         if (endTime < now) return false;
@@ -54,9 +116,16 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
         // that might keep daytime sessions active too long.
         // If the end time is essentially midnight and it contains Daytime (주간),
         // we should expire it earlier (e.g., after 19:00).
+        // -> 동적 시간표를 사용하면 이 부분은 자연스럽게 해결될 수 있으나, 안전을 위해 유지하거나 조정
+
+        // 동적 시간표가 적용된 경우 정확한 시간이므로 추가 보정 불필요할 수 있음
+        // 하지만 기존 end_time을 사용하는 fallback의 경우를 위해 유지
         if (endTime.getHours() >= 23 && req.period) {
             const isDaytime = req.period.includes('주간') || req.period.includes('오전') || req.period.includes('오후');
             const isHoliday = isDateHoliday(now);
+
+            // 시간표가 로드되었다면 이 로직보다 시간표 우선
+            if (timetable.length > 0) return true;
 
             if (isDaytime && !isHoliday && now.getHours() >= 19) return false;
             if (isDaytime && isHoliday && now.getHours() >= 18) return false;

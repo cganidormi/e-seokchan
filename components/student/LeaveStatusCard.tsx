@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import clsx from 'clsx';
-import { LeaveRequest } from './types';
+import { LeaveRequest, Student } from './types';
+import Select from 'react-select';
 
 interface LeaveStatusCardProps {
     req: LeaveRequest;
@@ -17,7 +18,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
     isExpanded,
     onToggleExpand,
     onCancel,
-    viewMode
+    viewMode,
 }) => {
     const statusConfig = ({
         '신청': { dot: 'bg-blue-500', text: 'text-blue-500', label: '대기' },
@@ -70,7 +71,6 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                     <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-32">
                         {(() => {
                             const start = new Date(req.start_time);
-                            const now = new Date();
                             const day = start.getDay();
                             const isWeekend = day === 0 || day === 6;
 
@@ -100,6 +100,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                                                         {group.periods.map(p => {
                                                             const periodLabel = `${group.label}${p}교시`;
                                                             const isActive = activePeriods.includes(periodLabel);
+
                                                             return (
                                                                 <div
                                                                     key={p}
@@ -198,11 +199,11 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                     {additionalIds.length > 0 && (
                         <div className="flex flex-col gap-1">
                             <span className="text-gray-500 font-bold">함께하는 학생들</span>
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex flex-wrap gap-1.5 items-center">
                                 {allStudents.map(id => (
-                                    <span key={id} className="bg-gray-800 px-2 py-1 rounded text-gray-300">
-                                        {id}
-                                    </span>
+                                    <div key={id} className="bg-gray-800 px-2 py-1 rounded text-gray-300 flex items-center gap-1">
+                                        <span>{id}</span>
+                                    </div>
                                 ))}
                             </div>
                         </div>

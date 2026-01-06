@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
@@ -14,15 +15,34 @@ export default function StudentPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter(); // Initialized useRouter
 
   useEffect(() => {
+    // 1. Session & Role Check
     const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
-    if (loginId) setStudentId(loginId);
+    const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
+
+    console.log('[DEBUG_STUDENT] Session Check - ID:', loginId, 'Role:', role);
+
+    if (!loginId || role !== 'student') {
+      console.warn('[DEBUG_STUDENT] Invalid session. Redirecting to login.');
+      router.push('/login');
+      return;
+    }
+
+    setStudentId(loginId);
+    console.log('[DEBUG_STUDENT] Session Valid. Loaded Student ID:', loginId);
 
     // Initial data fetch
     const fetchData = async () => {
+      console.log('[DEBUG_PAGE] Fetching initial data...');
       const { data: studentsData } = await supabase.from('students').select('*');
-      if (studentsData) setStudents(studentsData as Student[]);
+      if (studentsData) {
+        console.log(`[DEBUG_PAGE] Loaded ${studentsData.length} students`);
+        setStudents(studentsData as Student[]);
+      } else {
+        console.error('[DEBUG_PAGE] Failed to load students');
+      }
 
       const { data: teachersData } = await supabase.from('teachers').select('id, name');
       if (teachersData) setTeachers(teachersData as Teacher[]);
@@ -38,6 +58,7 @@ export default function StudentPage() {
       const channel = supabase
         .channel('leave_requests_student')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, () => {
+          console.log('[DEBUG_PAGE] Realtime update detected');
           fetchLeaveRequests(loginId);
         })
         .subscribe();
@@ -95,6 +116,16 @@ export default function StudentPage() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('dormichan_login_id');
+    localStorage.removeItem('dormichan_role');
+    localStorage.removeItem('dormichan_keepLoggedIn');
+    sessionStorage.removeItem('dormichan_login_id');
+    sessionStorage.removeItem('dormichan_role');
+    sessionStorage.removeItem('dormichan_keepLoggedIn');
+    router.push('/login');
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -106,6 +137,20 @@ export default function StudentPage() {
   return (
     <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
       <Toaster />
+
+      {/* Header with Logout */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-bold text-gray-800">
+          {students.find(s => s.student_id === studentId)?.name || studentId} 학생
+        </h1>
+        <button
+          onClick={handleLogout}
+          className="bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+        >
+          로그아웃
+        </button>
+      </div>
+
       <div className="flex flex-col gap-8">
         <LeaveRequestForm
           studentId={studentId}
@@ -117,6 +162,7 @@ export default function StudentPage() {
           leaveRequests={leaveRequests}
           onCancel={handleCancelRequest}
           leaveTypes={['컴이석', '이석', '외출', '외박', '자리비움']}
+          students={students}
         />
       </div>
     </div>

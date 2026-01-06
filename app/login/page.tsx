@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FiLogIn } from "react-icons/fi";
 import { supabase } from "@/supabaseClient";
@@ -12,20 +12,48 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  const [dbStatus, setDbStatus] = useState("시스템 점검 중...");
+
+  // DB 연결 상태 확인
+  useEffect(() => {
+    const checkDb = async () => {
+      const { error } = await supabase.from('students_auth').select('student_id').limit(1);
+      if (error) {
+        console.error('[DEBUG_LOGIN] DB Check Failed:', error);
+        setDbStatus(`시스템 연결 실패: ${error.message}`);
+      } else {
+        console.log('[DEBUG_LOGIN] DB Check Success');
+        setDbStatus("시스템 연결 정상");
+      }
+    };
+    checkDb();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
+    // 전각 숫자 -> 반각 변환 및 공백 제거
+    // ０-９ (Full-width digits) to 0-9
+    const cleanId = loginId.trim().replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+
     let user: any = null;
     let role: "student" | "teacher" | null = null;
 
     // 1️⃣ 학생 auth 조회
-    const { data: student } = await supabase
+    console.log(`[DEBUG_LOGIN] Attempting login. Input: "${loginId}", Cleaned: "${cleanId}"`);
+
+    const { data: student, error: studentError } = await supabase
       .from("students_auth")
       .select("*")
-      .eq("student_id", loginId)
+      .eq("student_id", cleanId)
       .single();
+
+    if (studentError) {
+      console.warn('[DEBUG_LOGIN] Student auth fetch error (ignore if teacher):', studentError);
+    } else {
+      console.log('[DEBUG_LOGIN] Student found:', student);
+    }
 
     if (student) {
       user = student;
@@ -34,11 +62,18 @@ export default function LoginPage() {
 
     // 2️⃣ 학생이 아니면 교사 auth 조회
     if (!user) {
-      const { data: teacher } = await supabase
+      console.log('[DEBUG_LOGIN] Student not found, checking teacher...');
+      const { data: teacher, error: teacherError } = await supabase
         .from("teachers_auth")
         .select("*")
-        .eq("teacher_id", loginId)
+        .eq("teacher_id", cleanId)
         .single();
+
+      if (teacherError) {
+        console.warn('[DEBUG_LOGIN] Teacher auth fetch error:', teacherError);
+      } else {
+        console.log('[DEBUG_LOGIN] Teacher found:', teacher);
+      }
 
       if (teacher) {
         user = teacher;
@@ -48,13 +83,15 @@ export default function LoginPage() {
 
     // 3️⃣ 둘 다 없으면 실패
     if (!user || !role) {
-      setError("아이디 또는 비밀번호가 잘못되었습니다.");
+      console.warn('[DEBUG_LOGIN] Login failed: User not found. ID used:', cleanId);
+      setError(`계정을 찾을 수 없습니다. (ID: ${cleanId})`);
       return;
     }
 
     // 4️⃣ 비밀번호 확인
     if (String(user.temp_password) !== String(password)) {
-      setError("아이디 또는 비밀번호가 잘못되었습니다.");
+      console.warn('[DEBUG_LOGIN] Password mismatch. Input:', password, 'Expected:', user.temp_password);
+      setError("비밀번호가 틀렸습니다.");
       return;
     }
 
@@ -66,8 +103,9 @@ export default function LoginPage() {
       user.must_change_password === "1";
 
     if (mustChange) {
+      console.log('[DEBUG_LOGIN] Password change required');
       router.push(
-        `/change-password?id=${encodeURIComponent(loginId)}&role=${role}`
+        `/change-password?id=${encodeURIComponent(cleanId)}&role=${role}`
       );
       return;
     }
@@ -81,9 +119,11 @@ export default function LoginPage() {
     otherStorage.removeItem("dormichan_role");
     otherStorage.removeItem("dormichan_keepLoggedIn");
 
-    storage.setItem("dormichan_login_id", loginId);
+    storage.setItem("dormichan_login_id", cleanId);
     storage.setItem("dormichan_role", role);
     storage.setItem("dormichan_keepLoggedIn", keepLoggedIn ? "true" : "false");
+
+    console.log('[DEBUG_LOGIN] Login successful, redirecting to:', role);
 
     // 7️⃣ 역할별 페이지 이동
     if (role === "student") {
@@ -180,11 +220,14 @@ export default function LoginPage() {
           {error && (
             <p
               style={{
-                color: "#D7FF42",
+                color: "#ff6b6b",
                 marginBottom: "10px",
-                fontSize: "12px",
+                fontSize: "14px",
                 textAlign: "center",
-                fontWeight: "500",
+                fontWeight: "700",
+                backgroundColor: "rgba(0,0,0,0.5)",
+                padding: "8px",
+                borderRadius: "10px"
               }}
             >
               {error}
@@ -245,6 +288,18 @@ export default function LoginPage() {
             로그인
           </button>
         </form>
+
+        <div style={{
+          marginTop: '20px',
+          color: '#eee',
+          fontSize: '12px',
+          textAlign: 'center',
+          background: 'rgba(0,0,0,0.3)',
+          padding: '8px',
+          borderRadius: '5px'
+        }}>
+          {dbStatus}
+        </div>
       </div>
     </div>
   );

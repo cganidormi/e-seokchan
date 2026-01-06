@@ -38,8 +38,28 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
     // Initialize login student and fetch holidays
     React.useEffect(() => {
+        console.log('[DEBUG_FORM] Effect triggered. studentId:', studentId, 'students count:', students.length);
+
+        if (!studentId) return;
+
         const loginStudent = students.find(s => s.student_id === studentId);
-        if (loginStudent) setAddedStudents([loginStudent]);
+        if (loginStudent) {
+            console.log('[DEBUG_FORM] Accessing primary student:', loginStudent);
+            setAddedStudents(prev => {
+                // 본인이 이미 포함되어 있는지 확인
+                const alreadyHas = prev.some(p => p.student_id === studentId);
+                console.log('[DEBUG_FORM] Current addedStudents:', prev, 'Already has primary?', alreadyHas);
+
+                // 만약 현재 addedStudents에 엉뚱한 사람만 있다면? 혹은 비어있다면?
+                // 여기서 강제로 [loginStudent] 로 리셋하는 게 안전함 (새로고침 시)
+                // 하지만 사용자가 추가한 상태라면? -> 이 Effect는 studentId나 students가 바뀔 때만 실행됨.
+                // 즉, 초기 로딩 시점에는 [loginStudent]로 덮어쓰는 게 맞음.
+                return [loginStudent];
+            });
+        } else {
+            console.warn('[DEBUG_FORM] Primary student not found in students list for ID:', studentId);
+            // 만약 students 리스트는 있는데 자기를 못 찾으면? -> studentId가 이상한 것.
+        }
 
         const fetchHolidays = async () => {
             const { data } = await supabase.from('special_holidays').select('date');

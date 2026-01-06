@@ -31,15 +31,18 @@ export default function TimetablePage() {
 
   /* eslint-disable react-hooks/exhaustive-deps */
   const fetchData = async () => {
+    console.log('🔍 [DEBUG] fetchData called');
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('timetable_entries')
         .select('*');
 
+      console.log('🔍 [DEBUG] Fetched data from DB:', data);
+
       if (error) {
         toast.error('교시 정보를 불러오지 못했습니다.');
-        console.error('Error fetching timetable:', error);
+        console.error('❌ Error fetching timetable:', error);
       } else if (data) {
         const sorted = [...data].sort((a, b) => {
           const order = (dt: string) => {
@@ -52,11 +55,12 @@ export default function TimetablePage() {
           };
           return order(a.day_type) - order(b.day_type);
         });
+        console.log('🔍 [DEBUG] Sorted data:', sorted);
         setData(sorted as TimetableEntry[]);
         setOriginalData(JSON.parse(JSON.stringify(sorted)));
       }
     } catch (err) {
-      console.error('Fetch error:', err);
+      console.error('❌ Fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -153,6 +157,8 @@ export default function TimetablePage() {
         return item.start_time !== original.start_time || item.end_time !== original.end_time;
       });
 
+      console.log('🔍 [DEBUG] Changed items:', changed);
+
       if (changed.length === 0) {
         toast('변경 사항이 없습니다.');
         setIsSaving(false);
@@ -165,32 +171,56 @@ export default function TimetablePage() {
       let failMessage = '';
 
       for (const item of changed) {
-        const { error } = await supabase
+        const updateData = {
+          start_time: item.start_time.substring(0, 5) + ':00',
+          end_time: item.end_time.substring(0, 5) + ':00'
+        };
+
+        console.log(`🔍 [DEBUG] Updating ID ${item.id}:`, updateData);
+
+        const { data: updateResult, error } = await supabase
           .from('timetable_entries')
-          .update({
-            start_time: item.start_time.substring(0, 5) + ':00',
-            end_time: item.end_time.substring(0, 5) + ':00'
-          })
-          .eq('id', item.id);
+          .update(updateData)
+          .eq('id', item.id)
+          .select();
+
+        console.log(`🔍 [DEBUG] Update result for ID ${item.id}:`, { updateResult, error });
 
         if (error) {
-          console.error(`Update failed for ID ${item.id}:`, error.message);
+          console.error(`❌ Update failed for ID ${item.id}:`, error.message);
           failMessage = error.message;
+        } else if (!updateResult || updateResult.length === 0) {
+          console.error(`❌ Update failed for ID ${item.id}: No rows updated. Possible RLS policy issue.`);
+          failMessage = '권한 문제로 저장되지 않았습니다 (RLS 정책 확인 필요).';
         } else {
+          console.log(`✅ Update successful for ID ${item.id}`);
           successCount++;
         }
       }
 
       if (successCount === changed.length) {
         toast.success(`${successCount}개의 교시 정보가 저장되었습니다.`);
+        console.log('🔍 [DEBUG] All updates successful, updating originalData');
         setOriginalData(JSON.parse(JSON.stringify(data)));
+
+        // 저장 후 데이터베이스에서 다시 불러와서 확인
+        console.log('🔍 [DEBUG] Fetching data from database to verify...');
+        const { data: verifyData, error: verifyError } = await supabase
+          .from('timetable_entries')
+          .select('*')
+          .in('id', changed.map(c => c.id));
+
+        console.log('🔍 [DEBUG] Verification data from DB:', verifyData);
+        if (verifyError) {
+          console.error('❌ Verification fetch error:', verifyError);
+        }
       } else if (successCount > 0) {
         toast.error(`${changed.length}개 중 ${successCount}개만 저장되었습니다. 에러: ${failMessage}`);
       } else {
         toast.error(`저장에 실패했습니다: ${failMessage}`);
       }
     } catch (err: any) {
-      console.error('Save error:', err);
+      console.error('❌ Save error:', err);
       toast.error('저장 중 예기치 않은 오류가 발생했습니다.');
     } finally {
       setIsSaving(false);
