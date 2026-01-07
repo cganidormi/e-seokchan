@@ -58,7 +58,11 @@ export default function StudentPage() {
       const channel = supabase
         .channel('leave_requests_student')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, () => {
-          console.log('[DEBUG_PAGE] Realtime update detected');
+          console.log('[DEBUG_PAGE] Realtime update detected (leave_requests)');
+          fetchLeaveRequests(loginId);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_request_students' }, () => {
+          console.log('[DEBUG_PAGE] Realtime update detected (leave_request_students)');
           fetchLeaveRequests(loginId);
         })
         .subscribe();
@@ -68,40 +72,89 @@ export default function StudentPage() {
 
   const fetchLeaveRequests = async (id: string) => {
     try {
-      const { data: mainRequests } = await supabase.from('leave_requests').select('*').eq('student_id', id);
-      const { data: coStudentData } = await supabase.from('leave_request_students').select('leave_request_id').eq('student_id', id);
-      const coRequestIds = coStudentData?.map(c => c.leave_request_id) || [];
+      // 0. Fetch Teachers Map manually (since FK join failed)
+      const { data: teachersData } = await supabase.from('teachers').select('id, name');
+      const teacherMap = new Map();
+      teachersData?.forEach((t: { id: string; name: string }) => {
+        teacherMap.set(t.id, t.name);
+      });
 
-      let coRequests: any[] = [];
-      if (coRequestIds.length > 0) {
-        const { data: fetchedCoRequests } = await supabase.from('leave_requests').select('*').in('id', coRequestIds);
-        coRequests = fetchedCoRequests || [];
+      // 1. Fetch "Public" requests
+      const { data: publicRequests, error: publicError } = await supabase
+        .from('leave_requests')
+        .select('*, leave_request_students(student_id)')
+        .neq('leave_type', '외출')
+        .neq('leave_type', '외박')
+        .order('created_at', { ascending: false });
+
+      if (publicError) {
+        console.error('[DEBUG] Public Request Fetch Error:', JSON.stringify(publicError));
+        throw publicError;
       }
 
-      const allRequestIds = new Set([...(mainRequests?.map(r => r.id) || []), ...coRequests.map(r => r.id)]);
-      const combinedRequests = [...(mainRequests || []), ...coRequests].filter(r => {
-        if (allRequestIds.has(r.id)) {
-          allRequestIds.delete(r.id);
-          return true;
+      // 2. Fetch "Private" requests
+      // 2a. Main
+      const { data: myMainPrivateRequests, error: myMainError } = await supabase
+        .from('leave_requests')
+        .select('*, leave_request_students(student_id)')
+        .eq('student_id', id)
+        .in('leave_type', ['외출', '외박'])
+        .order('created_at', { ascending: false });
+
+      if (myMainError) {
+        console.error('[DEBUG] My Main Private Fetch Error:', JSON.stringify(myMainError));
+        throw myMainError;
+      }
+
+      // 2b. Co-applicant
+      const { data: coLinkData } = await supabase
+        .from('leave_request_students')
+        .select('leave_request_id')
+        .eq('student_id', id);
+
+      const coRequestIds = coLinkData?.map(c => c.leave_request_id) || [];
+
+      let myCoPrivateRequests: any[] = [];
+      if (coRequestIds.length > 0) {
+        const { data: fetchedCo, error: coError } = await supabase
+          .from('leave_requests')
+          .select('*, leave_request_students(student_id)')
+          .in('id', coRequestIds)
+          .in('leave_type', ['외출', '외박'])
+          .order('created_at', { ascending: false });
+
+        if (coError) {
+          console.error('[DEBUG] Co-student Private Fetch Error:', JSON.stringify(coError));
+          throw coError;
         }
-        return false;
-      });
+
+        if (fetchedCo) myCoPrivateRequests = fetchedCo;
+      }
+
+      // 3. Combine
+      const allRequests = [
+        ...(publicRequests || []),
+        ...(myMainPrivateRequests || []),
+        ...myCoPrivateRequests
+      ];
+
+      // Deduplicate
+      const uniqueRequestsMap = new Map();
+      allRequests.forEach(req => uniqueRequestsMap.set(req.id, req));
+      const combinedRequests = Array.from(uniqueRequestsMap.values());
 
       combinedRequests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      // Fetch details
-      const { data: allTeachers } = await supabase.from('teachers').select('id, name');
-      const requestsWithDetails = await Promise.all(
-        combinedRequests.map(async (req) => {
-          const { data: additionalStudents } = await supabase.from('leave_request_students').select('student_id').eq('leave_request_id', req.id);
-          const teacher = allTeachers?.find(t => t.id === req.teacher_id);
-          return { ...req, teachers: teacher ? { name: teacher.name } : null, leave_request_students: additionalStudents || [] };
-        })
-      );
+      // Transform: manual join for teachers
+      const transformed = combinedRequests.map(req => ({
+        ...req,
+        teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' },
+      }));
 
-      setLeaveRequests(requestsWithDetails as any[]);
-    } catch (err) {
-      console.error('Fetch error:', err);
+      setLeaveRequests(transformed as any[]);
+    } catch (err: any) {
+      console.error('Fetch error full object:', err);
+      console.error('Fetch error message:', err.message || JSON.stringify(err));
     }
   };
 
@@ -163,6 +216,7 @@ export default function StudentPage() {
           onCancel={handleCancelRequest}
           leaveTypes={['컴이석', '이석', '외출', '외박', '자리비움']}
           students={students}
+          studentId={studentId}
         />
       </div>
     </div>

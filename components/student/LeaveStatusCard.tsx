@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
 import { LeaveRequest, Student } from './types';
-import Select from 'react-select';
 
 interface LeaveStatusCardProps {
     req: LeaveRequest;
@@ -144,7 +143,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         })()}
                     </div>
 
-                    {!isExpanded && req.reason && (
+                    {!isExpanded && req.reason && req.leave_type !== '컴이석' && (
                         <div className="flex items-center min-w-0 ml-1 max-w-[120px]">
                             <span className="text-gray-400 text-[11px] break-words leading-tight">
                                 {req.reason}

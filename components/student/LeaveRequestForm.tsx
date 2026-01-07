@@ -401,12 +401,12 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                             <div className="w-1 h-4 bg-yellow-400 rounded-full"></div>
                                             <span className="text-sm font-bold text-gray-700">{type.label}</span>
                                         </div>
-                                        <div className="flex gap-1.5 flex-wrap">
+                                        <div className="grid gap-1 w-full grid-cols-9">
                                             {type.p.map(p => {
                                                 const label = `${type.label}${p}교시`;
                                                 const isSelected = periods.includes(label);
                                                 return (
-                                                    <button key={p} onClick={() => togglePeriod(label)} className={clsx('w-10 h-10 rounded-xl text-sm font-bold transition-all border shadow-sm flex items-center justify-center', isSelected ? 'bg-yellow-400 text-white border-yellow-400 scale-105' : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100')}>
+                                                    <button key={p} onClick={() => togglePeriod(label)} className={clsx('w-full aspect-square rounded-lg text-sm font-bold transition-all border shadow-sm flex items-center justify-center', isSelected ? 'bg-yellow-400 text-white border-yellow-400 scale-105' : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100')}>
                                                         {p}
                                                     </button>
                                                 );

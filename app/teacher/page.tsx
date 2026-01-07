@@ -83,7 +83,15 @@ export default function TeacherPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_requests' },
         () => {
-          console.log('Realtime update detected for teacher, refetching...');
+          console.log('Realtime update detected for teacher (leave_requests), refetching...');
+          fetchLeaveRequests(teacherId, teacherName);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'leave_request_students' },
+        () => {
+          console.log('Realtime update detected for teacher (leave_request_students), refetching...');
           fetchLeaveRequests(teacherId, teacherName);
         }
       )
@@ -96,12 +104,19 @@ export default function TeacherPage() {
 
   const fetchLeaveRequests = async (id: string, name: string) => {
     try {
-      console.log('Fetching requests for teacher UUID:', id);
+      console.log('Fetching all requests for teacher view...');
 
+      // 0. Fetch Teachers Map manually
+      const { data: teachersData } = await supabase.from('teachers').select('id, name');
+      const teacherMap = new Map();
+      teachersData?.forEach((t: { id: string; name: string }) => {
+        teacherMap.set(t.id, t.name);
+      });
+
+      // Optimized fetch: Get ALL requests (Without broken Teacher Join)
       const { data, error } = await supabase
         .from('leave_requests')
-        .select('*')
-        .eq('teacher_id', id)
+        .select('*, leave_request_students(student_id)')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -109,15 +124,13 @@ export default function TeacherPage() {
         throw error;
       }
 
-      const requestsWithStudents = await Promise.all((data || []).map(async (req) => {
-        const { data: students } = await supabase
-          .from('leave_request_students')
-          .select('student_id')
-          .eq('leave_request_id', req.id);
-        return { ...req, leave_request_students: students || [] };
+      // Transform data
+      const requestsWithDetails = (data || []).map((req) => ({
+        ...req,
+        teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' },
       }));
 
-      setLeaveRequests(requestsWithStudents as LeaveRequest[]);
+      setLeaveRequests(requestsWithDetails as LeaveRequest[]);
     } catch (err) {
       console.error('Fetch error:', err);
       toast.error('현황을 불러오지 못했습니다.');
@@ -201,24 +214,14 @@ export default function TeacherPage() {
     <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
       <Toaster />
 
-      {/* Header with Logout */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold text-gray-800">
-          {teacherName} 선생님
-        </h1>
-        <button
-          onClick={handleLogout}
-          className="bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-        >
-          로그아웃
-        </button>
-      </div>
+
 
       <LeaveProcessList
         leaveRequests={leaveRequests}
         onUpdateStatus={handleUpdateStatus}
         onCancel={handleCancelRequest}
         teacherName={teacherName}
+        teacherId={teacherId}
       />
     </div>
   );

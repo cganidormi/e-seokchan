@@ -12,17 +12,20 @@ interface LeaveStatusListProps {
     onCancel: (id: number) => void;
     leaveTypes: string[];
     students: Student[];
+    studentId: string;
 }
 
 export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
     leaveRequests,
     onCancel,
     leaveTypes,
-    students
+    students,
+    studentId
 }) => {
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const [viewMode, setViewMode] = useState<'active' | 'past'>('active');
     const [filterType, setFilterType] = useState('전체');
+    const [isMyLeaveOnly, setIsMyLeaveOnly] = useState(false); // Default to ALL view as per new requirement
     const [now, setNow] = useState(new Date());
     const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
     const [timetable, setTimetable] = useState<any[]>([]);
@@ -134,10 +137,22 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
         return true;
     };
 
-    const activeRequests = leaveRequests.filter(req => isRequestActive(req));
-    const pastRequests = leaveRequests.filter(req => !isRequestActive(req));
-    const displayList = (viewMode === 'active' ? activeRequests : pastRequests)
-        .filter(req => filterType === '전체' || req.leave_type === filterType);
+    const filteredByMode = (leaveRequests || []).filter(req => {
+        const isActive = isRequestActive(req);
+        return viewMode === 'active' ? isActive : !isActive;
+    });
+
+    // Filter by type
+    const filteredByType = filteredByMode.filter(req => filterType === '전체' || req.leave_type === filterType);
+
+    // Filter by ownership (My Only vs All)
+    const displayList = filteredByType.filter(req => {
+        if (!isMyLeaveOnly) return true;
+        // Check if I am the main applicant OR a co-applicant
+        const isMain = req.student_id === studentId;
+        const isCo = req.leave_request_students?.some((s: { student_id: string }) => s.student_id === studentId);
+        return isMain || isCo;
+    });
 
     return (
         <div className="flex flex-col gap-4">
@@ -148,25 +163,49 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
 
             <div className="flex flex-col gap-3 pb-24">
                 {/* 탭 전환 UI */}
-                <div className="flex bg-[#1a1a1a] rounded-xl p-1 gap-1 w-fit mb-2">
-                    <button
-                        onClick={() => setViewMode('active')}
-                        className={clsx(
-                            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-                            viewMode === 'active' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"
-                        )}
-                    >
-                        진행 중
-                    </button>
-                    <button
-                        onClick={() => setViewMode('past')}
-                        className={clsx(
-                            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-                            viewMode === 'past' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"
-                        )}
-                    >
-                        지난 내역
-                    </button>
+                <div className="flex flex-wrap gap-2 mb-2">
+                    {/* 내 이석만 보기 토글 */}
+                    <div className="flex bg-[#1a1a1a] rounded-xl p-1 gap-1 w-fit">
+                        <button
+                            onClick={() => setIsMyLeaveOnly(false)}
+                            className={clsx(
+                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                !isMyLeaveOnly ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-300"
+                            )}
+                        >
+                            전체 보기
+                        </button>
+                        <button
+                            onClick={() => setIsMyLeaveOnly(true)}
+                            className={clsx(
+                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                isMyLeaveOnly ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-300"
+                            )}
+                        >
+                            내 이석만
+                        </button>
+                    </div>
+
+                    <div className="flex bg-[#1a1a1a] rounded-xl p-1 gap-1 w-fit">
+                        <button
+                            onClick={() => setViewMode('active')}
+                            className={clsx(
+                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                viewMode === 'active' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"
+                            )}
+                        >
+                            진행 중
+                        </button>
+                        <button
+                            onClick={() => setViewMode('past')}
+                            className={clsx(
+                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                viewMode === 'past' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"
+                            )}
+                        >
+                            지난 내역
+                        </button>
+                    </div>
                 </div>
 
                 {/* 이석 종류 필터 */}

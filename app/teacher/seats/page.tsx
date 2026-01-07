@@ -103,7 +103,7 @@ export default function SeatManagementPage() {
         const { data } = await supabase
             .from('leave_requests')
             .select('*, leave_request_students(student_id)')
-            .eq('status', '승인') // user requested approved only
+            .in('status', ['승인', '신청']) // Fetch both Approved and Pending
             .gte('end_time', today.toISOString());
 
         if (data) setActiveLeaves(data);
@@ -228,57 +228,44 @@ export default function SeatManagementPage() {
 
             <div className="flex flex-col w-full max-w-6xl mx-auto">
                 {/* Header & Controls */}
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-                    <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
-                        <h1 className="text-xl font-extrabold text-gray-800">양현재 자리배치 관리</h1>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                        {/* Room Dropdown */}
-                        <div className="bg-white p-1 rounded-xl flex border border-gray-100 shadow-sm">
-                            <select
-                                value={selectedRoom}
-                                onChange={(e) => setSelectedRoom(Number(e.target.value))}
-                                className="bg-transparent px-4 py-2 text-sm font-bold text-gray-700 focus:outline-none cursor-pointer"
-                            >
-                                <option value={1}>제 1 실</option>
-                                <option value={2}>제 2 실</option>
-                                <option value={3}>제 3 실</option>
-                            </select>
+                {/* Header & Controls */}
+                <div className="flex flex-col gap-4 mb-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
+                            <h1 className="text-xl font-extrabold text-gray-800 flex items-center gap-2">
+                                제 {selectedRoom} 실 현황 모니터
+                                <select
+                                    value={selectedRoom}
+                                    onChange={(e) => setSelectedRoom(Number(e.target.value))}
+                                    className="ml-2 bg-transparent text-sm font-bold text-gray-400 focus:outline-none cursor-pointer hover:text-gray-600 transition-colors"
+                                >
+                                    <option value={1}>(1실 변경)</option>
+                                    <option value={2}>(2실 변경)</option>
+                                    <option value={3}>(3실 변경)</option>
+                                </select>
+                            </h1>
                         </div>
 
-                        {/* List Button */}
+                        {/* Seat Management Toggle (Compact - Top Right) */}
                         <button
-                            onClick={() => window.location.href = '/teacher'}
-                            className="bg-white px-4 py-3 rounded-xl border border-gray-100 shadow-sm text-gray-500 hover:text-gray-800 font-bold text-sm transition-all flex items-center gap-1"
+                            onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
+                            className={clsx(
+                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1",
+                                mode === 'edit' ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                            )}
                         >
-                            <span>←</span>
-                            <span>이석현황 목록</span>
+                            <span>{mode === 'edit' ? '모니터로 돌아가기' : '⚙️ 좌석 관리'}</span>
                         </button>
-
-                        {/* Mode Toggle */}
-                        <div className="bg-white p-1 rounded-xl flex border border-gray-100 shadow-sm">
-                            <button
-                                onClick={() => setMode('monitor')}
-                                className={clsx(
-                                    "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                                    mode === 'monitor' ? "bg-gray-800 text-white shadow-md" : "text-gray-400 hover:bg-gray-50"
-                                )}
-                            >
-                                현황 모니터
-                            </button>
-                            <button
-                                onClick={() => setMode('edit')}
-                                className={clsx(
-                                    "px-4 py-2 rounded-lg text-sm font-bold transition-all",
-                                    mode === 'edit' ? "bg-gray-800 text-white shadow-md" : "text-gray-400 hover:bg-gray-50"
-                                )}
-                            >
-                                좌석 관리
-                            </button>
-                        </div>
                     </div>
+
+                    {/* Full Width Leave List Button */}
+                    <button
+                        onClick={() => window.location.href = '/teacher'}
+                        className="w-full py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
+                    >
+                        ← 이석현황 목록으로 돌아가기
+                    </button>
                 </div>
 
                 {/* Layout Settings (Only in Edit Mode) */}
@@ -458,6 +445,8 @@ export default function SeatManagementPage() {
                                         const entryEndTime = entry.end_time.substring(0, 5); // HH:mm
                                         const isPast = currentHHmm > entryEndTime;
 
+
+
                                         // 2. Check Assignments for this period
                                         if (assignment && activeLeaves.length > 0) {
                                             const studentLeaves = activeLeaves.filter(req => {
@@ -485,9 +474,10 @@ export default function SeatManagementPage() {
                                             }
 
                                             for (const leave of studentLeaves) {
-                                                const fullLabel = `${label}${periodName}교시`;
-                                                if (leave.period && leave.period.includes(fullLabel)) {
-                                                    return { status: 'active', type: leave.leave_type };
+                                                // Robust matching: Check if it contains the Label (e.g. '야간') AND the specific period (e.g. '1교시')
+                                                // This handles "야간1교시", "야간 1교시", etc. safely.
+                                                if (leave.period && leave.period.includes(label) && leave.period.includes(`${periodName}교시`)) {
+                                                    return { status: isPast ? 'past' : 'active', type: leave.leave_type };
                                                 }
                                             }
                                         }
@@ -505,10 +495,10 @@ export default function SeatManagementPage() {
                                         if (firstActiveP) {
                                             const { type } = getPeriodStatus(periodGroups[0].label, firstActiveP);
                                             switch (type) {
-                                                case '컴이석': headerBgClass = "bg-blue-100"; studentIdTextColor = "text-blue-800"; break;
-                                                case '이석': headerBgClass = "bg-orange-100"; studentIdTextColor = "text-orange-800"; break;
-                                                case '외출': headerBgClass = "bg-yellow-100"; studentIdTextColor = "text-yellow-800"; break;
-                                                case '외박': headerBgClass = "bg-purple-100"; studentIdTextColor = "text-purple-800"; break;
+                                                case '컴이석': headerBgClass = "bg-blue-200"; studentIdTextColor = "text-blue-800"; break;
+                                                case '이석': headerBgClass = "bg-orange-200"; studentIdTextColor = "text-orange-800"; break;
+                                                case '외출': headerBgClass = "bg-yellow-200"; studentIdTextColor = "text-yellow-800"; break;
+                                                case '외박': headerBgClass = "bg-purple-200"; studentIdTextColor = "text-purple-800"; break;
                                             }
                                         }
                                     }
@@ -578,22 +568,22 @@ export default function SeatManagementPage() {
                                                                     textClass = "font-bold";
                                                                     switch (type) {
                                                                         case '컴이석':
-                                                                            blockClass = "bg-blue-100";
+                                                                            blockClass = "bg-blue-200";
                                                                             textClass = "text-blue-700";
                                                                             content = '컴';
                                                                             break;
                                                                         case '이석':
-                                                                            blockClass = "bg-orange-100";
+                                                                            blockClass = "bg-orange-200";
                                                                             textClass = "text-orange-700";
                                                                             content = '이';
                                                                             break;
                                                                         case '외출':
-                                                                            blockClass = "bg-yellow-100";
+                                                                            blockClass = "bg-yellow-200";
                                                                             textClass = "text-yellow-800";
                                                                             content = '출';
                                                                             break;
                                                                         case '외박':
-                                                                            blockClass = "bg-purple-100";
+                                                                            blockClass = "bg-purple-200";
                                                                             textClass = "text-purple-700";
                                                                             content = '박';
                                                                             break;
@@ -604,7 +594,19 @@ export default function SeatManagementPage() {
                                                                             break;
                                                                     }
                                                                 } else if (status === 'past') {
-                                                                    blockClass = "bg-gray-100/50";
+                                                                    blockClass = "bg-gray-300";
+                                                                    if (type) {
+                                                                        textClass = "font-medium text-gray-600 relative z-10";
+                                                                        switch (type) {
+                                                                            case '컴이석': content = '컴'; break;
+                                                                            case '이석': content = '이'; break;
+                                                                            case '외출': content = '출'; break;
+                                                                            case '외박': content = '박'; break;
+                                                                            case '자리비움': content = '비'; break;
+                                                                        }
+                                                                        // Fallback: If switch didn't match and content is still 'p', use first char of type
+                                                                        if (content === p && type.length > 0) content = type[0];
+                                                                    }
                                                                 }
 
                                                                 return (

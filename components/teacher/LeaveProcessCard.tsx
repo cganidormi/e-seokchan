@@ -53,41 +53,43 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                     )}></div>
                     <span className="text-white font-bold text-xs">{req.leave_type}</span>
 
-                    <div className="relative shrink-0">
-                        <button
-                            onClick={onToggleMenu}
-                            className={clsx(
-                                "flex items-center px-1.5 py-0.5 rounded border border-opacity-30 transition-all duration-200 text-[10px] font-bold border-current",
-                                statusConfig.text,
-                                req.status === '신청' ? "bg-blue-500/10" : "bg-white/5"
-                            )}
-                        >
-                            {req.leave_type !== '자리비움' ? statusConfig.label : ""}
-                        </button>
+                    {req.leave_type !== '컴이석' && req.leave_type !== '자리비움' && (
+                        <div className="relative shrink-0">
+                            <button
+                                onClick={onToggleMenu}
+                                className={clsx(
+                                    "flex items-center px-1.5 py-0.5 rounded border border-opacity-30 transition-all duration-200 text-[10px] font-bold border-current",
+                                    statusConfig.text,
+                                    req.status === '신청' ? "bg-blue-500/10" : "bg-white/5"
+                                )}
+                            >
+                                {statusConfig.label}
+                            </button>
 
-                        {isMenuOpen && (
-                            <div className="absolute top-full left-0 mt-2 bg-[#2a2a2a] border border-white/10 rounded-2xl shadow-2xl z-50 py-2 w-24 animate-in fade-in slide-in-from-top-1">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '신청'); }}
-                                    className="w-full px-4 py-2 text-left text-xs text-blue-400 hover:bg-white/5 font-bold"
-                                >
-                                    대기
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '승인'); }}
-                                    className="w-full px-4 py-2 text-left text-xs text-green-400 hover:bg-white/5 font-bold"
-                                >
-                                    승인
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '반려'); }}
-                                    className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-white/5 font-bold"
-                                >
-                                    반려
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                            {isMenuOpen && (
+                                <div className="absolute top-full left-0 mt-2 bg-[#2a2a2a] border border-white/10 rounded-2xl shadow-2xl z-50 py-2 w-24 animate-in fade-in slide-in-from-top-1">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '신청'); }}
+                                        className="w-full px-4 py-2 text-left text-xs text-blue-400 hover:bg-white/5 font-bold"
+                                    >
+                                        대기
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '승인'); }}
+                                        className="w-full px-4 py-2 text-left text-xs text-green-400 hover:bg-white/5 font-bold"
+                                    >
+                                        승인
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '반려'); }}
+                                        className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-white/5 font-bold"
+                                    >
+                                        반려
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex flex-1 items-center gap-2 min-w-0">
@@ -190,40 +192,42 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                 </div>
             </div>
 
-            {isExpanded && (
-                <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
-                    <div className="grid grid-cols-3 gap-4 text-xs">
-                        {req.leave_type !== '컴이석' ? (
-                            <>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-gray-500 font-bold">지도교사</span>
-                                    <span className="text-white">{req.teachers?.name || '-'}</span>
+            {
+                isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="grid grid-cols-3 gap-4 text-xs">
+                            {req.leave_type !== '컴이석' ? (
+                                <>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-gray-500 font-bold">지도교사</span>
+                                        <span className="text-white">{req.teachers?.name || '-'}</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-gray-500 font-bold">장소</span>
+                                        <span className="text-white">{req.place || '-'}</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-gray-500 font-bold">사유</span>
+                                        <span className="text-white">{req.reason || '-'}</span>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col gap-1 col-span-3">
+                                    <span className="text-gray-500 font-bold italic text-[10px]">컴이석은 별도 장소/사유가 필요하지 않습니다.</span>
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-gray-500 font-bold">장소</span>
-                                    <span className="text-white">{req.place || '-'}</span>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-gray-500 font-bold">사유</span>
-                                    <span className="text-white">{req.reason || '-'}</span>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="flex flex-col gap-1 col-span-3">
-                                <span className="text-gray-500 font-bold italic text-[10px]">컴이석은 별도 장소/사유가 필요하지 않습니다.</span>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
 
-                    {/* 신청 일시 */}
-                    <div className="flex flex-col gap-1">
-                        <span className="text-gray-500 font-bold">신청 일시</span>
-                        <span className="text-gray-400 text-xs">
-                            {new Date(req.created_at).toLocaleString()}
-                        </span>
+                        {/* 신청 일시 */}
+                        <div className="flex flex-col gap-1">
+                            <span className="text-gray-500 font-bold">신청 일시</span>
+                            <span className="text-gray-400 text-xs">
+                                {new Date(req.created_at).toLocaleString()}
+                            </span>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
