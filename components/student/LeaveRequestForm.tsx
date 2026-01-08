@@ -27,50 +27,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
     const [addedStudents, setAddedStudents] = useState<Student[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [leaveType, setLeaveType] = useState('');
 
-    const handleSubmit = async () => {
-        if (isSubmitting) return;
 
-        const now = new Date();
-        const isToday = targetDate.toDateString() === now.toDateString();
-
-        if (isToday && (leaveType === '이석' || leaveType === '컴이석') && periods.length > 0) {
-            // ... (timetable check logic)
-        }
-
-        if (
-            !studentId ||
-            !leaveType ||
-            ((leaveType === '컴이석' || leaveType === '이석') && periods.length === 0) ||
-            ((leaveType === '외출' || leaveType === '외박') && (!startDate || !endDate)) ||
-            (leaveType === '이석' && (!teacherId || !place || !reason))
-        ) {
-            toast.error('필수 항목을 모두 입력하세요.');
-            return;
-        }
-
-        // ... (validation logic)
-
-        try {
-            setIsSubmitting(true);
-
-            // ... (existing insert logic)
-            // ...
-            // ...
-
-            // NOTE: I need to include the rest of the function or use replace_file_content carefully. 
-            // Since the logic is long, I will use MultiReplace to target specific blocks: 
-            // 1. State definition
-            // 2. Button update
-            // 3. Wrap handler
-
-        } catch (error) {
-            console.error(error);
-            toast.error('오류가 발생했습니다.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
     const [teacherId, setTeacherId] = useState('');
     const [place, setPlace] = useState('');
     const [reason, setReason] = useState('');
@@ -380,154 +339,160 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             setStartDate(null);
             setEndDate(null);
             toast.success(leaveType === '자리비움' ? '10분간 자리비움이 승인되었습니다.' : '이석 신청이 완료되었습니다.');
-        };
-
-        return (
-            <div className="flex flex-col w-full max-w-xl mx-auto relative">
-                <div className="flex items-center gap-2 mb-4">
-                    <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
-                    <h1 className="text-xl font-extrabold text-gray-800">이석 신청</h1>
-                </div>
-
-                <div className="flex flex-col gap-2 mb-4">
-                    <span>신청자</span>
-                    <Select
-                        instanceId="student-select"
-                        isMulti
-                        value={addedStudents.map(s => ({ value: s.student_id, label: s.student_id, student: s }))}
-                        options={students.map(s => ({ value: s.student_id, label: s.student_id, student: s }))}
-                        onChange={(options: any) => {
-                            let selected = options ? (Array.isArray(options) ? options.map((o: any) => o.student) : [options.student]) : [];
-                            const loginStudent = students.find(s => s.student_id === studentId);
-                            if (loginStudent && !selected.some((s: any) => s.student_id === studentId)) selected = [loginStudent, ...selected];
-                            setAddedStudents(selected);
-                        }}
-                        styles={{
-                            control: (base) => ({
-                                ...base,
-                                borderRadius: '1rem',
-                                padding: '0.25rem',
-                                borderColor: '#e5e7eb',
-                                boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-                                ':hover': { borderColor: '#fbbf24' },
-                            }),
-                            multiValue: (base) => ({ ...base, backgroundColor: '#fefce8', border: '1px solid #fde68a', borderRadius: '0.5rem', margin: '2px' }),
-                            multiValueLabel: (base) => ({ ...base, color: '#854d0e', fontWeight: '600', padding: '2px 8px', fontSize: '0.875rem' }),
-                        }}
-                        placeholder="신청자 선택 (검색 가능)"
-                    />
-                </div>
-
-                <div className="grid grid-cols-5 gap-2 mb-4">
-                    {leaveTypes.map((t) => (
-                        <button
-                            key={t}
-                            onClick={() => {
-                                setLeaveType(t);
-                                setPeriods([]);
-                                setTeacherId('');
-                                setPlace('');
-                                setReason('');
-                                setStartDate(new Date());
-                                setEndDate(new Date());
-                                if (t === '외출' || t === '외박' || t === '자리비움') {
-                                    const loginStudent = students.find(s => s.student_id === studentId);
-                                    if (loginStudent) setAddedStudents([loginStudent]);
-                                }
-                            }}
-                            className={clsx(
-                                'h-12 rounded-2xl shadow-sm border transition-all duration-200 active:scale-95 font-medium w-full flex items-center justify-center',
-                                leaveType === t ? 'bg-yellow-400 text-white border-yellow-400 shadow-md font-bold' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                            )}
-                        >
-                            {t}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Unified Conditional Content Wrapper */}
-                <div className={clsx(
-                    "grid transition-all duration-300 overflow-hidden",
-                    (leaveType && leaveType !== '자리비움') ? "grid-rows-[1fr] opacity-100 mb-4" : "grid-rows-[0fr] opacity-0 mb-0"
-                )}>
-                    <div className="min-h-0 flex flex-col gap-4">
-                        {/* Period selection for Leave/Computer Leave */}
-                        {(leaveType === '컴이석' || leaveType === '이석') && (
-                            <div className="flex flex-col gap-4">
-                                <DatePicker
-                                    selected={targetDate}
-                                    onChange={(date) => { if (date) { setTargetDate(date); setPeriods([]); } }}
-                                    dateFormat="yyyy-MM-dd"
-                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full text-center shadow-sm cursor-pointer transition-all hover:border-yellow-400 font-bold"
-                                />
-                                <div className={clsx(
-                                    "bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden",
-                                    isDateHoliday(targetDate) ? "grid grid-cols-3 divide-x divide-gray-100" : "flex flex-col p-3 gap-1"
-                                )}>
-                                    {(isDateHoliday(targetDate)
-                                        ? [{ key: '오전', label: '오전', p: ['1', '2', '3'] }, { key: '오후', label: '오후', p: ['4', '5', '6'] }, { key: '야간_공휴일', label: '야간', p: ['1', '2', '3'] }]
-                                        : [{ key: '주간', label: '주간', p: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] }, { key: '야간', label: '야간', p: ['1', '2', '3', '4'] }]
-                                    ).map((type) => (
-                                        <div key={type.key} className="flex flex-col gap-2 p-2 w-full">
-                                            <div className="flex items-center gap-2 px-1">
-                                                <div className="w-1 h-4 bg-yellow-400 rounded-full"></div>
-                                                <span className="text-sm font-bold text-gray-700">{type.label}</span>
-                                            </div>
-                                            <div className="grid gap-1 w-full grid-cols-9">
-                                                {type.p.map(p => {
-                                                    const label = `${type.label}${p}교시`;
-                                                    const isSelected = periods.includes(label);
-                                                    return (
-                                                        <button key={p} onClick={() => togglePeriod(label)} className={clsx('w-full aspect-square rounded-lg text-sm font-bold transition-all border shadow-sm flex items-center justify-center', isSelected ? 'bg-yellow-400 text-white border-yellow-400 scale-105' : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100')}>
-                                                            {p}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Date range for Outing/Overnight */}
-                        {(leaveType === '외출' || leaveType === '외박') && (
-                            <div className="flex flex-col md:flex-row justify-between gap-4">
-                                <DatePicker selected={startDate} onChange={setStartDate} showTimeSelect timeIntervals={10} dateFormat="yyyy-MM-dd HH:mm" className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer" />
-                                <DatePicker selected={endDate} onChange={setEndDate} showTimeSelect timeIntervals={10} dateFormat="yyyy-MM-dd HH:mm" className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer" />
-                            </div>
-                        )}
-
-                        {/* Details for Leave/Outing/Overnight (Exclude Computer Leave/Away) */}
-                        {(leaveType !== '컴이석' && leaveType !== '자리비움' && leaveType !== '') && (
-                            <div className="flex flex-col gap-3">
-                                <select value={teacherId} onChange={e => setTeacherId(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full">
-                                    <option value="">지도교사</option>
-                                    {teachers.map(t => t.id && <option key={t.id} value={t.id}>{t.name}</option>)}
-                                </select>
-                                <select value={place} onChange={e => setPlace(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full">
-                                    <option value="">이석 장소</option>
-                                    {leavePlaces.map(p => <option key={p}>{p}</option>)}
-                                </select>
-                                <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full" placeholder="이석 사유" />
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <button
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
-                    className={clsx(
-                        "h-14 rounded-2xl font-bold text-lg shadow-md transition-all mb-8 flex items-center justify-center gap-2",
-                        isSubmitting
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:shadow-lg transform active:scale-95"
-                    )}
-                >
-                    {isSubmitting && <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>}
-                    {isSubmitting ? '신청 중...' : '신청'}
-                </button>
-            </div>
-        );
+        } catch (error) {
+            console.error(error);
+            toast.error('오류가 발생했습니다.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
+
+    return (
+        <div className="flex flex-col w-full max-w-xl mx-auto relative">
+            <div className="flex items-center gap-2 mb-4">
+                <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
+                <h1 className="text-xl font-extrabold text-gray-800">이석 신청</h1>
+            </div>
+
+            <div className="flex flex-col gap-2 mb-4">
+                <span>신청자</span>
+                <Select
+                    instanceId="student-select"
+                    isMulti
+                    value={addedStudents.map(s => ({ value: s.student_id, label: s.student_id, student: s }))}
+                    options={students.map(s => ({ value: s.student_id, label: s.student_id, student: s }))}
+                    onChange={(options: any) => {
+                        let selected = options ? (Array.isArray(options) ? options.map((o: any) => o.student) : [options.student]) : [];
+                        const loginStudent = students.find(s => s.student_id === studentId);
+                        if (loginStudent && !selected.some((s: any) => s.student_id === studentId)) selected = [loginStudent, ...selected];
+                        setAddedStudents(selected);
+                    }}
+                    styles={{
+                        control: (base) => ({
+                            ...base,
+                            borderRadius: '1rem',
+                            padding: '0.25rem',
+                            borderColor: '#e5e7eb',
+                            boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+                            ':hover': { borderColor: '#fbbf24' },
+                        }),
+                        multiValue: (base) => ({ ...base, backgroundColor: '#fefce8', border: '1px solid #fde68a', borderRadius: '0.5rem', margin: '2px' }),
+                        multiValueLabel: (base) => ({ ...base, color: '#854d0e', fontWeight: '600', padding: '2px 8px', fontSize: '0.875rem' }),
+                    }}
+                    placeholder="신청자 선택 (검색 가능)"
+                />
+            </div>
+
+            <div className="grid grid-cols-5 gap-2 mb-4">
+                {leaveTypes.map((t) => (
+                    <button
+                        key={t}
+                        onClick={() => {
+                            setLeaveType(t);
+                            setPeriods([]);
+                            setTeacherId('');
+                            setPlace('');
+                            setReason('');
+                            setStartDate(new Date());
+                            setEndDate(new Date());
+                            if (t === '외출' || t === '외박' || t === '자리비움') {
+                                const loginStudent = students.find(s => s.student_id === studentId);
+                                if (loginStudent) setAddedStudents([loginStudent]);
+                            }
+                        }}
+                        className={clsx(
+                            'h-12 rounded-2xl shadow-sm border transition-all duration-200 active:scale-95 font-medium w-full flex items-center justify-center',
+                            leaveType === t ? 'bg-yellow-400 text-white border-yellow-400 shadow-md font-bold' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                        )}
+                    >
+                        {t}
+                    </button>
+                ))}
+            </div>
+
+            {/* Unified Conditional Content Wrapper */}
+            <div className={clsx(
+                "grid transition-all duration-300 overflow-hidden",
+                (leaveType && leaveType !== '자리비움') ? "grid-rows-[1fr] opacity-100 mb-4" : "grid-rows-[0fr] opacity-0 mb-0"
+            )}>
+                <div className="min-h-0 flex flex-col gap-4">
+                    {/* Period selection for Leave/Computer Leave */}
+                    {(leaveType === '컴이석' || leaveType === '이석') && (
+                        <div className="flex flex-col gap-4">
+                            <DatePicker
+                                selected={targetDate}
+                                onChange={(date) => { if (date) { setTargetDate(date); setPeriods([]); } }}
+                                dateFormat="yyyy-MM-dd"
+                                className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full text-center shadow-sm cursor-pointer transition-all hover:border-yellow-400 font-bold"
+                            />
+                            <div className={clsx(
+                                "bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden",
+                                isDateHoliday(targetDate) ? "grid grid-cols-3 divide-x divide-gray-100" : "flex flex-col p-3 gap-1"
+                            )}>
+                                {(isDateHoliday(targetDate)
+                                    ? [{ key: '오전', label: '오전', p: ['1', '2', '3'] }, { key: '오후', label: '오후', p: ['4', '5', '6'] }, { key: '야간_공휴일', label: '야간', p: ['1', '2', '3'] }]
+                                    : [{ key: '주간', label: '주간', p: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] }, { key: '야간', label: '야간', p: ['1', '2', '3', '4'] }]
+                                ).map((type) => (
+                                    <div key={type.key} className="flex flex-col gap-2 p-2 w-full">
+                                        <div className="flex items-center gap-2 px-1">
+                                            <div className="w-1 h-4 bg-yellow-400 rounded-full"></div>
+                                            <span className="text-sm font-bold text-gray-700">{type.label}</span>
+                                        </div>
+                                        <div className="grid gap-1 w-full grid-cols-9">
+                                            {type.p.map(p => {
+                                                const label = `${type.label}${p}교시`;
+                                                const isSelected = periods.includes(label);
+                                                return (
+                                                    <button key={p} onClick={() => togglePeriod(label)} className={clsx('w-full aspect-square rounded-lg text-sm font-bold transition-all border shadow-sm flex items-center justify-center', isSelected ? 'bg-yellow-400 text-white border-yellow-400 scale-105' : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100')}>
+                                                        {p}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Date range for Outing/Overnight */}
+                    {(leaveType === '외출' || leaveType === '외박') && (
+                        <div className="flex flex-col md:flex-row justify-between gap-4">
+                            <DatePicker selected={startDate} onChange={setStartDate} showTimeSelect timeIntervals={10} dateFormat="yyyy-MM-dd HH:mm" className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer" />
+                            <DatePicker selected={endDate} onChange={setEndDate} showTimeSelect timeIntervals={10} dateFormat="yyyy-MM-dd HH:mm" className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer" />
+                        </div>
+                    )}
+
+                    {/* Details for Leave/Outing/Overnight (Exclude Computer Leave/Away) */}
+                    {(leaveType !== '컴이석' && leaveType !== '자리비움' && leaveType !== '') && (
+                        <div className="flex flex-col gap-3">
+                            <select value={teacherId} onChange={e => setTeacherId(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full">
+                                <option value="">지도교사</option>
+                                {teachers.map(t => t.id && <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                            <select value={place} onChange={e => setPlace(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full">
+                                <option value="">이석 장소</option>
+                                {leavePlaces.map(p => <option key={p}>{p}</option>)}
+                            </select>
+                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full" placeholder="이석 사유" />
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className={clsx(
+                    "h-14 rounded-2xl font-bold text-lg shadow-md transition-all mb-8 flex items-center justify-center gap-2",
+                    isSubmitting
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:shadow-lg transform active:scale-95"
+                )}
+            >
+                {isSubmitting && <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>}
+                {isSubmitting ? '신청 중...' : '신청'}
+            </button>
+        </div>
+    );
+};
