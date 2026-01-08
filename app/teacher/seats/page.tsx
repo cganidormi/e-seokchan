@@ -21,6 +21,12 @@ interface SeatAssignment {
     student?: Student;
 }
 
+interface SeatProperty {
+    room_number: number;
+    seat_number: number;
+    is_disabled: boolean;
+}
+
 interface RoomLayout {
     room_number: number;
     columns: number;
@@ -41,6 +47,7 @@ export default function SeatManagementPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [students, setStudents] = useState<Student[]>([]);
     const [assignments, setAssignments] = useState<SeatAssignment[]>([]);
+    const [seatProperties, setSeatProperties] = useState<SeatProperty[]>([]); // Added state
     const [layout, setLayout] = useState<RoomLayout>({ room_number: 1, columns: 6, total_seats: 30 });
     const [activeLeaves, setActiveLeaves] = useState<any[]>([]);
     const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
@@ -140,6 +147,18 @@ export default function SeatManagementPage() {
             } else {
                 setAssignments([]);
             }
+
+            // Fetch Seat Properties (Disabled Status)
+            const { data: propData } = await supabase
+                .from('seats')
+                .select('*')
+                .eq('room_number', roomNum);
+
+            if (propData) {
+                setSeatProperties(propData);
+            } else {
+                setSeatProperties([]);
+            }
         } catch (error) {
             console.error('Error fetching room data:', error);
             toast.error('데이터를 불러오는 중 오류가 발생했습니다.');
@@ -221,6 +240,51 @@ export default function SeatManagementPage() {
             toast.error('초기화 실패');
         }
     }
+
+    const toggleSeatDisabled = async (seatNum: number | null) => {
+        if (seatNum === null) return;
+
+        const currentProp = seatProperties.find(p => p.seat_number === seatNum);
+        const newDisabledStatus = !currentProp?.is_disabled;
+
+        try {
+            const { error } = await supabase
+                .from('seats')
+                .upsert({
+                    room_number: selectedRoom,
+                    seat_number: seatNum,
+                    is_disabled: newDisabledStatus
+                }, { onConflict: 'room_number, seat_number' } as any);
+
+            if (error) throw error;
+
+            // Update Local State
+            setSeatProperties(prev => {
+                const existing = prev.find(p => p.seat_number === seatNum);
+                if (existing) {
+                    return prev.map(p => p.seat_number === seatNum ? { ...p, is_disabled: newDisabledStatus } : p);
+                } else {
+                    return [...prev, { room_number: selectedRoom, seat_number: seatNum, is_disabled: newDisabledStatus }];
+                }
+            });
+
+            // If disabling, also remove assignment if exists
+            if (newDisabledStatus) {
+                const existingAssignment = assignments.find(a => a.seat_number === seatNum);
+                if (existingAssignment) {
+                    await supabase.from('seat_assignments').delete().eq('id', existingAssignment.id);
+                    setAssignments(prev => prev.filter(a => a.seat_number !== seatNum));
+                }
+            }
+
+            toast.success(newDisabledStatus ? '좌석이 비활성화되었습니다.' : '좌석이 활성화되었습니다.');
+            setIsModalOpen(false); // Close modal if open
+
+        } catch (err) {
+            console.error('Error toggling disabled status:', err);
+            toast.error('상태 변경 실패');
+        }
+    };
 
     return (
         <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
@@ -353,6 +417,12 @@ export default function SeatManagementPage() {
                                 {Array.from({ length: layout.total_seats }).map((_, idx) => {
                                     const seatNum = idx + 1;
                                     const assignment = assignments.find(a => a.seat_number === seatNum);
+                                    const isDisabled = seatProperties.find(p => p.seat_number === seatNum)?.is_disabled;
+
+                                    // Calculate Display Number (Visual Seat Number)
+                                    // Count how many disabled seats exist with seat_number < current seatNum
+                                    const disabledCountBefore = seatProperties.filter(p => p.seat_number < seatNum && p.is_disabled).length;
+                                    const displaySeatNum = seatNum - disabledCountBefore;
 
                                     // --- Monitor Mode Variables ---
                                     let seatStatusColor = "bg-[#e0e5ec]"; // Neumorphic base
@@ -503,6 +573,14 @@ export default function SeatManagementPage() {
                                         }
                                     }
 
+                                    if (isDisabled && mode === 'monitor') {
+                                        return (
+                                            <div key={seatNum} className="relative w-full h-[54px] bg-gray-300 border-r border-b border-gray-200">
+                                                {/* Disabled Seat (Dead Space) */}
+                                            </div>
+                                        );
+                                    }
+
                                     return (
                                         <div key={seatNum} className="relative group">
                                             {/* Rectangular Seat Card */}
@@ -523,23 +601,31 @@ export default function SeatManagementPage() {
                                                     }
                                                 }}
                                                 className={clsx(
-                                                    "relative flex flex-col border-r border-b border-gray-200 overflow-hidden transition-all bg-white",
-                                                    !assignment && "bg-gray-50/50",
+                                                    "relative flex flex-col border-r border-b border-gray-200 overflow-hidden transition-all",
+                                                    isDisabled ? "bg-gray-300" : "bg-white",
+                                                    !assignment && !isDisabled && "bg-gray-50/50",
                                                     "w-full h-[54px]",
-                                                    mode === 'edit' && "cursor-pointer hover:bg-yellow-50/50 hover:border-yellow-400 group/card z-10",
+                                                    mode === 'edit' && !isDisabled && "cursor-pointer hover:bg-yellow-50/50 hover:border-yellow-400 group/card z-10",
+                                                    mode === 'edit' && isDisabled && "cursor-pointer z-10", // Allow selection but no hover effect
                                                     activeLeaveReq?.leave_type === '자리비움' && !isAwayBlinking && "bg-red-50",
                                                     isAwayBlinking && "animate-[pulse_1s_infinite] bg-red-100 ring-2 ring-red-500 ring-inset"
                                                 )}
                                             >
                                                 {/* Seat Number on Top-Right Inside */}
-                                                <span className={clsx(
-                                                    "absolute top-0.5 right-1 text-[8px] font-medium select-none z-20",
-                                                    activeLeaveReq?.leave_type === '자리비움' ? "text-white/80" : "text-gray-300"
-                                                )}>
-                                                    {seatNum}
-                                                </span>
+                                                {!isDisabled && (
+                                                    <span className={clsx(
+                                                        "absolute top-0.5 right-1 text-[8px] font-medium select-none z-20",
+                                                        activeLeaveReq?.leave_type === '자리비움' ? "text-white/80" : "text-gray-300"
+                                                    )}>
+                                                        {displaySeatNum}
+                                                    </span>
+                                                )}
 
-                                                {assignment ? (
+                                                {isDisabled ? (
+                                                    <div className="flex-1">
+                                                        {/* Empty for Dead Space */}
+                                                    </div>
+                                                ) : assignment ? (
                                                     <>
                                                         {/* Top Section: Student ID Only */}
                                                         {/* Top Section: Student ID Only */}
@@ -638,19 +724,35 @@ export default function SeatManagementPage() {
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100">
-                        <h2 className="text-lg font-extrabold text-gray-800 mb-4">
-                            {selectedRoom}열람실 {selectedSeat}번 좌석 배정
-                        </h2>
+                        {(() => {
+                            if (selectedSeat === null) return null;
+                            const disabledCountBefore = seatProperties.filter(p => p.seat_number < selectedSeat && p.is_disabled).length;
+                            const displaySeatNum = selectedSeat - disabledCountBefore;
+                            const isCurrentDisabled = seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled;
+
+                            return (
+                                <>
+                                    <h2 className="text-lg font-extrabold text-gray-800 mb-4">
+                                        {selectedRoom}열람실 {isCurrentDisabled ? '(비활성)' : `${displaySeatNum}번 좌석`} 관리
+                                        <span className="text-xs text-gray-400 font-normal ml-2">
+                                            (Slot #{selectedSeat})
+                                        </span>
+                                    </h2>
+                                </>
+                            );
+                        })()}
 
                         <div className="mb-6">
                             <label className="block text-xs font-bold text-gray-400 mb-2">학생 선택</label>
                             <Select
                                 autoFocus
-                                options={students.map(s => ({
-                                    value: s.student_id,
-                                    label: `${s.student_id} ${s.name}`,
-                                    student: s
-                                }))}
+                                options={students
+                                    .filter(s => !assignments.some(a => a.student_id === s.student_id)) // Filter out already assigned students
+                                    .map(s => ({
+                                        value: s.student_id,
+                                        label: `${s.student_id} ${s.name}`,
+                                        student: s
+                                    }))}
                                 onChange={(option: any) => {
                                     assignStudent(option.value);
                                 }}
@@ -674,6 +776,22 @@ export default function SeatManagementPage() {
                                 }}
                             />
                         </div>
+
+                        <div className="flex gap-2">
+                            {/* Disable Toggle (Priority) */}
+                            <button
+                                onClick={() => toggleSeatDisabled(selectedSeat)}
+                                className={clsx(
+                                    "flex-1 py-3 font-bold rounded-xl transition-colors",
+                                    seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled
+                                        ? "bg-green-100 text-green-600 hover:bg-green-200"
+                                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                )}
+                            >
+                                {seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled ? "⭕ 좌석 활성화" : "🚫 좌석 비활성화"}
+                            </button>
+                        </div>
+                        <div className="h-px bg-gray-100 my-4" />
 
                         <div className="flex gap-2">
                             {/* If assigned, show remove button */}

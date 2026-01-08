@@ -68,7 +68,8 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
 
         // 2. req.period 파싱 (예: "주간 8교시", "야간 1교시")
         // DB의 timetable_entries.description과 매칭해야 함 (예: "평일주간8교시", "평일야간1교시" 등)
-        const isWeekendOrHoliday = isDateHoliday(now);
+        const requestDate = new Date(req.start_time);
+        const isWeekendOrHoliday = isDateHoliday(requestDate);
         const dayPrefix = isWeekendOrHoliday ? '주말' : '평일';
 
         // req.period에서 숫자와 "주간"/"야간" 추출
@@ -96,9 +97,9 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
         const entry = timetable.find((t: any) => t.description === targetDescription);
 
         if (entry) {
-            // 현재 날짜에 해당 교시의 종료 시간 적용
+            // 해당 날짜에 해당 교시의 종료 시간 적용
             const [hours, minutes, seconds] = entry.end_time.split(':').map(Number);
-            const dynamicEnd = new Date(now);
+            const dynamicEnd = new Date(requestDate);
             dynamicEnd.setHours(hours, minutes, seconds || 0, 0);
             return dynamicEnd;
         }
@@ -242,6 +243,7 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
                             onToggleExpand={() => setExpandedId(expandedId === req.id ? null : req.id)}
                             onCancel={onCancel}
                             viewMode={viewMode}
+                            currentStudentId={studentId}
                         />
                     ))
                 )}

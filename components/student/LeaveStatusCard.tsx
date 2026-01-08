@@ -10,6 +10,7 @@ interface LeaveStatusCardProps {
     onToggleExpand: () => void;
     onCancel: (id: number) => void;
     viewMode: 'active' | 'past';
+    currentStudentId: string;
 }
 
 export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
@@ -18,6 +19,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
     onToggleExpand,
     onCancel,
     viewMode,
+    currentStudentId,
 }) => {
     const statusConfig = ({
         '신청': { dot: 'bg-blue-500', text: 'text-blue-500', label: '대기' },
@@ -155,7 +157,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                 {/* 5. 취소 버튼 (우측 끝) */}
                 {!isPast && (
                     <div className="ml-auto flex items-center shrink-0">
-                        {req.status !== '취소' && (
+                        {req.student_id === currentStudentId && req.status === '신청' && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
                                 className="text-gray-500 hover:text-red-500 transition-colors p-1"

@@ -10,6 +10,7 @@ import { LeaveRequest } from '@/components/teacher/types';
 export default function TeacherPage() {
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [teacherName, setTeacherName] = useState<string>('');
+  const [teacherPosition, setTeacherPosition] = useState<string>(''); // Added state for position
   const [isLoading, setIsLoading] = useState(true);
   const [students, setStudents] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
@@ -42,7 +43,7 @@ export default function TeacherPage() {
           console.log('[DEBUG] fetching teacher info for:', loginId);
           const { data: teacher, error } = await supabase
             .from('teachers')
-            .select('id, name')
+            .select('id, name, position') // Added position
             .eq('teacher_id', loginId)
             .single();
 
@@ -54,6 +55,7 @@ export default function TeacherPage() {
             console.log('[DEBUG] teacher found:', teacher);
             setTeacherId(teacher.id);
             setTeacherName(teacher.name);
+            setTeacherPosition(teacher.position); // Set position
             await fetchLeaveRequests(teacher.id, teacher.name);
           } else {
             console.error('[DEBUG] Teacher record not found in teachers table for login ID:', loginId);
@@ -213,6 +215,19 @@ export default function TeacherPage() {
   return (
     <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
       <Toaster />
+
+      {/* Admin Button for authorized teachers */}
+      {teacherPosition === '관리자' && (
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => router.push('/admin')}
+            className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2"
+          >
+            <span>🔧</span>
+            <span>관리자 페이지</span>
+          </button>
+        </div>
+      )}
 
 
 

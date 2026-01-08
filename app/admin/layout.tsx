@@ -21,20 +21,31 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="flex min-h-screen">
       <aside className="w-32 bg-gray-900 text-white p-2 flex flex-col gap-2">
+        <Link
+          href="/teacher"
+          className="p-2 rounded text-sm hover:bg-gray-800 text-yellow-400 font-bold border border-yellow-400/30 flex items-center justify-center gap-2 mb-2"
+        >
+          <span>⬅</span>
+          <span>교사 페이지</span>
+        </Link>
+        <div className="h-px bg-gray-700 mx-2" />
         {menuItems.map((item) => {
           const isActive = pathname === item.path;
           return (
             <Link
               key={item.path}
               href={item.path}
-              className={`p-2 rounded text-sm ${
-                isActive ? "bg-gray-700" : "hover:bg-gray-800"
-              }`}
+              className={`p-2 rounded text-sm ${isActive ? "bg-gray-700" : "hover:bg-gray-800"
+                }`}
             >
               {item.name}
             </Link>
           );
         })}
+
+
+
+
       </aside>
 
       <main className="flex-1 p-4">{children}</main>
