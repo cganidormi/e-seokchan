@@ -384,30 +384,60 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             </div>
 
             <div className="grid grid-cols-5 gap-2 mb-4">
-                {leaveTypes.map((t) => (
-                    <button
-                        key={t}
-                        onClick={() => {
-                            setLeaveType(t);
-                            setPeriods([]);
-                            setTeacherId('');
-                            setPlace('');
-                            setReason('');
-                            setStartDate(new Date());
-                            setEndDate(new Date());
-                            if (t === '외출' || t === '외박' || t === '자리비움') {
-                                const loginStudent = students.find(s => s.student_id === studentId);
-                                if (loginStudent) setAddedStudents([loginStudent]);
-                            }
-                        }}
-                        className={clsx(
-                            'h-12 rounded-2xl shadow-sm border transition-all duration-200 active:scale-95 font-medium w-full flex items-center justify-center',
-                            leaveType === t ? 'bg-yellow-400 text-white border-yellow-400 shadow-md font-bold' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                        )}
-                    >
-                        {t}
-                    </button>
-                ))}
+                {leaveTypes.map((t) => {
+                    let activeClass = '';
+                    let inactiveClass = '';
+                    switch (t) {
+                        case '컴이석':
+                            activeClass = 'bg-blue-500 text-white border-blue-500 shadow-md font-bold';
+                            inactiveClass = 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100';
+                            break;
+                        case '이석':
+                            activeClass = 'bg-orange-500 text-white border-orange-500 shadow-md font-bold';
+                            inactiveClass = 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100';
+                            break;
+                        case '외출':
+                            activeClass = 'bg-green-500 text-white border-green-500 shadow-md font-bold';
+                            inactiveClass = 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100';
+                            break;
+                        case '외박':
+                            activeClass = 'bg-purple-500 text-white border-purple-500 shadow-md font-bold';
+                            inactiveClass = 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100';
+                            break;
+                        case '자리비움':
+                            activeClass = 'bg-red-500 text-white border-red-500 shadow-md font-bold';
+                            inactiveClass = 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100';
+                            break;
+                        default:
+                            activeClass = 'bg-yellow-400 text-white border-yellow-400 shadow-md font-bold';
+                            inactiveClass = 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50';
+                    }
+
+                    return (
+                        <button
+                            key={t}
+                            onClick={() => {
+                                setLeaveType(t);
+                                setPeriods([]);
+                                setTeacherId('');
+                                setPlace('');
+                                setReason('');
+                                setStartDate(new Date());
+                                setEndDate(new Date());
+                                if (t === '외출' || t === '외박' || t === '자리비움') {
+                                    const loginStudent = students.find(s => s.student_id === studentId);
+                                    if (loginStudent) setAddedStudents([loginStudent]);
+                                }
+                            }}
+                            className={clsx(
+                                'h-12 rounded-2xl shadow-sm border transition-all duration-200 active:scale-95 font-medium w-full flex items-center justify-center text-sm break-keep',
+                                leaveType === t ? activeClass : inactiveClass
+                            )}
+                        >
+                            {t}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Unified Conditional Content Wrapper */}

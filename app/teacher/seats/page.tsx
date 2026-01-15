@@ -110,10 +110,19 @@ export default function SeatManagementPage() {
         const { data } = await supabase
             .from('leave_requests')
             .select('*, leave_request_students(student_id)')
-            .in('status', ['승인', '신청']) // Fetch both Approved and Pending
+            .in('status', ['승인', '신청']) // Fetch both to filter in memory
             .gte('end_time', today.toISOString());
 
-        if (data) setActiveLeaves(data);
+        if (data) {
+            // Strict Filtering Rule:
+            // 1. '컴이석' (Computer Iseok): Show regardless of status (Pending is visible).
+            // 2. Others (Iseok, Outing, Overnight): Show ONLY if '승인' (Approved).
+            const filteredData = data.filter(req => {
+                if (req.leave_type === '컴이석') return true;
+                return req.status === '승인'; // Hide '신청' (Pending) for others
+            });
+            setActiveLeaves(filteredData);
+        }
     };
 
     const fetchRoomData = async (roomNum: number) => {
@@ -435,43 +444,42 @@ export default function SeatManagementPage() {
                                     const isHoliday = (day === 0 || day === 6) || specialHolidays.includes(dateStr);
                                     const currentHHmm = currentTime.getHours().toString().padStart(2, '0') + ':' + currentTime.getMinutes().toString().padStart(2, '0');
 
-                                    let periodGroups: { label: string, periods: string[] }[] = [];
+                                    let periodGroups: { label: string, periods: { p: string, id: number }[] }[] = [];
 
                                     if (timetable.length > 0) {
                                         const typeFilter = isHoliday ? 'weekend' : 'weekday';
                                         const dayPeriods = timetable
-                                            .filter(t => t.day_type.includes(typeFilter) && t.day_type.includes('day'))
+                                            .filter(t => t.day_type.includes(typeFilter) && /\bday\b/.test(t.day_type))
                                             .sort((a, b) => a.start_time.localeCompare(b.start_time))
-                                            .map(t => ({ label: isHoliday ? '오후' : '주간', p: t.description.replace(/[^0-9]/g, '') }));
+                                            .map(t => ({ label: isHoliday ? '오후' : '주간', p: t.description.replace(/[^0-9]/g, ''), id: t.id }));
 
                                         const nightPeriods = timetable
                                             .filter(t => t.day_type.includes(typeFilter) && t.day_type.includes('night'))
                                             .sort((a, b) => a.start_time.localeCompare(b.start_time))
-                                            .map(t => ({ label: '야간', p: t.description.replace(/[^0-9]/g, '') }));
+                                            .map(t => ({ label: '야간', p: t.description.replace(/[^0-9]/g, ''), id: t.id }));
 
                                         // Weekends might have morning too
                                         const morningPeriods = isHoliday ? timetable
                                             .filter(t => t.day_type.includes('weekend morning')) // hypothetical, but handle if any
                                             .sort((a, b) => a.start_time.localeCompare(b.start_time))
-                                            .map(t => ({ label: '오전', p: t.description.replace(/[^0-9]/g, '') })) : [];
+                                            .map(t => ({ label: '오전', p: t.description.replace(/[^0-9]/g, ''), id: t.id })) : [];
 
                                         // Pick the most relevant group based on current hour
                                         // Simplified: show the group that is currently active or upcoming
                                         // For Weekday: if before 18:00 show Day, else Night
                                         // For Weekend: if before 12:00 show Morning, 12-18 Afternoon, else Night
-                                        const hour = currentTime.getHours();
                                         if (isHoliday) {
-                                            if (hour < 12 && morningPeriods.length > 0) periodGroups = [{ label: '오전', periods: morningPeriods.map(x => x.p) }];
-                                            else if (hour < 18) periodGroups = [{ label: '오후', periods: dayPeriods.map(x => x.p) }];
-                                            else periodGroups = [{ label: '야간', periods: nightPeriods.map(x => x.p) }];
+                                            if (currentHHmm < '12:00' && morningPeriods.length > 0) periodGroups = [{ label: '오전', periods: morningPeriods }];
+                                            else if (currentHHmm < '18:30') periodGroups = [{ label: '오후', periods: dayPeriods }];
+                                            else periodGroups = [{ label: '야간', periods: nightPeriods }];
                                         } else {
-                                            if (hour < 18) periodGroups = [{ label: '주간', periods: dayPeriods.map(x => x.p) }];
-                                            else periodGroups = [{ label: '야간', periods: nightPeriods.map(x => x.p) }];
+                                            if (currentHHmm < '19:00') periodGroups = [{ label: '주간', periods: dayPeriods }];
+                                            else periodGroups = [{ label: '야간', periods: nightPeriods }];
                                         }
 
                                         // Fallback if groups are empty
                                         if (periodGroups.length === 0 || periodGroups[0].periods.length === 0) {
-                                            if (dayPeriods.length > 0) periodGroups = [{ label: isHoliday ? '오후' : '주간', periods: dayPeriods.map(x => x.p) }];
+                                            if (dayPeriods.length > 0) periodGroups = [{ label: isHoliday ? '오후' : '주간', periods: dayPeriods }];
                                         }
                                     }
 
@@ -481,7 +489,8 @@ export default function SeatManagementPage() {
                                         const awayReq = activeLeaves.find(req =>
                                             (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id)) &&
                                             req.leave_type === '자리비움' &&
-                                            new Date(req.start_time) <= currentTime
+                                            new Date(req.start_time) <= currentTime &&
+                                            new Date(req.end_time) >= currentTime
                                         );
 
                                         if (awayReq) {
@@ -499,54 +508,90 @@ export default function SeatManagementPage() {
                                     }
 
                                     // --- Period Status Helper ---
-                                    const getPeriodStatus = (label: string, periodName: string) => {
+                                    const getPeriodStatus = (label: string, periodId: number) => {
                                         // 1. Check if 'Past' based on database timetable
-                                        const typeFilter = isHoliday ? 'weekend' : 'weekday';
-                                        // Label check: if '야간' look for night, otherwise day
-                                        const isNight = label === '야간';
-                                        const entry = timetable.find(t =>
-                                            t.day_type.includes(typeFilter) &&
-                                            (isNight ? t.day_type.includes('night') : t.day_type.includes('day')) &&
-                                            t.description.includes(periodName)
-                                        );
+                                        const entry = timetable.find(t => t.id === periodId);
 
                                         if (!entry) return { status: 'future', type: null };
 
                                         const entryEndTime = entry.end_time.substring(0, 5); // HH:mm
                                         const isPast = currentHHmm > entryEndTime;
 
-
-
                                         // 2. Check Assignments for this period
                                         if (assignment && activeLeaves.length > 0) {
                                             const studentLeaves = activeLeaves.filter(req => {
                                                 const isTargetStudent = (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id));
-                                                if (!isTargetStudent) return false;
-
-                                                const leaveDate = new Date(req.start_time);
-                                                const now = new Date();
-                                                const isSameDay =
-                                                    leaveDate.getFullYear() === now.getFullYear() &&
-                                                    leaveDate.getMonth() === now.getMonth() &&
-                                                    leaveDate.getDate() === now.getDate();
-
-                                                return isSameDay;
+                                                return isTargetStudent;
+                                                // Removed isActiveNow check to allow future periods to be lit up
                                             });
 
-                                            // Active Away check
+                                            // Active Away check (Still time-sensitive)
                                             const activeAway = studentLeaves.find(leave => leave.leave_type === '자리비움');
                                             if (activeAway) {
-                                                const entryStartTime = entry.start_time.substring(0, 5);
-                                                const isCurrentPeriod = currentHHmm >= entryStartTime && currentHHmm <= entryEndTime;
-                                                if (isCurrentPeriod) {
-                                                    return { status: 'active', type: '자리비움' };
+                                                const start = new Date(activeAway.start_time);
+                                                const end = new Date(activeAway.end_time);
+                                                const now = new Date();
+                                                if (now >= start && now <= end) {
+                                                    const entryStartTime = entry.start_time.substring(0, 5);
+                                                    const isCurrentPeriod = currentHHmm >= entryStartTime && currentHHmm <= entryEndTime;
+                                                    if (isCurrentPeriod) {
+                                                        return { status: 'active', type: '자리비움' };
+                                                    }
                                                 }
                                             }
 
                                             for (const leave of studentLeaves) {
-                                                // Robust matching: Check if it contains the Label (e.g. '야간') AND the specific period (e.g. '1교시')
-                                                // This handles "야간1교시", "야간 1교시", etc. safely.
-                                                if (leave.period && leave.period.includes(label) && leave.period.includes(`${periodName}교시`)) {
+                                                // 1. General Time-based status (Stay-out, Outing)
+                                                if (leave.leave_type === '외박' || leave.leave_type === '외출') {
+                                                    // Check if leave overlaps this period
+                                                    const leaveStartStr = new Date(leave.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                                                    const leaveEndStr = new Date(leave.end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                                                    const entryStart = entry.start_time.substring(0, 5);
+                                                    const entryEnd = entry.end_time.substring(0, 5);
+
+                                                    // Simple time overlap check for today
+                                                    // Note: Multi-day leaves might need better date handling, but for single-day Outing it's fine.
+                                                    // For 'Stay-out' (Overnight), it covers the whole period if dates match. Assuming logic handles days.
+                                                    // Here simply checking if the leave covers this period.
+
+                                                    // Simplified: If leave type is Time-based, we check if the period is within the range
+                                                    // But strictly, we extracted logic earlier. Let's rely on robust Period matching if available,
+                                                    // OR fallback to time check.
+
+                                                    // Actually, for time-based leaves, we want to know if specific period is covered.
+                                                    // Using string comparison for today.
+
+                                                    // If leave is effectively 'all day' or 'multi-day', it covers all periods.
+                                                    // Current simplified logic: check overlap
+
+                                                    // Since 'leave_requests' has absolute timestamps:
+                                                    const lStart = new Date(leave.start_time);
+                                                    const lEnd = new Date(leave.end_time);
+
+                                                    // Construct Period Dates
+                                                    const pStart = new Date(currentTime);
+                                                    const [sh, sm] = entry.start_time.split(':').map(Number);
+                                                    pStart.setHours(sh, sm, 0, 0);
+
+                                                    const pEnd = new Date(currentTime);
+                                                    const [eh, em] = entry.end_time.split(':').map(Number);
+                                                    pEnd.setHours(eh, em, 0, 0);
+
+                                                    if (lStart < pEnd && lEnd > pStart) {
+                                                        return { status: isPast ? 'past' : 'active', type: leave.leave_type };
+                                                    }
+                                                }
+
+                                                // 2. Period-based status (Iseok, Computer Iseok)
+                                                // Extract digits from both to avoid strict string mismatch (e.g., "6" vs "주간6교시")
+                                                const leaveDigits = (leave.period || "").match(/\d+/g) || [];
+                                                const entryDigits = (entry.description || "").match(/\d+/g) || [];
+
+                                                const isPeriodMatch = leaveDigits.length > 0 && entryDigits.length > 0 &&
+                                                    leaveDigits.some((d: string) => (entryDigits as string[]).includes(d));
+
+                                                if (isPeriodMatch) {
+                                                    // Explicitly return the correct leave type (Iseok or Computer Iseok)
                                                     return { status: isPast ? 'past' : 'active', type: leave.leave_type };
                                                 }
                                             }
@@ -556,18 +601,26 @@ export default function SeatManagementPage() {
                                         return { status: 'future', type: null };
                                     };
 
-                                    // Determine Header Color based on first active period
+                                    // Determine Header Color based on CURRENT ACTIVE leave (Real-time comparison)
                                     let headerBgClass = "bg-white";
                                     let studentIdTextColor = "text-gray-800";
 
-                                    if (assignment && periodGroups[0]) {
-                                        const firstActiveP = periodGroups[0].periods.find(p => getPeriodStatus(periodGroups[0].label, p).status === 'active');
-                                        if (firstActiveP) {
-                                            const { type } = getPeriodStatus(periodGroups[0].label, firstActiveP);
-                                            switch (type) {
+                                    if (assignment && activeLeaves.length > 0) {
+                                        // Find a leave that is active NOW
+                                        const currentActiveLeave = activeLeaves.find(leave => {
+                                            const isTarget = (leave.student_id === assignment.student_id || leave.leave_request_students?.some((s: any) => s.student_id === assignment.student_id));
+                                            if (!isTarget) return false;
+
+                                            const start = new Date(leave.start_time);
+                                            const end = new Date(leave.end_time);
+                                            return currentTime >= start && currentTime <= end;
+                                        });
+
+                                        if (currentActiveLeave) {
+                                            switch (currentActiveLeave.leave_type) {
                                                 case '컴이석': headerBgClass = "bg-blue-200"; studentIdTextColor = "text-blue-800"; break;
                                                 case '이석': headerBgClass = "bg-orange-200"; studentIdTextColor = "text-orange-800"; break;
-                                                case '외출': headerBgClass = "bg-yellow-200"; studentIdTextColor = "text-yellow-800"; break;
+                                                case '외출': headerBgClass = "bg-green-200"; studentIdTextColor = "text-green-800"; break;
                                                 case '외박': headerBgClass = "bg-purple-200"; studentIdTextColor = "text-purple-800"; break;
                                             }
                                         }
@@ -585,18 +638,19 @@ export default function SeatManagementPage() {
                                         <div key={seatNum} className="relative group">
                                             {/* Rectangular Seat Card */}
                                             <div
-                                                onClick={() => {
+                                                onClick={async () => {
                                                     if (mode === 'edit') {
                                                         setSelectedSeat(seatNum);
                                                         setIsModalOpen(true);
                                                     } else if (mode === 'monitor' && activeLeaveReq && activeLeaveReq.leave_type === '자리비움') {
-                                                        if (confirm('자리비움을 해제하시겠습니까?')) {
-                                                            supabase.from('leave_requests')
-                                                                .update({ status: '취소' })
-                                                                .eq('id', activeLeaveReq.id)
-                                                                .then(() => {
-                                                                    fetchLiveStatus(selectedRoom);
-                                                                });
+                                                        // Fallback click on card if button is missed
+                                                        try {
+                                                            const { error } = await supabase.from('leave_requests').update({ status: '취소' }).eq('id', activeLeaveReq.id);
+                                                            if (error) throw error;
+                                                            toast.success('자리비움이 해제되었습니다.');
+                                                            await fetchLiveStatus(selectedRoom);
+                                                        } catch (err) {
+                                                            toast.error('해제 도중 오류가 발생했습니다.');
                                                         }
                                                     }
                                                 }}
@@ -636,19 +690,37 @@ export default function SeatManagementPage() {
                                                             <span className={clsx("text-[11px] truncate font-medium", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
                                                                 {assignment.student?.student_id}
                                                                 {activeLeaveReq?.leave_type === '자리비움' && (
-                                                                    <span className={clsx("ml-auto text-[7px] text-white font-bold", isAwayBlinking ? "animate-bounce" : "animate-pulse")}>자리비움</span>
+                                                                    <button
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            try {
+                                                                                const { error } = await supabase.from('leave_requests').update({ status: '취소' }).eq('id', activeLeaveReq.id);
+                                                                                if (error) throw error;
+                                                                                toast.success('자리비움이 해제되었습니다.');
+                                                                                await fetchLiveStatus(selectedRoom);
+                                                                            } catch (err) {
+                                                                                toast.error('해제 실패');
+                                                                            }
+                                                                        }}
+                                                                        className={clsx(
+                                                                            "ml-auto px-1.5 py-0.5 rounded-md text-[8px] font-bold border border-white/40 transition-all",
+                                                                            isAwayBlinking ? "bg-white text-red-600 animate-bounce shadow-lg" : "bg-red-600 text-white hover:bg-red-700"
+                                                                        )}
+                                                                    >
+                                                                        자리비움 해제
+                                                                    </button>
                                                                 )}
                                                             </span>
                                                         </div>
 
                                                         {/* Bottom Section: Period Blocks */}
                                                         <div className="h-5 flex divide-x divide-gray-100 bg-gray-50/30">
-                                                            {mode === 'monitor' && periodGroups[0]?.periods.map(p => {
-                                                                const { status, type } = getPeriodStatus(periodGroups[0].label, p);
+                                                            {mode === 'monitor' && periodGroups[0]?.periods.map((periodObj, pIdx) => {
+                                                                const { status, type } = getPeriodStatus(periodGroups[0].label, periodObj.id);
 
                                                                 let blockClass = "";
                                                                 let textClass = "text-transparent";
-                                                                let content = p;
+                                                                let content: React.ReactNode = periodObj.p;
 
                                                                 if (status === 'active' && type) {
                                                                     textClass = "font-bold";
@@ -664,8 +736,8 @@ export default function SeatManagementPage() {
                                                                             content = '이';
                                                                             break;
                                                                         case '외출':
-                                                                            blockClass = "bg-yellow-200";
-                                                                            textClass = "text-yellow-800";
+                                                                            blockClass = "bg-green-200";
+                                                                            textClass = "text-green-800";
                                                                             content = '출';
                                                                             break;
                                                                         case '외박':
@@ -690,13 +762,13 @@ export default function SeatManagementPage() {
                                                                             case '외박': content = '박'; break;
                                                                             case '자리비움': content = '비'; break;
                                                                         }
-                                                                        // Fallback: If switch didn't match and content is still 'p', use first char of type
-                                                                        if (content === p && type.length > 0) content = type[0];
+                                                                        // Fallback: If switch didn't match and content is still 'periodObj.p', use first char of type
+                                                                        if (content === periodObj.p && type.length > 0) content = type[0];
                                                                     }
                                                                 }
 
                                                                 return (
-                                                                    <div key={p} className={clsx("flex-1 flex items-center justify-center text-[7px] md:text-[9px] transition-colors", blockClass, textClass)}>
+                                                                    <div key={pIdx} className={clsx("flex-1 flex items-center justify-center text-[7px] md:text-[9px] transition-colors", blockClass, textClass)}>
                                                                         {content}
                                                                     </div>
                                                                 );
@@ -732,12 +804,46 @@ export default function SeatManagementPage() {
 
                             return (
                                 <>
-                                    <h2 className="text-lg font-extrabold text-gray-800 mb-4">
+                                    <h2 className="text-lg font-extrabold text-gray-800 mb-1">
                                         {selectedRoom}열람실 {isCurrentDisabled ? '(비활성)' : `${displaySeatNum}번 좌석`} 관리
                                         <span className="text-xs text-gray-400 font-normal ml-2">
                                             (Slot #{selectedSeat})
                                         </span>
                                     </h2>
+                                    {(() => {
+                                        const assignment = assignments.find(a => a.seat_number === selectedSeat);
+                                        const awayReq = (assignment && activeLeaves.length > 0) ? activeLeaves.find(req =>
+                                            (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id)) &&
+                                            req.leave_type === '자리비움' &&
+                                            new Date(req.start_time) <= currentTime
+                                        ) : null;
+
+                                        if (awayReq) {
+                                            const start = new Date(awayReq.start_time);
+                                            const diffMins = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
+                                            return (
+                                                <div className="bg-red-50 text-red-600 p-2 rounded-xl mb-4 flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-[10px] font-bold">현재 자리비움 중 ({diffMins}분 경과)</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={async () => {
+                                                            const { error } = await supabase.from('leave_requests').update({ status: '취소' }).eq('id', awayReq.id);
+                                                            if (!error) {
+                                                                toast.success('자리비움이 해제되었습니다.');
+                                                                fetchLiveStatus(selectedRoom);
+                                                                setIsModalOpen(false);
+                                                            }
+                                                        }}
+                                                        className="text-[10px] bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-red-600 transition-colors"
+                                                    >
+                                                        즉시 해제
+                                                    </button>
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
                                 </>
                             );
                         })()}

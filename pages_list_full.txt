@@ -1,0 +1,12 @@
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\page.tsx
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\admin\page.tsx
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\admin\students\page.tsx
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\admin\teachers\page.tsx
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\admin\timetable\page.tsx
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\change-password\page.tsx
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\login\page.tsx
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\main\page.tsx
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\student\page.tsx
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\teacher\page.tsx
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\teacher\headcount\page.tsx
+C:\Users\user\.gemini\antigravity\scratch\dormichan\app\teacher\seats\page.tsx
