@@ -156,7 +156,7 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
     });
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 w-full max-w-xl mx-auto">
             <div className="flex items-center gap-2 mb-2">
                 <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
                 <h2 className="text-xl font-extrabold text-gray-800">이석현황</h2>

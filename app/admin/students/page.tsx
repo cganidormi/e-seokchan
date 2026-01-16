@@ -11,6 +11,7 @@ interface Student {
   name: string;
   weekend: boolean;
   student_id?: string | null;
+  parent_token?: string | null;
 }
 
 export default function StudentsPage() {
@@ -68,6 +69,7 @@ export default function StudentsPage() {
               name: found?.name || "",
               weekend: found?.weekend || false,
               student_id: found?.student_id || null,
+              parent_token: found?.parent_token || null,
             });
           })
         )
@@ -159,7 +161,8 @@ export default function StudentsPage() {
         (os) => os.grade === s.grade && os.class === s.class && os.number === s.number
       );
       if (!o) return true; // 신규 데이터면 변경된 것으로 간주
-      return s.name !== o.name || s.weekend !== o.weekend;
+      // 이름/주말 변경되었거나, 이름은 있는데 토큰이 없는 경우 저장 대상
+      return s.name !== o.name || s.weekend !== o.weekend || (!!s.name && !s.parent_token);
     });
 
     if (changed.length === 0) {
@@ -183,6 +186,8 @@ export default function StudentsPage() {
       name: s.name,
       weekend: s.weekend,
       student_id: toStudentId(s),
+      // Generate Token if missing and has valid info
+      parent_token: s.parent_token || (s.name ? crypto.randomUUID() : null)
     }));
 
     const { error: studentsErr } = await supabase
@@ -393,6 +398,20 @@ export default function StudentsPage() {
                           />
                           매주
                         </label>
+
+                        {s.parent_token && (
+                          <button
+                            onClick={() => {
+                              const link = `${window.location.origin}/parent?token=${s.parent_token}`;
+                              navigator.clipboard.writeText(link);
+                              toast.success("학부모 링크 복사됨");
+                            }}
+                            className="ml-2 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs hover:bg-blue-100 border border-blue-200"
+                            title="학부모 접속 링크 복사"
+                          >
+                            🔗
+                          </button>
+                        )}
                       </div>
                     );
                   })}

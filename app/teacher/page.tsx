@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
+import { QRCodeSVG } from 'qrcode.react';
 import { LeaveProcessList } from '@/components/teacher/LeaveProcessList';
 import { LeaveRequest } from '@/components/teacher/types';
 
@@ -15,7 +16,14 @@ export default function TeacherPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
 
+  const [showQR, setShowQR] = useState(false);
+  const [origin, setOrigin] = useState('');
+
   const router = useRouter(); // Initialized useRouter
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   useEffect(() => {
     const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
@@ -150,6 +158,48 @@ export default function TeacherPage() {
 
       toast.success(`상태가 ${newStatus}(으)로 변경되었습니다.`);
 
+      // ---------------------------------------------------------
+      // Push Notification Logic
+      // ---------------------------------------------------------
+      const targetRequest = leaveRequests.find(r => r.id === requestId);
+      if (targetRequest) {
+        const studentIds: string[] = [];
+
+        // 1. Collect Student IDs (Single or Group)
+        if (targetRequest.student_id) studentIds.push(targetRequest.student_id);
+        if (targetRequest.leave_request_students) {
+          targetRequest.leave_request_students.forEach(s => studentIds.push(s.student_id));
+        }
+
+        // 2. Fetch Subscriptions & Send Push
+        if (studentIds.length > 0) {
+          const { data: subs } = await supabase
+            .from('push_subscriptions')
+            .select('subscription_json')
+            .in('student_id', studentIds);
+
+          if (subs && subs.length > 0) {
+            const message = `자녀의 [${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
+
+            // Send in parallel
+            await Promise.all(subs.map(sub =>
+              fetch('/api/web-push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  subscription: sub.subscription_json,
+                  message: message,
+                  title: 'DormiCheck 알림'
+                })
+              }).catch(e => console.error('Push send error:', e))
+            ));
+
+            console.log(`Sent push notifications to ${subs.length} parents.`);
+          }
+        }
+      }
+      // ---------------------------------------------------------
+
       if (teacherId && teacherName) {
         await fetchLeaveRequests(teacherId, teacherName);
       }
@@ -217,17 +267,33 @@ export default function TeacherPage() {
       <Toaster />
 
       {/* Admin Button for authorized teachers */}
-      {teacherPosition === '관리자' && (
-        <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-4 gap-2">
+        <button
+          onClick={() => setShowQR(true)}
+          className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2"
+        >
+          <span>📲</span>
+          <span>앱 설치 QR</span>
+        </button>
+
+        <button
+          onClick={() => router.push('/teacher/headcount')}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2"
+        >
+          <img src="/bed-icon.png" alt="취침" className="w-6 h-6 rounded-full" />
+          <span>취침인원</span>
+        </button>
+
+        {teacherPosition === '관리자' && (
           <button
             onClick={() => router.push('/admin')}
             className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2"
           >
             <span>🔧</span>
-            <span>관리자 페이지</span>
+            <span>관리자</span>
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
 
 
@@ -238,6 +304,51 @@ export default function TeacherPage() {
         teacherName={teacherName}
         teacherId={teacherId}
       />
+
+      {showQR && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm animate-fade-in" onClick={() => setShowQR(false)}>
+          <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center relative" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setShowQR(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold"
+            >
+              &times;
+            </button>
+
+            <div className="mb-6">
+              <span className="text-4xl">📲</span>
+            </div>
+
+            <h3 className="text-2xl font-extrabold text-gray-800 mb-2">이석찬 앱 설치</h3>
+            <p className="text-gray-500 mb-6 text-sm">
+              학생들에게 카메라로 주소를 스캔하도록 안내해주세요.<br />
+              자동으로 설치 페이지로 연결됩니다.
+            </p>
+
+            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-inner inline-block mb-4">
+              {origin && <QRCodeSVG value={origin} size={200} level={"H"} includeMargin={true} />}
+            </div>
+
+            <div
+              className="bg-gray-50 p-3 rounded-lg text-xs text-gray-500 break-all select-all cursor-pointer hover:bg-gray-100 transition-colors"
+              onClick={() => {
+                navigator.clipboard.writeText(origin);
+                toast.success('주소가 복사되었습니다.');
+              }}
+            >
+              {origin}
+            </div>
+            <p className="text-xs text-gray-400 mt-2">클릭하여 주소 복사</p>
+
+            <button
+              onClick={() => setShowQR(false)}
+              className="w-full mt-6 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

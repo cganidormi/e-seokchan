@@ -3,6 +3,7 @@ export interface Student {
     name: string;
     grade: number;
     class: number;
+    parent_token?: string;
 }
 
 export interface Teacher {

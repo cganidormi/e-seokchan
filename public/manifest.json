@@ -1,0 +1,22 @@
+{
+    "name": "이석찬 (기숙사 이석 관리)",
+    "short_name": "이석찬",
+    "description": "자녀의 이석/외박 현황을 실시간으로 확인하세요.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#f97316",
+    "icons": [
+        {
+            "src": "/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ],
+    "orientation": "portrait"
+}

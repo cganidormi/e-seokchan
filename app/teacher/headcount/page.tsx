@@ -10,53 +10,54 @@ import { Student } from '@/components/student/types';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
 // Room Layout Configuration (Row, Col) based on floor plan
-// Grid: 5 Columns
-// Rows: Dynamic
-const ROOM_GRID_POS: Record<number, { row: number, col: number }> = {
-    // Top Row
-    306: { row: 1, col: 1 },
-    307: { row: 1, col: 2 },
-    308: { row: 1, col: 3 },
-    309: { row: 1, col: 4 },
-    310: { row: 1, col: 5 },
+// Abstracted using last 2 digits (01-25)
+const BASE_LAYOUT: Record<number, { row: number, col: number }> = {
+    // Top Row (06-10)
+    6: { row: 1, col: 1 },
+    7: { row: 1, col: 2 },
+    8: { row: 1, col: 3 },
+    9: { row: 1, col: 4 },
+    10: { row: 1, col: 5 },
 
-    // Left Column -> Moved to Col 3 (Under 308)
-    305: { row: 2, col: 3 },
-    304: { row: 3, col: 3 },
-    303: { row: 4, col: 3 },
-    302: { row: 5, col: 3 },
-    301: { row: 6, col: 3 },
+    // Left Column (05-01) -> Col 3
+    5: { row: 2, col: 3 },
+    4: { row: 3, col: 3 },
+    3: { row: 4, col: 3 },
+    2: { row: 5, col: 3 },
+    1: { row: 6, col: 3 },
 
-    // Right Column
-    311: { row: 2, col: 5 },
-    312: { row: 3, col: 5 },
-    313: { row: 4, col: 5 },
-    314: { row: 5, col: 5 },
-    315: { row: 6, col: 5 },
+    // Right Column (11-15) -> Col 5
+    11: { row: 2, col: 5 },
+    12: { row: 3, col: 5 },
+    13: { row: 4, col: 5 },
+    14: { row: 5, col: 5 },
+    15: { row: 6, col: 5 },
 
-    // Bottom Left (Inner)
-    // Bottom Left (Inner) -> Moved to Col 4 (More Right)
-    321: { row: 7, col: 4 }, // Adjacent to 316 (Col 5)
-    322: { row: 8, col: 4 },
-    323: { row: 9, col: 4 },
-    324: { row: 10, col: 4 },
-    325: { row: 11, col: 4 },
-
-    // Right Column Extension (316-320 under 315)
-    316: { row: 7, col: 5 },
-    317: { row: 8, col: 5 },
-    318: { row: 9, col: 5 },
-    319: { row: 10, col: 5 },
-    320: { row: 11, col: 5 },
+    // Bottom Area (Inner: 21-25, Outer: 16-20)
+    21: { row: 7, col: 4 }, 16: { row: 7, col: 5 },
+    22: { row: 8, col: 4 }, 17: { row: 8, col: 5 },
+    23: { row: 9, col: 4 }, 18: { row: 9, col: 5 },
+    24: { row: 10, col: 4 }, 19: { row: 10, col: 5 },
+    25: { row: 11, col: 4 }, 20: { row: 11, col: 5 },
 };
 
+const FLOORS = [1, 2, 3, 4];
+const getAllRooms = () => {
+    const rooms: number[] = [];
+    FLOORS.forEach(floor => {
+        Object.keys(BASE_LAYOUT).forEach(idx => {
+            rooms.push(floor * 100 + Number(idx));
+        });
+    });
+    return rooms;
+};
 
-
-const ROOMS = Object.keys(ROOM_GRID_POS).map(Number);
+const ALL_ROOMS = getAllRooms();
 
 export default function HeadcountPage() {
     const [currentTime, setCurrentTime] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const [currentFloor, setCurrentFloor] = useState(3);
 
     // Mode: 'check' (Toggle In/Out) | 'assign' (Change Student)
     const [mode, setMode] = useState<'check' | 'assign'>('check');
@@ -82,9 +83,6 @@ export default function HeadcountPage() {
         const fetchData = async () => {
             try {
                 // Fetch Students
-                // Assuming 'students' table has 'room_number' or 'room'
-                // If not, we might fail to map correctly. 
-                // Let's try to select * to get whatever fields are there.
                 const { data: students, error } = await supabase
                     .from('students')
                     .select('*');
@@ -126,7 +124,7 @@ export default function HeadcountPage() {
                     });
                 });
 
-                ROOMS.forEach((roomNum) => {
+                ALL_ROOMS.forEach((roomNum) => {
                     const roomStudents = studentsByRoom[roomNum] || [];
                     initialStatus[roomNum] = {
                         left: {
@@ -146,7 +144,7 @@ export default function HeadcountPage() {
                 const savedConfig = localStorage.getItem('dormichan_assignments');
                 if (savedConfig) {
                     const parsed = JSON.parse(savedConfig);
-                    ROOMS.forEach(roomNum => {
+                    ALL_ROOMS.forEach(roomNum => {
                         const savedRoom = parsed[roomNum];
                         if (savedRoom) {
                             if (!initialStatus[roomNum]) initialStatus[roomNum] = { left: { status: 'in', name: '' }, right: { status: 'in', name: '' } };
@@ -172,15 +170,7 @@ export default function HeadcountPage() {
                             }
                         }
                     });
-                } else {
-                    // Only mock if no config
-                    initialStatus[306] = {
-                        left: { status: 'in', name: '김철수' },
-                        right: { status: 'in', name: '이영희' }
-                    };
                 }
-
-                // (Mock removed - handled in usage)
 
                 setRoomStatus(initialStatus);
             } catch (err) {
@@ -188,21 +178,13 @@ export default function HeadcountPage() {
                 toast.error('학생 데이터를 불러오는데 실패했습니다.');
 
                 // Fallback to mock names if fetch fails? Or just empty.
-                // For safety, let's just initialize with empty names
                 const fallbackStatus: any = {};
-                ROOMS.forEach((roomNum) => {
+                ALL_ROOMS.forEach((roomNum) => {
                     fallbackStatus[roomNum] = {
                         left: { status: 'in', name: '' },
                         right: { status: 'in', name: '' }
                     };
                 });
-
-                // Temporary Mock for 306 (Fallback)
-                fallbackStatus[306] = {
-                    left: { status: 'in', name: '김철수' },
-                    right: { status: 'in', name: '이영희' }
-                };
-
                 setRoomStatus(fallbackStatus);
             } finally {
                 setIsLoading(false);
@@ -232,7 +214,6 @@ export default function HeadcountPage() {
             setSelectedSlot({ room: roomNum, position });
             setIsModalOpen(true);
         }
-        // Manual toggle removed in 'check' mode
     };
 
     const handleSelectStudent = (student: Student) => {
@@ -252,15 +233,10 @@ export default function HeadcountPage() {
             }
         }));
         setIsModalOpen(false);
-        // Note: Auto-save or Manual save? User liked "Save" button.
-        // We will rely on "Save" button in header.
     };
 
     const handleSave = async () => {
         const loading = toast.loading('배정 현황 저장 중...');
-        // Transform roomStatus to simpler storage format if needed, or store as is.
-        // Storage format used in RoomManagement was { 306: { left: {name, student_id}, ... } }
-        // We should match that structure to be clean.
         const storageData: Record<number, any> = {};
         Object.keys(roomStatus).forEach(key => {
             const k = Number(key);
@@ -279,17 +255,14 @@ export default function HeadcountPage() {
         if (!confirm('현재 배정된 모든 학생 정보를 초기화하시겠습니까?')) return;
 
         const resetData: any = {};
-        ROOMS.forEach(r => {
+        ALL_ROOMS.forEach(r => {
             resetData[r] = {
                 left: { status: 'in', name: '', student_id: '' },
                 right: { status: 'in', name: '', student_id: '' }
             };
         });
         setRoomStatus(resetData);
-        localStorage.setItem('dormichan_assignments', JSON.stringify({})); // Clear storage too immediately? Or wait for save?
-        // Let's clear storage to be safe, or just update state.
-        // Better to update state and let user click Save?
-        // But reset usually implies action.
+        localStorage.setItem('dormichan_assignments', JSON.stringify({}));
         toast.success('초기화되었습니다. (저장 버튼을 눌러 확정하세요)');
     };
 
@@ -303,6 +276,13 @@ export default function HeadcountPage() {
             {/* Header - Fixed */}
             <header className="flex-none p-4 pb-2 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 flex justify-between items-start shadow-xl">
                 <div className="flex flex-col gap-1">
+                    <button
+                        onClick={() => router.push('/teacher')}
+                        className="self-start p-2 rounded text-sm hover:bg-gray-800/80 text-yellow-400 font-bold border border-yellow-400/30 flex items-center justify-center gap-2 mb-2 transition-all"
+                    >
+                        <span>⬅</span>
+                        <span>교사 페이지</span>
+                    </button>
                     <div className="flex items-center gap-3">
                         <span className="text-3xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">
                             DormiCheck
@@ -311,7 +291,24 @@ export default function HeadcountPage() {
                             {currentTime}
                         </span>
                     </div>
-                    <h1 className="text-xl font-bold tracking-tight text-gray-200">3rd Floor</h1>
+
+                    {/* Floor Selector Tabs */}
+                    <div className="flex gap-1 mt-1">
+                        {[1, 2, 3, 4].map(floor => (
+                            <button
+                                key={floor}
+                                onClick={() => setCurrentFloor(floor)}
+                                className={clsx(
+                                    "px-3 py-1 rounded text-xs font-bold transition-all border",
+                                    currentFloor === floor
+                                        ? "bg-orange-600 border-orange-500 text-white"
+                                        : "bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700"
+                                )}
+                            >
+                                {floor}F
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="flex flex-col items-end gap-2">
@@ -355,17 +352,6 @@ export default function HeadcountPage() {
                             </>
                         )}
                     </div>
-                    {/* Legend (Compact) */}
-                    <div className="flex items-center gap-3 bg-gray-900/50 px-3 py-1 rounded-full border border-white/5">
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-[#1f2937] border border-gray-600"></div>
-                            <span className="text-[10px] text-gray-400">재실/빈침대 (In)</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-orange-500 border border-orange-400 shadow-[0_0_8px_rgba(249,115,22,0.4)]"></div>
-                            <span className="text-[10px] text-gray-400">외박 (Out)</span>
-                        </div>
-                    </div>
                 </div>
             </header>
 
@@ -386,11 +372,17 @@ export default function HeadcountPage() {
                         contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
                         <div className="grid grid-cols-5 gap-1.5 min-w-[1200px] select-none">
-                            {ROOMS.map((roomNum) => {
+                            {Object.keys(BASE_LAYOUT).map((key) => {
+                                const idx = Number(key);
+                                const roomNum = currentFloor * 100 + idx;
                                 const roomData = roomStatus[roomNum] || { left: { status: 'in', name: '', student_id: '' }, right: { status: 'in', name: '', student_id: '' } };
-                                const pos = ROOM_GRID_POS[roomNum];
-                                const isSideBySide = roomNum >= 306 && roomNum <= 310;
-                                const isReverseVertical = (roomNum >= 301 && roomNum <= 305) || (roomNum >= 321 && roomNum <= 325);
+                                const pos = BASE_LAYOUT[idx];
+
+                                // Layout helpers based on relative index
+                                // Top Row: 6-10 (Side by Side)
+                                const isSideBySide = idx >= 6 && idx <= 10;
+                                // Left Col (1-5) & Bottom Left (21-25) are Reverse Vertical
+                                const isReverseVertical = (idx >= 1 && idx <= 5) || (idx >= 21 && idx <= 25);
 
                                 return (
                                     <div
