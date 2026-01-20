@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Toaster, toast } from 'react-hot-toast';
+import InstallGuide from './components/InstallGuide';
 
 export default function Home() {
   const router = useRouter();
@@ -60,13 +61,13 @@ export default function Home() {
     const parentToken = localStorage.getItem('dormichan_parent_token');
 
     if (loginId && role) {
-      if (role === 'student') router.push('/student');
-      else if (role === 'teacher') router.push('/teacher');
-      else router.push('/login');
+      if (role === 'student') window.location.replace('/student');
+      else if (role === 'teacher') window.location.replace('/teacher');
+      else window.location.replace('/login');
     } else if (parentToken) {
-      router.push(`/parent?token=${parentToken}`);
+      window.location.replace(`/parent?token=${parentToken}`);
     } else {
-      router.push('/login');
+      window.location.replace('/login');
     }
   };
 
@@ -115,12 +116,18 @@ export default function Home() {
         <div className="space-y-4">
           {!isIOS ? (
             // Android / Desktop Button
-            <button
-              onClick={handleInstallClick}
-              className="w-full bg-orange-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-orange-700 active:scale-95 transition-all flex items-center justify-center gap-2 text-lg"
-            >
-              {(deferredPrompt) ? '📲 앱 설치하고 시작하기' : '✨ 앱으로 시작하기'}
-            </button>
+            <div className="flex flex-col gap-4">
+              <button
+                onClick={handleInstallClick}
+                className="w-full bg-orange-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-orange-700 active:scale-95 transition-all flex items-center justify-center gap-2 text-lg"
+              >
+                {(deferredPrompt) ? '📲 앱 설치하고 시작하기' : '✨ 앱으로 시작하기'}
+              </button>
+
+              {!deferredPrompt && (
+                <InstallGuide />
+              )}
+            </div>
           ) : (
             // iOS Guide Box
             <div className="bg-gray-50 p-4 rounded-2xl text-left border border-gray-100">
@@ -128,7 +135,7 @@ export default function Home() {
               <div className="space-y-3 text-sm text-gray-600">
                 <div className="flex items-center gap-3">
                   <span className="bg-white p-2 rounded-lg shadow-sm">1</span>
-                  <span>브라우저 하단 <strong>공유 버튼</strong><img src="/ios-share.svg" className="inline w-4 h-4 mx-1" alt="share" />터치</span>
+                  <span>브라우저 상단 또는 하단 <strong>공유 버튼</strong><img src="/ios-share.svg" className="inline w-4 h-4 mx-1" alt="share" />터치</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="bg-white p-2 rounded-lg shadow-sm">2</span>

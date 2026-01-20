@@ -19,36 +19,33 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   ];
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-32 bg-gray-900 text-white p-2 flex flex-col gap-2">
+    <div className="flex flex-col md:flex-row min-h-screen">
+      <aside className="w-full md:w-32 bg-gray-900 text-white p-2 flex flex-row md:flex-col gap-2 overflow-x-auto whitespace-nowrap shadow-md md:shadow-none z-10">
         <Link
           href="/teacher"
-          className="p-2 rounded text-sm hover:bg-gray-800 text-yellow-400 font-bold border border-yellow-400/30 flex items-center justify-center gap-2 mb-2"
+          className="p-2 rounded text-sm hover:bg-gray-800 text-yellow-400 font-bold border border-yellow-400/30 flex items-center justify-center gap-2 flex-shrink-0"
         >
           <span>⬅</span>
-          <span>교사 페이지</span>
+          <span className="hidden md:inline">교사 페이지</span>
+          <span className="md:hidden">나가기</span>
         </Link>
-        <div className="h-px bg-gray-700 mx-2" />
+        <div className="w-px h-auto bg-gray-700 mx-1 md:w-auto md:h-px md:mx-0 md:my-1" />
         {menuItems.map((item) => {
           const isActive = pathname === item.path;
           return (
             <Link
               key={item.path}
               href={item.path}
-              className={`p-2 rounded text-sm ${isActive ? "bg-gray-700" : "hover:bg-gray-800"
+              className={`p-2 rounded text-sm flex-shrink-0 ${isActive ? "bg-gray-700" : "hover:bg-gray-800"
                 }`}
             >
               {item.name}
             </Link>
           );
         })}
-
-
-
-
       </aside>
 
-      <main className="flex-1 p-4">{children}</main>
+      <main className="flex-1 p-4 overflow-x-hidden">{children}</main>
     </div>
   );
 }

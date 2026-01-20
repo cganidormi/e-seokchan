@@ -270,7 +270,7 @@ export default function TeacherPage() {
       <div className="flex justify-end mb-4 gap-2">
         <button
           onClick={() => setShowQR(true)}
-          className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2"
+          className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2 text-sm"
         >
           <span>📲</span>
           <span>앱 설치 QR</span>
@@ -278,7 +278,7 @@ export default function TeacherPage() {
 
         <button
           onClick={() => router.push('/teacher/headcount')}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2"
+          className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2 text-sm"
         >
           <img src="/bed-icon.png" alt="취침" className="w-6 h-6 rounded-full" />
           <span>취침인원</span>
@@ -287,7 +287,7 @@ export default function TeacherPage() {
         {teacherPosition === '관리자' && (
           <button
             onClick={() => router.push('/admin')}
-            className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2"
+            className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2 text-sm"
           >
             <span>🔧</span>
             <span>관리자</span>

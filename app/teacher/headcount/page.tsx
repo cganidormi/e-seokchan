@@ -278,7 +278,7 @@ export default function HeadcountPage() {
                 <div className="flex flex-col gap-1">
                     <button
                         onClick={() => router.push('/teacher')}
-                        className="self-start p-2 rounded text-sm hover:bg-gray-800/80 text-yellow-400 font-bold border border-yellow-400/30 flex items-center justify-center gap-2 mb-2 transition-all"
+                        className="self-start p-2 rounded text-sm hover:bg-gray-800/80 text-yellow-400 font-bold border border-yellow-400/30 flex items-center justify-center gap-2 mb-2 transition-all whitespace-nowrap"
                     >
                         <span>⬅</span>
                         <span>교사 페이지</span>
@@ -318,7 +318,7 @@ export default function HeadcountPage() {
                             <button
                                 onClick={() => setMode('check')}
                                 className={clsx(
-                                    "px-3 py-1.5 rounded-md text-xs font-bold transition-all",
+                                    "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
                                     mode === 'check' ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
                                 )}
                             >
@@ -327,7 +327,7 @@ export default function HeadcountPage() {
                             <button
                                 onClick={() => setMode('assign')}
                                 className={clsx(
-                                    "px-3 py-1.5 rounded-md text-xs font-bold transition-all",
+                                    "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
                                     mode === 'assign' ? "bg-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white"
                                 )}
                             >
@@ -339,13 +339,13 @@ export default function HeadcountPage() {
                             <>
                                 <button
                                     onClick={handleResetAssignments}
-                                    className="px-3 py-1.5 text-red-400 font-bold text-xs bg-gray-800 rounded-lg border border-red-900/30 hover:bg-red-900/20 transition-all"
+                                    className="px-3 py-1.5 text-red-400 font-bold text-xs bg-gray-800 rounded-lg border border-red-900/30 hover:bg-red-900/20 transition-all whitespace-nowrap"
                                 >
                                     초기화
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    className="px-4 py-1.5 bg-green-600 text-white font-bold text-xs rounded-lg hover:bg-green-500 shadow-lg shadow-green-900/20 transition-all"
+                                    className="px-4 py-1.5 bg-green-600 text-white font-bold text-xs rounded-lg hover:bg-green-500 shadow-lg shadow-green-900/20 transition-all whitespace-nowrap"
                                 >
                                     저장
                                 </button>

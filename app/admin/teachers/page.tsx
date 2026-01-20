@@ -286,89 +286,93 @@ export default function TeachersPage() {
       <Toaster position="top-right" />
 
       {/* 상단 버튼 */}
-      <div className="flex items-center gap-3 mb-4">
-        <h2 className="font-bold text-xl text-gray-800">교사 관리</h2>
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <h2 className="font-bold text-xl text-gray-800 mr-auto">교사 관리</h2>
 
         <button
           onClick={handleAddTeacher}
-          className="px-3 py-1 bg-blue-200 rounded-xl shadow-inner hover:shadow-md hover:bg-blue-100 transition text-sm"
+          className="px-3 py-1.5 bg-blue-200 rounded-xl shadow-inner hover:shadow-md hover:bg-blue-100 transition text-sm font-medium"
         >
           + 교사 추가
         </button>
 
         <button
           onClick={handleSave}
-          className="px-3 py-1 bg-gray-200 rounded-xl shadow-inner hover:shadow-md hover:bg-gray-100 transition text-sm"
+          className="px-3 py-1.5 bg-gray-200 rounded-xl shadow-inner hover:shadow-md hover:bg-gray-100 transition text-sm font-medium"
         >
           저장
         </button>
 
         <button
           onClick={handleResetAll}
-          className="px-3 py-1 bg-red-200 rounded-xl shadow-inner hover:shadow-md hover:bg-red-100 transition text-sm"
+          className="px-3 py-1.5 bg-red-200 rounded-xl shadow-inner hover:shadow-md hover:bg-red-100 transition text-sm font-medium"
         >
           전체 초기화
         </button>
       </div>
 
       {/* 교사 목록 */}
-      <div className="flex flex-col gap-2 min-w-max">
+      <div className="flex flex-col gap-3">
         {teachers.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <p>등록된 교사가 없습니다.</p>
-            <p className="text-sm mt-2">"+ 교사 추가" 버튼을 눌러 교사를 추가하세요.</p>
+          <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-2xl border border-dashed border-gray-300">
+            <p className="font-medium text-lg">등록된 교사가 없습니다.</p>
+            <p className="text-sm mt-2 text-gray-400">"+ 교사 추가" 버튼을 눌러 시작하세요.</p>
           </div>
         ) : (
           teachers.map((t) => (
             <div
               key={t.id}
-              className="flex items-center gap-3 bg-gray-100 p-2 rounded-lg shadow-inner"
+              className="flex flex-col md:flex-row md:items-center gap-3 bg-white md:bg-gray-100 p-4 md:p-2 rounded-xl shadow-sm md:shadow-inner border border-gray-200 md:border-transparent"
             >
-              {/* 이름 */}
-              <input
-                type="text"
-                value={t.name}
-                placeholder="이름"
-                onChange={(e) =>
-                  handleFieldChange(t.id, "name", e.target.value)
-                }
-                className="w-32 px-2 py-1 rounded-lg border border-gray-300 shadow-inner text-sm"
-              />
-
-              {/* 직책 */}
-              <input
-                type="text"
-                value={t.position}
-                placeholder="직책"
-                onChange={(e) =>
-                  handleFieldChange(t.id, "position", e.target.value)
-                }
-                className="w-32 px-2 py-1 rounded-lg border border-gray-300 shadow-inner text-sm"
-              />
-
-              {/* 승인권한 */}
-              <label className="flex items-center gap-1 cursor-pointer">
+              <div className="flex gap-2 w-full md:w-auto">
+                {/* 이름 */}
                 <input
-                  type="checkbox"
-                  checked={t.can_approve}
-                  onChange={() => toggleApprove(t.id)}
-                  className="w-4 h-4"
+                  type="text"
+                  value={t.name}
+                  placeholder="이름"
+                  onChange={(e) =>
+                    handleFieldChange(t.id, "name", e.target.value)
+                  }
+                  className="w-20 px-2 py-2 md:py-1 rounded-lg border border-gray-300 shadow-sm md:shadow-inner text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none text-center"
                 />
-                <span className="text-sm">승인권한</span>
-              </label>
 
-              {/* 생성된 ID 표시 */}
-              <span className="text-xs text-green-700 flex-1">
-                {t.teacher_id ? `ID: ${t.teacher_id}` : ""}
-              </span>
+                {/* 직책 */}
+                <input
+                  type="text"
+                  value={t.position}
+                  placeholder="직책"
+                  onChange={(e) =>
+                    handleFieldChange(t.id, "position", e.target.value)
+                  }
+                  className="w-20 px-2 py-2 md:py-1 rounded-lg border border-gray-300 shadow-sm md:shadow-inner text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none text-center"
+                />
+              </div>
 
-              {/* 삭제 버튼 */}
-              <button
-                onClick={() => handleDeleteTeacher(t.id)}
-                className="px-2 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition text-sm"
-              >
-                삭제
-              </button>
+              <div className="flex items-center justify-between w-full md:w-auto gap-4 md:flex-1">
+                {/* 승인권한 */}
+                <label className="flex items-center gap-2 cursor-pointer bg-gray-50 md:bg-transparent px-2 py-1 rounded-lg md:p-0 border border-gray-100 md:border-none">
+                  <input
+                    type="checkbox"
+                    checked={t.can_approve}
+                    onChange={() => toggleApprove(t.id)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-600">승인권한</span>
+                </label>
+
+                {/* 생성된 ID 표시 */}
+                <span className="text-xs text-green-700 font-mono truncate max-w-[100px] md:max-w-none text-right">
+                  {t.teacher_id ? `ID: ${t.teacher_id}` : ""}
+                </span>
+
+                {/* 삭제 버튼 */}
+                <button
+                  onClick={() => handleDeleteTeacher(t.id)}
+                  className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 active:scale-95 transition text-sm font-medium whitespace-nowrap"
+                >
+                  삭제
+                </button>
+              </div>
             </div>
           ))
         )}

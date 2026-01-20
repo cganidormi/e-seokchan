@@ -244,6 +244,7 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
                             onCancel={onCancel}
                             viewMode={viewMode}
                             currentStudentId={studentId}
+                            allStudentsList={students}
                         />
                     ))
                 )}

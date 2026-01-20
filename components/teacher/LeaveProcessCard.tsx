@@ -169,13 +169,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                         })()}
                     </div>
 
-                    {!isExpanded && req.reason && (
-                        <div className="flex items-center min-w-0 ml-4 max-w-[120px]">
-                            <span className="text-gray-400 text-[11px] break-words leading-tight">
-                                {req.reason}
-                            </span>
-                        </div>
-                    )}
+
                 </div>
 
                 {/* 5. 취소 버튼 (우측 끝) */}
