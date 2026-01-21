@@ -25,3 +25,10 @@ self.addEventListener('notificationclick', function (event) {
         clients.openWindow(event.notification.data.url)
     );
 });
+
+// PWA 설치 조건 충족을 위한 기본 fetch 핸들러
+self.addEventListener('fetch', function (event) {
+    // 기본적으로 네트워크 요청을 그대로 통과시킴
+    // 필요 시 여기에 캐싱 로직 추가 가능
+    event.respondWith(fetch(event.request));
+});

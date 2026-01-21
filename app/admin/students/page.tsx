@@ -37,6 +37,19 @@ export default function StudentsPage() {
     return num + letters;
   };
 
+  // ----------------------------------------
+  // UUID 생성 (브라우저 호환성용)
+  // ----------------------------------------
+  const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
   // -------------------------
   // 학생 데이터 불러오기
   // -------------------------
@@ -161,8 +174,14 @@ export default function StudentsPage() {
         (os) => os.grade === s.grade && os.class === s.class && os.number === s.number
       );
       if (!o) return true; // 신규 데이터면 변경된 것으로 간주
-      // 이름/주말 변경되었거나, 이름은 있는데 토큰이 없는 경우 저장 대상
-      return s.name !== o.name || s.weekend !== o.weekend || (!!s.name && !s.parent_token);
+
+      // 1. 이름이나 주말 설정이 바뀐 경우
+      if (s.name !== o.name || s.weekend !== o.weekend) return true;
+
+      // 2. 이름은 있는데 부모 토큰이 없는 경우 (토큰 생성을 위해 저장 대상)
+      if (!!s.name && !s.parent_token) return true;
+
+      return false;
     });
 
     if (changed.length === 0) {
@@ -187,7 +206,7 @@ export default function StudentsPage() {
       weekend: s.weekend,
       student_id: toStudentId(s),
       // Generate Token if missing and has valid info
-      parent_token: s.parent_token || (s.name ? crypto.randomUUID() : null)
+      parent_token: s.parent_token || (s.name ? generateUUID() : null)
     }));
 
     const { error: studentsErr } = await supabase

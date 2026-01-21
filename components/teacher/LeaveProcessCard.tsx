@@ -2,6 +2,7 @@
 
 import React from 'react';
 import clsx from 'clsx';
+import toast from 'react-hot-toast';
 import { LeaveRequest } from './types';
 
 interface LeaveProcessCardProps {
@@ -13,6 +14,7 @@ interface LeaveProcessCardProps {
     onUpdateStatus: (requestId: string | number, newStatus: string) => void;
     onCancel: (requestId: string | number) => void;
     viewMode: 'active' | 'past';
+    currentTeacherId: string;
 }
 
 export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
@@ -23,16 +25,38 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     onToggleMenu,
     onUpdateStatus,
     onCancel,
-    viewMode
+    viewMode,
+    currentTeacherId
 }) => {
     const statusConfig = ({
         '신청': { dot: 'bg-blue-500', text: 'text-blue-500', label: '대기' },
         '승인': { dot: 'bg-green-500', text: 'text-green-500', label: '승인' },
         '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
+        '학부모승인대기': { dot: 'bg-orange-500', text: 'text-orange-500', label: '학부모대기' },
     } as any)[req.status] || { dot: 'bg-gray-500', text: 'text-gray-500', label: req.status };
 
     const additionalIds = req.leave_request_students?.map(lrs => lrs.student_id) || [];
     const allStudents = [req.student_id, ...additionalIds];
+
+    // Permission Check: Only the assigned teacher can edit, and only in 'active' view
+    const canEdit = req.teacher_id === currentTeacherId && viewMode === 'active';
+
+    const handleApprove = (e: React.MouseEvent) => {
+        if (!canEdit) return;
+        e.stopPropagation();
+
+        const type = req.leave_type ? req.leave_type.trim() : '';
+
+        if (type === '외출' || type === '외박') {
+            // Mobile environment confirm issue fix: Remove confirm dialog
+            // if (confirm(`'${type}' 신청입니다. 학부모 승인 대기 단계로 넘기시겠습니까?`)) {
+            toast.success('학부모 승인 대기 상태로 변경 요청...');
+            onUpdateStatus(req.id, '학부모승인대기');
+            // }
+        } else {
+            onUpdateStatus(req.id, '승인');
+        }
+    };
 
     return (
         <div
@@ -55,18 +79,21 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
 
                     {req.leave_type !== '컴이석' && req.leave_type !== '자리비움' && (
                         <div className="relative shrink-0">
+                            {/* Status Change Button - Only if canEdit */}
                             <button
-                                onClick={onToggleMenu}
+                                onClick={canEdit ? onToggleMenu : (e) => e.stopPropagation()}
                                 className={clsx(
                                     "flex items-center px-1.5 py-0.5 rounded border border-opacity-30 transition-all duration-200 text-[10px] font-bold border-current",
                                     statusConfig.text,
-                                    req.status === '신청' ? "bg-blue-500/10" : "bg-white/5"
+                                    canEdit && req.status === '신청' ? "bg-blue-500/10" : "bg-white/5",
+                                    !canEdit && "opacity-50 cursor-default"
                                 )}
+                                disabled={!canEdit}
                             >
                                 {statusConfig.label}
                             </button>
 
-                            {isMenuOpen && (
+                            {isMenuOpen && canEdit && (
                                 <div className="absolute top-full left-0 mt-2 bg-[#2a2a2a] border border-white/10 rounded-2xl shadow-2xl z-50 py-2 w-24 animate-in fade-in slide-in-from-top-1">
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '신청'); }}
@@ -75,7 +102,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                                         대기
                                     </button>
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '승인'); }}
+                                        onClick={handleApprove}
                                         className="w-full px-4 py-2 text-left text-xs text-green-400 hover:bg-white/5 font-bold"
                                     >
                                         승인
@@ -104,6 +131,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                     <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-32">
                         {(() => {
                             const start = new Date(req.start_time);
+                            // ... (Time logic omitted for brevity as it is unchanged, but ensuring full function)
                             const now = new Date();
                             const day = start.getDay();
                             const isWeekend = day === 0 || day === 6;
@@ -172,18 +200,20 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
 
                 </div>
 
-                {/* 5. 취소 버튼 (우측 끝) */}
-                <div className="ml-auto flex items-center shrink-0">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
-                        className="text-gray-500 hover:text-red-500 transition-colors p-1"
-                        title="취소"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
+                {/* 5. 취소 버튼 (우측 끝) - Only if canEdit */}
+                {canEdit && (
+                    <div className="ml-auto flex items-center shrink-0">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
+                            className="text-gray-500 hover:text-red-500 transition-colors p-1"
+                            title="취소"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
             </div>
 
             {
@@ -194,7 +224,9 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                                 <>
                                     <div className="flex flex-col gap-1">
                                         <span className="text-gray-500 font-bold">지도교사</span>
-                                        <span className="text-white">{req.teachers?.name || '-'}</span>
+                                        <span className={`font-bold ${req.teacher_id === currentTeacherId ? "text-green-400" : "text-white"}`}>
+                                            {req.teachers?.name || '-'}
+                                        </span>
                                     </div>
                                     <div className="flex flex-col gap-1">
                                         <span className="text-gray-500 font-bold">장소</span>

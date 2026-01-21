@@ -179,7 +179,13 @@ export default function TeacherPage() {
             .in('student_id', studentIds);
 
           if (subs && subs.length > 0) {
-            const message = `자녀의 [${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
+            let message = `자녀의 [${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
+
+            if (newStatus === '학부모승인대기') {
+              message = `[${targetRequest.leave_type}] 선생님 승인 완료. 학부모님의 최종 승인이 필요합니다.`;
+            } else if (newStatus === '승인') {
+              message = `[${targetRequest.leave_type}] 최종 승인되었습니다.`;
+            }
 
             // Send in parallel
             await Promise.all(subs.map(sub =>
@@ -303,6 +309,7 @@ export default function TeacherPage() {
         onCancel={handleCancelRequest}
         teacherName={teacherName}
         teacherId={teacherId}
+        onLogout={handleLogout}
       />
 
       {showQR && (

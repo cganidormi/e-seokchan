@@ -252,7 +252,7 @@ export default function HeadcountPage() {
     };
 
     const handleResetAssignments = () => {
-        if (!confirm('현재 배정된 모든 학생 정보를 초기화하시겠습니까?')) return;
+        // if (!confirm('현재 배정된 모든 학생 정보를 초기화하시겠습니까?')) return;
 
         const resetData: any = {};
         ALL_ROOMS.forEach(r => {
@@ -312,46 +312,45 @@ export default function HeadcountPage() {
                 </div>
 
                 <div className="flex flex-col items-end gap-2">
-                    <div className="flex items-center gap-2">
-                        {/* Mode Toggle */}
-                        <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
+                    {/* Mode Toggle */}
+                    <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
+                        <button
+                            onClick={() => setMode('check')}
+                            className={clsx(
+                                "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
+                                mode === 'check' ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
+                            )}
+                        >
+                            📋 점검
+                        </button>
+                        <button
+                            onClick={() => setMode('assign')}
+                            className={clsx(
+                                "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
+                                mode === 'assign' ? "bg-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white"
+                            )}
+                        >
+                            ⚙️ 배정
+                        </button>
+                    </div>
+
+                    {/* Action Buttons (Stacked below toggle on mobile/desktop to save width) */}
+                    {mode === 'assign' && (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-5">
                             <button
-                                onClick={() => setMode('check')}
-                                className={clsx(
-                                    "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
-                                    mode === 'check' ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
-                                )}
+                                onClick={handleResetAssignments}
+                                className="px-3 py-1.5 text-red-400 font-bold text-xs bg-gray-800 rounded-lg border border-red-900/30 hover:bg-red-900/20 transition-all whitespace-nowrap"
                             >
-                                📋 점검
+                                초기화
                             </button>
                             <button
-                                onClick={() => setMode('assign')}
-                                className={clsx(
-                                    "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
-                                    mode === 'assign' ? "bg-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white"
-                                )}
+                                onClick={handleSave}
+                                className="px-4 py-1.5 bg-green-600 text-white font-bold text-xs rounded-lg hover:bg-green-500 shadow-lg shadow-green-900/20 transition-all whitespace-nowrap"
                             >
-                                ⚙️ 배정
+                                저장
                             </button>
                         </div>
-
-                        {mode === 'assign' && (
-                            <>
-                                <button
-                                    onClick={handleResetAssignments}
-                                    className="px-3 py-1.5 text-red-400 font-bold text-xs bg-gray-800 rounded-lg border border-red-900/30 hover:bg-red-900/20 transition-all whitespace-nowrap"
-                                >
-                                    초기화
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    className="px-4 py-1.5 bg-green-600 text-white font-bold text-xs rounded-lg hover:bg-green-500 shadow-lg shadow-green-900/20 transition-all whitespace-nowrap"
-                                >
-                                    저장
-                                </button>
-                            </>
-                        )}
-                    </div>
+                    )}
                 </div>
             </header>
 

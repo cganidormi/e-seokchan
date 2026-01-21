@@ -95,6 +95,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
         '승인': { dot: 'bg-green-500', text: 'text-green-500', label: '승인' },
         '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
         '취소': { dot: 'bg-gray-500', text: 'text-gray-500', label: '취소' },
+        '학부모승인대기': { dot: 'bg-orange-500', text: 'text-orange-500', label: '학부모대기' },
     } as any)[req.status] || { dot: 'bg-gray-500', text: 'text-gray-500', label: req.status };
 
     const additionalIds = req.leave_request_students?.map(lrs => lrs.student_id).filter(Boolean) || [];
@@ -128,7 +129,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         )}></div>
                         <span className="text-white font-bold text-xs">{req.leave_type}</span>
                         {(req.leave_type !== '컴이석' && req.leave_type !== '자리비움') && (
-                            <span className={clsx("text-[10px] px-1.5 py-0.5 rounded border border-opacity-30", statusConfig.text, "border-current")}>
+                            <span className={clsx("text-[10px] px-1.5 py-0.5 rounded border border-opacity-30 whitespace-nowrap", statusConfig.text, "border-current")}>
                                 {statusConfig.label}
                             </span>
                         )}

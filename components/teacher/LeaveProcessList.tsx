@@ -11,6 +11,7 @@ interface LeaveProcessListProps {
     onCancel: (requestId: string | number) => void;
     teacherName: string;
     teacherId: string;
+    onLogout: () => void;
 }
 
 export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
@@ -18,7 +19,8 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     onUpdateStatus,
     onCancel,
     teacherName,
-    teacherId
+    teacherId,
+    onLogout
 }) => {
     const [viewMode, setViewMode] = useState<'active' | 'past'>('active');
     const [isMyLeaveOnly, setIsMyLeaveOnly] = useState(false);
@@ -30,6 +32,8 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
         const timer = setInterval(() => setNow(new Date()), 30000);
         return () => clearInterval(timer);
     }, []);
+
+    // ... (rest of logic unchanged)
 
     const isRequestActive = (req: any) => {
         if (req.status === '취소' || req.status === '반려') return false;
@@ -61,7 +65,15 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                     <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
-                    <h1 className="text-xl font-extrabold text-gray-800">이석 처리 ({teacherName} 감독선생님)</h1>
+                    <div className="flex items-baseline gap-2">
+                        <h1 className="text-xl font-extrabold text-gray-800">이석 처리 ({teacherName} 감독선생님)</h1>
+                        <button
+                            onClick={onLogout}
+                            className="text-xs text-red-500 hover:text-red-700 underline font-bold"
+                        >
+                            로그아웃
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -149,6 +161,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                             }}
                             onCancel={onCancel}
                             viewMode={viewMode}
+                            currentTeacherId={teacherId}
                         />
                     ))
                 )}

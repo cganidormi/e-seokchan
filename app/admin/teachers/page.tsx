@@ -76,11 +76,24 @@ export default function TeachersPage() {
   };
 
   // ----------------------------------------
+  // UUID 생성 (브라우저 호환성용)
+  // ----------------------------------------
+  const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
+  // ----------------------------------------
   // 새 교사 추가
   // ----------------------------------------
   const handleAddTeacher = () => {
     const newTeacher: Teacher = {
-      id: crypto.randomUUID(), // 임시 ID (저장 시 DB에서 자동 생성)
+      id: generateUUID(), // 임시 ID (안전한 생성 함수 사용)
       teacher_id: null,
       name: "",
       position: "",
@@ -165,6 +178,10 @@ export default function TeachersPage() {
     for (const t of changed) {
       // teacher_id 생성 (이름 기반)
       const newTeacherId = generateTeacherID(t.name);
+
+      // 이름이 없으면 스킵
+      if (!newTeacherId) continue;
+
       const oldTeacher = originalTeachers.find(ot => ot.id === t.id);
       const oldTeacherId = oldTeacher?.teacher_id;
 
@@ -179,27 +196,30 @@ export default function TeachersPage() {
       // 새 teacher_id 설정
       t.teacher_id = newTeacherId;
 
-      // 계정 생성/업데이트
-      if (newTeacherId) {
-        const { data: existing } = await supabase
-          .from("teachers_auth")
-          .select("*")
-          .eq("teacher_id", newTeacherId)
-          .single();
+      // 1. 계정(teachers_auth) 생성/업데이트
+      // 계정 생성이 실패하면 teachers 테이블에도 넣지 않아야 "로그인 안되는 교사"가 생기지 않음
+      const { data: existing } = await supabase
+        .from("teachers_auth")
+        .select("*")
+        .eq("teacher_id", newTeacherId)
+        .single();
 
-        const tempPassword = existing?.temp_password || generateTempPassword();
+      const tempPassword = existing?.temp_password || generateTempPassword();
 
-        await supabase.from("teachers_auth").upsert({
-          teacher_id: newTeacherId,
-          username: newTeacherId,
-          temp_password: tempPassword,
-          must_change_password: true,
-        }, { onConflict: "teacher_id" });
+      const { error: authError } = await supabase.from("teachers_auth").upsert({
+        teacher_id: newTeacherId,
+        username: newTeacherId,
+        temp_password: tempPassword,
+        must_change_password: true,
+      }, { onConflict: "teacher_id" });
+
+      if (authError) {
+        console.error("Auth creation failed:", authError);
+        toast.error(`'${t.name}' 계정 생성 실패: ${authError.message}`);
+        continue; // 이 교사는 저장 건너뜀
       }
-    }
 
-    // teachers 테이블 업데이트/삽입
-    for (const t of changed) {
+      // 2. teachers 테이블 업데이트/삽입
       const isNewTeacher = !originalTeachers.find(ot => ot.id === t.id);
 
       if (isNewTeacher) {
@@ -216,7 +236,6 @@ export default function TeachersPage() {
         if (error) {
           console.error(error);
           toast.error(`저장 실패: ${t.name}`);
-          return;
         }
       } else {
         // 기존 교사 업데이트
@@ -233,12 +252,11 @@ export default function TeachersPage() {
         if (error) {
           console.error(error);
           toast.error(`저장 실패: ${t.name}`);
-          return;
         }
       }
     }
 
-    toast.success(`${changed.length}명 저장 완료!`);
+    toast.success(`작업 완료`);
     fetchTeachers();
   };
 
@@ -360,9 +378,13 @@ export default function TeachersPage() {
                   <span className="text-sm text-gray-600">승인권한</span>
                 </label>
 
-                {/* 생성된 ID 표시 */}
+                {/* 생성된 ID 표시 (미리보기) */}
                 <span className="text-xs text-green-700 font-mono truncate max-w-[100px] md:max-w-none text-right">
-                  {t.teacher_id ? `ID: ${t.teacher_id}` : ""}
+                  {t.name ? (
+                    generateTeacherID(t.name) ? `ID: ${generateTeacherID(t.name)}` : ""
+                  ) : (
+                    <span className="text-gray-400">ID 생성 예정</span>
+                  )}
                 </span>
 
                 {/* 삭제 버튼 */}

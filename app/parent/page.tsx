@@ -36,6 +36,21 @@ function ParentContent() {
     // URL에서 토큰 가져오기 (없으면 로컬스토리지 확인)
     const token = searchParams.get('token');
 
+    // 3. PWA 설치 프롬프트 이벤트 리스너 (Mount 시점에 바로 등록)
+    useEffect(() => {
+        const handleBeforeInstallPrompt = (e: any) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+            setShowInstallPrompt(true);
+        };
+
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        };
+    }, []);
+
     useEffect(() => {
         // 1. 토큰 체크
         let currentToken = token;
@@ -51,17 +66,15 @@ function ParentContent() {
         // 토큰 저장 (재방문 시 편의)
         localStorage.setItem('dormichan_parent_token', currentToken);
 
+        // 중요: 학부모 모드로 진입 시, 기존 교사/학생 로그인 정보는 제거하여
+        // 앱 재실행 시 학부모 페이지로 우선 연결되도록 함 (세션 충돌 방지)
+        localStorage.removeItem('dormichan_login_id');
+        localStorage.removeItem('dormichan_role');
+
         // 2. 학생 데이터 & 이석 기록 불러오기
         fetchStudentData(currentToken);
 
-        // 3. PWA 설치 프롬프트 이벤트 리스너
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            setDeferredPrompt(e);
-            setShowInstallPrompt(true);
-        });
-
-        // 3.5 iOS 감지 및 가이드 표시
+        // 3. iOS 감지 및 가이드 표시
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
 
@@ -74,6 +87,22 @@ function ParentContent() {
         // 4. 푸시 구독 상태 확인
         checkSubscription(currentToken);
 
+        // Realtime Subscription
+        const channel = supabase
+            .channel('public:leave_requests')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'leave_requests' },
+                (payload) => {
+                    console.log('Realtime change received!', payload);
+                    fetchStudentData(currentToken!);
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [token]);
 
     const fetchStudentData = async (t: string) => {
@@ -93,17 +122,11 @@ function ParentContent() {
 
             // 이석 기록 조회 (최근 5건)
             if (studentData.student_id) {
-                // student_id는 '10101홍길동' 형식이거나, 이름이 없는 경우 등 데이터 상황에 맞게 매칭
-                // 여기서는 student_id 컬럼을 기준으로 조회한다고 가정
-                // (주의: student_id 컬럼이 students 테이블에 정확히 있어야 함. 
-                //  students_auth 테이블과 students 테이블의 관계를 고려해야 함)
-
-                // students 테이블의 student_id가 외래키 혹은 식별자라고 가정
                 const { data: history, error: historyError } = await supabase
                     .from('leave_requests')
                     .select('*')
                     .like('student_id', `${studentData.grade}${studentData.class}%${studentData.name}%`)
-                    .in('leave_type', ['외출', '외박']) // 학부모는 외출/외박만 확인 가능
+                    .in('leave_type', ['외출', '외박'])
                     .order('created_at', { ascending: false })
                     .limit(5);
 
@@ -193,6 +216,35 @@ function ParentContent() {
         } catch (err) {
             console.error('Push subscription failed:', err);
             toast.error('알림 설정 실패');
+        }
+    };
+
+    const handleParentAction = async (requestId: number, action: 'approve' | 'reject') => {
+        if (!confirm(action === 'approve' ? '최종 승인하시겠습니까?' : '반려하시겠습니까?')) return;
+
+        setLoading(true);
+        try {
+            const updateData = action === 'approve'
+                ? { status: '승인', parent_approval_status: 'approved' }
+                : { status: '거절', parent_approval_status: 'rejected' };
+
+            const { error } = await supabase
+                .from('leave_requests')
+                .update(updateData)
+                .eq('id', requestId);
+
+            if (error) throw error;
+
+            toast.success(action === 'approve' ? '승인되었습니다.' : '반려되었습니다.');
+
+            // Refresh Data
+            const t = localStorage.getItem('dormichan_parent_token');
+            if (t) fetchStudentData(t);
+
+        } catch (err) {
+            console.error(err);
+            toast.error('처리에 실패했습니다.');
+            setLoading(false);
         }
     };
 
@@ -320,31 +372,52 @@ function ParentContent() {
                             </div>
                         ) : (
                             leaveHistory.map((req) => (
-                                <div key={req.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${req.leave_type === '외출' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'
+                                <div key={req.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className={`px-2 py-0.5 rounded text-xs font-bold ${req.leave_type === '외출' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'
+                                                    }`}>
+                                                    {req.leave_type}
+                                                </span>
+                                                <span className="text-xs text-gray-400">
+                                                    {new Date(req.created_at).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm font-medium text-gray-800">
+                                                {new Date(req.start_time).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
+                                                {new Date(req.end_time).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-1">{req.reason}</p>
+                                        </div>
+                                        <div>
+                                            <span className={`px-2 py-1 rounded text-xs font-bold ${req.status === '승인' ? 'bg-green-100 text-green-700' :
+                                                req.status === '거절' ? 'bg-red-100 text-red-700' :
+                                                    req.status === '학부모승인대기' ? 'bg-orange-100 text-orange-700 animate-pulse' :
+                                                        'bg-yellow-100 text-yellow-700'
                                                 }`}>
-                                                {req.leave_type}
-                                            </span>
-                                            <span className="text-xs text-gray-400">
-                                                {new Date(req.created_at).toLocaleDateString()}
+                                                {req.status === '학부모승인대기' ? '학부모 승인필요' : req.status}
                                             </span>
                                         </div>
-                                        <p className="text-sm font-medium text-gray-800">
-                                            {new Date(req.start_time).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
-                                            {new Date(req.end_time).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                        </p>
-                                        <p className="text-xs text-gray-500 mt-1">{req.reason}</p>
                                     </div>
-                                    <div>
-                                        <span className={`px-2 py-1 rounded text-xs font-bold ${req.status === '승인' ? 'bg-green-100 text-green-700' :
-                                            req.status === '거절' ? 'bg-red-100 text-red-700' :
-                                                'bg-yellow-100 text-yellow-700'
-                                            }`}>
-                                            {req.status}
-                                        </span>
-                                    </div>
+
+                                    {/* 학부모 승인 버튼 영역 */}
+                                    {req.status === '학부모승인대기' && (
+                                        <div className="flex gap-2 mt-2 pt-2 border-t border-gray-50">
+                                            <button
+                                                onClick={() => handleParentAction(req.id, 'approve')}
+                                                className="flex-1 bg-green-500 text-white text-xs font-bold py-2 rounded-lg hover:bg-green-600 active:scale-95 transition-all"
+                                            >
+                                                최종 승인
+                                            </button>
+                                            <button
+                                                onClick={() => handleParentAction(req.id, 'reject')}
+                                                className="flex-1 bg-gray-100 text-gray-600 text-xs font-bold py-2 rounded-lg hover:bg-gray-200 active:scale-95 transition-all"
+                                            >
+                                                반려
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         )}
