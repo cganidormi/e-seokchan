@@ -96,6 +96,8 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
         '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
         '취소': { dot: 'bg-gray-500', text: 'text-gray-500', label: '취소' },
         '학부모승인대기': { dot: 'bg-orange-500', text: 'text-orange-500', label: '학부모대기' },
+        '학부모승인': { dot: 'bg-blue-500', text: 'text-blue-500', label: '학부모승인' },
+        '복귀': { dot: 'bg-gray-400', text: 'text-gray-400', label: '복귀' },
     } as any)[req.status] || { dot: 'bg-gray-500', text: 'text-gray-500', label: req.status };
 
     const additionalIds = req.leave_request_students?.map(lrs => lrs.student_id).filter(Boolean) || [];
@@ -125,7 +127,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         <div className={clsx(
                             "w-2 h-2 rounded-full",
                             statusConfig.dot,
-                            req.status === '신청' && "animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"
+                            req.status === '신청' || req.status === '학부모승인' && "animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"
                         )}></div>
                         <span className="text-white font-bold text-xs">{req.leave_type}</span>
                         {(req.leave_type !== '컴이석' && req.leave_type !== '자리비움') && (
@@ -237,9 +239,15 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                             })()}
                         </div>
 
-
+                        {/* 4. 사유 (Reason) */}
+                        {req.reason && (
+                            <div className="flex items-center shrink-0 ml-1">
+                                <span className="text-gray-400 text-xs font-medium" title={req.reason}>
+                                    {req.reason.length > 6 ? req.reason.slice(0, 6) + '...' : req.reason}
+                                </span>
+                            </div>
+                        )}
                     </div>
-
                     {/* 5. 취소 버튼 (우측 끝) */}
                     {!isPast && (
                         <div className="ml-auto flex items-center shrink-0">

@@ -33,13 +33,16 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
         '승인': { dot: 'bg-green-500', text: 'text-green-500', label: '승인' },
         '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
         '학부모승인대기': { dot: 'bg-orange-500', text: 'text-orange-500', label: '학부모대기' },
+        '학부모승인': { dot: 'bg-blue-600', text: 'text-blue-600', label: '학부모승인' },
+        '복귀': { dot: 'bg-gray-400', text: 'text-gray-400', label: '복귀' },
     } as any)[req.status] || { dot: 'bg-gray-500', text: 'text-gray-500', label: req.status };
 
     const additionalIds = req.leave_request_students?.map(lrs => lrs.student_id) || [];
     const allStudents = [req.student_id, ...additionalIds];
 
     // Permission Check: Only the assigned teacher can edit, and only in 'active' view
-    const canEdit = req.teacher_id === currentTeacherId && viewMode === 'active';
+    // '학부모승인' 상태도 교사가 처리해야 함 (사실상 '신청'과 동일하게 취급)
+    const canEdit = req.teacher_id === currentTeacherId && viewMode === 'active' && (req.status === '신청' || req.status === '학부모승인' || req.status === '승인');
 
     const handleApprove = (e: React.MouseEvent) => {
         if (!canEdit) return;
@@ -47,15 +50,15 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
 
         const type = req.leave_type ? req.leave_type.trim() : '';
 
-        if (type === '외출' || type === '외박') {
-            // Mobile environment confirm issue fix: Remove confirm dialog
-            // if (confirm(`'${type}' 신청입니다. 학부모 승인 대기 단계로 넘기시겠습니까?`)) {
-            toast.success('학부모 승인 대기 상태로 변경 요청...');
-            onUpdateStatus(req.id, '학부모승인대기');
-            // }
-        } else {
-            onUpdateStatus(req.id, '승인');
-        }
+        // 최종 승인 처리
+        onUpdateStatus(req.id, '승인');
+    };
+
+    const handleEarlyReturn = (e: React.MouseEvent) => {
+        if (!canEdit) return;
+        e.stopPropagation();
+        if (!confirm('조기 복귀 처리하시겠습니까?')) return;
+        onUpdateStatus(req.id, '복귀');
     };
 
     return (
@@ -73,7 +76,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                     <div className={clsx(
                         "w-2 h-2 rounded-full",
                         statusConfig.dot,
-                        req.status === '신청' && "animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"
+                        req.status === '신청' || req.status === '학부모승인' && "animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"
                     )}></div>
                     <span className="text-white font-bold text-xs">{req.leave_type}</span>
 
@@ -85,7 +88,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                                 className={clsx(
                                     "flex items-center px-1.5 py-0.5 rounded border border-opacity-30 transition-all duration-200 text-[10px] font-bold border-current",
                                     statusConfig.text,
-                                    canEdit && req.status === '신청' ? "bg-blue-500/10" : "bg-white/5",
+                                    canEdit && (req.status === '신청' || req.status === '학부모승인') ? "bg-blue-500/10" : "bg-white/5",
                                     !canEdit && "opacity-50 cursor-default"
                                 )}
                                 disabled={!canEdit}
@@ -197,21 +200,41 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                         })()}
                     </div>
 
-
+                    {/* 4. 사유 (Reason) */}
+                    {req.reason && (
+                        <div className="flex items-center shrink-0 ml-1">
+                            <span className="text-gray-400 text-xs font-medium" title={req.reason}>
+                                {req.reason.length > 6 ? req.reason.slice(0, 6) + '...' : req.reason}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
-                {/* 5. 취소 버튼 (우측 끝) - Only if canEdit */}
+                {/* 5. 취소 및 복귀 버튼 (우측 끝) - Only if canEdit */}
                 {canEdit && (
-                    <div className="ml-auto flex items-center shrink-0">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
-                            className="text-gray-500 hover:text-red-500 transition-colors p-1"
-                            title="취소"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
+                    <div className="ml-auto flex items-center gap-2 shrink-0">
+                        {/* 조기 복귀 버튼 - 승인 상태이고 외출/외박인 경우에만 표시 */}
+                        {req.status === '승인' && (req.leave_type === '외출' || req.leave_type === '외박') && (
+                            <button
+                                onClick={handleEarlyReturn}
+                                className="px-2 py-1 bg-gray-700 text-gray-300 text-[10px] font-bold rounded hover:bg-gray-600 transition-colors border border-white/10"
+                            >
+                                복귀
+                            </button>
+                        )}
+
+                        {/* 취소(X) 버튼 - 승인된 외출/외박인 경우는 '복귀'가 있으므로 숨김 (취소 필요 시 '반려' 사용) */}
+                        {!(req.status === '승인' && (req.leave_type === '외출' || req.leave_type === '외박')) && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
+                                className="text-gray-500 hover:text-red-500 transition-colors p-1"
+                                title="취소"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

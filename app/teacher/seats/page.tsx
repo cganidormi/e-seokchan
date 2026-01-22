@@ -11,6 +11,7 @@ interface Student {
     name: string;
     grade: number;
     class: number;
+    weekend?: boolean;
 }
 
 interface SeatAssignment {
@@ -40,6 +41,30 @@ interface TimetableEntry {
     start_time: string;
     end_time: string;
 }
+
+
+
+const isWeeklyHomeTime = (date: Date) => {
+    const day = date.getDay();
+    const hour = date.getHours();
+    const minute = date.getMinutes();
+
+    // Friday (5) >= 17:00
+    if (day === 5) {
+        return hour >= 17;
+    }
+    // Saturday (6) - All day
+    if (day === 6) {
+        return true;
+    }
+    // Sunday (0) <= 18:50
+    if (day === 0) {
+        if (hour < 18) return true;
+        if (hour === 18 && minute <= 50) return true;
+        return false;
+    }
+    return false;
+};
 
 export default function SeatManagementPage() {
     const [selectedRoom, setSelectedRoom] = useState(1);
@@ -375,7 +400,6 @@ export default function SeatManagementPage() {
                                 )}
                             </div>
                         </div>
-
                         <div className="flex gap-6">
                             <div className="flex flex-col gap-1">
                                 <label className="text-xs font-bold text-gray-400">한 줄에 몇 명?</label>
@@ -626,6 +650,14 @@ export default function SeatManagementPage() {
                                         }
                                     }
 
+                                    // --- Weekly Home Goer Check ---
+                                    const isWeeklyHome = assignment?.student?.weekend && isWeeklyHomeTime(currentTime);
+                                    if (isWeeklyHome) {
+                                        seatStatusColor = "bg-gray-400 border-gray-500";
+                                        headerBgClass = "bg-gray-500";
+                                        studentIdTextColor = "text-white";
+                                    }
+
                                     if (isDisabled && mode === 'monitor') {
                                         return (
                                             <div key={seatNum} className="relative w-full h-[54px] bg-gray-300 border-r border-b border-gray-200">
@@ -662,7 +694,8 @@ export default function SeatManagementPage() {
                                                     mode === 'edit' && !isDisabled && "cursor-pointer hover:bg-yellow-50/50 hover:border-yellow-400 group/card z-10",
                                                     mode === 'edit' && isDisabled && "cursor-pointer z-10", // Allow selection but no hover effect
                                                     activeLeaveReq?.leave_type === '자리비움' && !isAwayBlinking && "bg-red-50",
-                                                    isAwayBlinking && "animate-[pulse_1s_infinite] bg-red-100 ring-2 ring-red-500 ring-inset"
+                                                    isAwayBlinking && "animate-[pulse_1s_infinite] bg-red-100 ring-2 ring-red-500 ring-inset",
+                                                    isWeeklyHome && "bg-gray-400/20"
                                                 )}
                                             >
                                                 {/* Seat Number on Top-Right Inside */}
@@ -687,7 +720,7 @@ export default function SeatManagementPage() {
                                                             "flex-1 flex items-center px-1.5 border-b border-gray-100 transition-colors",
                                                             activeLeaveReq?.leave_type === '자리비움' ? (isAwayBlinking ? "bg-red-600" : "bg-red-500") : headerBgClass
                                                         )}>
-                                                            <span className={clsx("text-[11px] truncate font-medium", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
+                                                            <span className={clsx("text-[11px] truncate font-medium flex-1", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
                                                                 {assignment.student?.student_id}
                                                                 {activeLeaveReq?.leave_type === '자리비움' && (
                                                                     <button
@@ -710,6 +743,7 @@ export default function SeatManagementPage() {
                                                                         자리비움 해제
                                                                     </button>
                                                                 )}
+                                                                {isWeeklyHome && <span className="text-[9px] ml-auto font-normal text-white/90">매주귀가</span>}
                                                             </span>
                                                         </div>
 
@@ -774,6 +808,14 @@ export default function SeatManagementPage() {
                                                                 );
                                                             })}
                                                         </div>
+
+
+                                                        {/* Overlay for Weekly Home Goer to hide periods */}
+                                                        {isWeeklyHome && (
+                                                            <div className="absolute inset-0 bg-gray-400/90 flex items-center justify-center z-20">
+                                                                <span className="text-white font-bold text-xs">매주 귀가</span>
+                                                            </div>
+                                                        )}
                                                     </>
                                                 ) : (
                                                     <div className="flex-1 flex items-center justify-center">
@@ -792,133 +834,136 @@ export default function SeatManagementPage() {
                 </div>
             </div>
 
+
             {/* Assignment Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100">
-                        {(() => {
-                            if (selectedSeat === null) return null;
-                            const disabledCountBefore = seatProperties.filter(p => p.seat_number < selectedSeat && p.is_disabled).length;
-                            const displaySeatNum = selectedSeat - disabledCountBefore;
-                            const isCurrentDisabled = seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled;
+            {
+                isModalOpen && (
+                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100">
+                            {(() => {
+                                if (selectedSeat === null) return null;
+                                const disabledCountBefore = seatProperties.filter(p => p.seat_number < selectedSeat && p.is_disabled).length;
+                                const displaySeatNum = selectedSeat - disabledCountBefore;
+                                const isCurrentDisabled = seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled;
 
-                            return (
-                                <>
-                                    <h2 className="text-lg font-extrabold text-gray-800 mb-1">
-                                        {selectedRoom}열람실 {isCurrentDisabled ? '(비활성)' : `${displaySeatNum}번 좌석`} 관리
-                                        <span className="text-xs text-gray-400 font-normal ml-2">
-                                            (Slot #{selectedSeat})
-                                        </span>
-                                    </h2>
-                                    {(() => {
-                                        const assignment = assignments.find(a => a.seat_number === selectedSeat);
-                                        const awayReq = (assignment && activeLeaves.length > 0) ? activeLeaves.find(req =>
-                                            (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id)) &&
-                                            req.leave_type === '자리비움' &&
-                                            new Date(req.start_time) <= currentTime
-                                        ) : null;
+                                return (
+                                    <>
+                                        <h2 className="text-lg font-extrabold text-gray-800 mb-1">
+                                            {selectedRoom}열람실 {isCurrentDisabled ? '(비활성)' : `${displaySeatNum}번 좌석`} 관리
+                                            <span className="text-xs text-gray-400 font-normal ml-2">
+                                                (Slot #{selectedSeat})
+                                            </span>
+                                        </h2>
+                                        {(() => {
+                                            const assignment = assignments.find(a => a.seat_number === selectedSeat);
+                                            const awayReq = (assignment && activeLeaves.length > 0) ? activeLeaves.find(req =>
+                                                (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id)) &&
+                                                req.leave_type === '자리비움' &&
+                                                new Date(req.start_time) <= currentTime
+                                            ) : null;
 
-                                        if (awayReq) {
-                                            const start = new Date(awayReq.start_time);
-                                            const diffMins = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
-                                            return (
-                                                <div className="bg-red-50 text-red-600 p-2 rounded-xl mb-4 flex items-center justify-between">
-                                                    <div>
-                                                        <p className="text-[10px] font-bold">현재 자리비움 중 ({diffMins}분 경과)</p>
+                                            if (awayReq) {
+                                                const start = new Date(awayReq.start_time);
+                                                const diffMins = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
+                                                return (
+                                                    <div className="bg-red-50 text-red-600 p-2 rounded-xl mb-4 flex items-center justify-between">
+                                                        <div>
+                                                            <p className="text-[10px] font-bold">현재 자리비움 중 ({diffMins}분 경과)</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={async () => {
+                                                                const { error } = await supabase.from('leave_requests').update({ status: '취소' }).eq('id', awayReq.id);
+                                                                if (!error) {
+                                                                    toast.success('자리비움이 해제되었습니다.');
+                                                                    fetchLiveStatus(selectedRoom);
+                                                                    setIsModalOpen(false);
+                                                                }
+                                                            }}
+                                                            className="text-[10px] bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-red-600 transition-colors"
+                                                        >
+                                                            즉시 해제
+                                                        </button>
                                                     </div>
-                                                    <button
-                                                        onClick={async () => {
-                                                            const { error } = await supabase.from('leave_requests').update({ status: '취소' }).eq('id', awayReq.id);
-                                                            if (!error) {
-                                                                toast.success('자리비움이 해제되었습니다.');
-                                                                fetchLiveStatus(selectedRoom);
-                                                                setIsModalOpen(false);
-                                                            }
-                                                        }}
-                                                        className="text-[10px] bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-red-600 transition-colors"
-                                                    >
-                                                        즉시 해제
-                                                    </button>
-                                                </div>
-                                            );
-                                        }
-                                        return null;
-                                    })()}
-                                </>
-                            );
-                        })()}
+                                                );
+                                            }
+                                            return null;
+                                        })()}
+                                    </>
+                                );
+                            })()}
 
-                        <div className="mb-6">
-                            <label className="block text-xs font-bold text-gray-400 mb-2">학생 선택</label>
-                            <Select
-                                autoFocus
-                                options={students
-                                    .filter(s => !assignments.some(a => a.student_id === s.student_id)) // Filter out already assigned students
-                                    .map(s => ({
-                                        value: s.student_id,
-                                        label: `${s.student_id} ${s.name}`,
-                                        student: s
-                                    }))}
-                                onChange={(option: any) => {
-                                    assignStudent(option.value);
-                                }}
-                                placeholder="이름 또는 학번 검색..."
-                                styles={{
-                                    control: (base) => ({
-                                        ...base,
-                                        borderRadius: '1rem',
-                                        padding: '4px',
-                                        borderColor: '#e5e7eb',
-                                        boxShadow: 'none',
-                                        '&:hover': { borderColor: '#fbbf24' }
-                                    }),
-                                    option: (base, state) => ({
-                                        ...base,
-                                        backgroundColor: state.isFocused ? '#fefce8' : 'white',
-                                        color: '#1f2937',
-                                        fontWeight: '500',
-                                        cursor: 'pointer'
-                                    })
-                                }}
-                            />
-                        </div>
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-gray-400 mb-2">학생 선택</label>
+                                <Select
+                                    autoFocus
+                                    options={students
+                                        .filter(s => !assignments.some(a => a.student_id === s.student_id)) // Filter out already assigned students
+                                        .map(s => ({
+                                            value: s.student_id,
+                                            label: `${s.student_id} ${s.name}`,
+                                            student: s
+                                        }))}
+                                    onChange={(option: any) => {
+                                        assignStudent(option.value);
+                                    }}
+                                    placeholder="이름 또는 학번 검색..."
+                                    styles={{
+                                        control: (base) => ({
+                                            ...base,
+                                            borderRadius: '1rem',
+                                            padding: '4px',
+                                            borderColor: '#e5e7eb',
+                                            boxShadow: 'none',
+                                            '&:hover': { borderColor: '#fbbf24' }
+                                        }),
+                                        option: (base, state) => ({
+                                            ...base,
+                                            backgroundColor: state.isFocused ? '#fefce8' : 'white',
+                                            color: '#1f2937',
+                                            fontWeight: '500',
+                                            cursor: 'pointer'
+                                        })
+                                    }}
+                                />
+                            </div>
 
-                        <div className="flex gap-2">
-                            {/* Disable Toggle (Priority) */}
-                            <button
-                                onClick={() => toggleSeatDisabled(selectedSeat)}
-                                className={clsx(
-                                    "flex-1 py-3 font-bold rounded-xl transition-colors",
-                                    seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled
-                                        ? "bg-green-100 text-green-600 hover:bg-green-200"
-                                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                                )}
-                            >
-                                {seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled ? "⭕ 좌석 활성화" : "🚫 좌석 비활성화"}
-                            </button>
-                        </div>
-                        <div className="h-px bg-gray-100 my-4" />
-
-                        <div className="flex gap-2">
-                            {/* If assigned, show remove button */}
-                            {assignments.find(a => a.seat_number === selectedSeat) && (
+                            <div className="flex gap-2">
+                                {/* Disable Toggle (Priority) */}
                                 <button
-                                    onClick={() => assignStudent(null)}
-                                    className="flex-1 py-3 bg-red-50 text-red-500 font-bold rounded-xl hover:bg-red-100 transition-colors"
+                                    onClick={() => toggleSeatDisabled(selectedSeat)}
+                                    className={clsx(
+                                        "flex-1 py-3 font-bold rounded-xl transition-colors",
+                                        seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled
+                                            ? "bg-green-100 text-green-600 hover:bg-green-200"
+                                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                    )}
                                 >
-                                    배정 해제
+                                    {seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled ? "⭕ 좌석 활성화" : "🚫 좌석 비활성화"}
                                 </button>
-                            )}
-                            <button
-                                onClick={() => { setIsModalOpen(false); setSelectedSeat(null); }}
-                                className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors"
-                            >
-                                닫기
-                            </button>
+                            </div>
+                            <div className="h-px bg-gray-100 my-4" />
+
+                            <div className="flex gap-2">
+                                {/* If assigned, show remove button */}
+                                {assignments.find(a => a.seat_number === selectedSeat) && (
+                                    <button
+                                        onClick={() => assignStudent(null)}
+                                        className="flex-1 py-3 bg-red-50 text-red-500 font-bold rounded-xl hover:bg-red-100 transition-colors"
+                                    >
+                                        배정 해제
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => { setIsModalOpen(false); setSelectedSeat(null); }}
+                                    className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                                >
+                                    닫기
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

@@ -4,6 +4,7 @@ export interface Student {
     grade: number;
     class: number;
     parent_token?: string;
+    weekend?: boolean;
 }
 
 export interface Teacher {

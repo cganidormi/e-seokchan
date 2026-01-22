@@ -11,7 +11,9 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
 // Room Layout Configuration (Row, Col) based on floor plan
 // Abstracted using last 2 digits (01-25)
-const BASE_LAYOUT: Record<number, { row: number, col: number }> = {
+// Room Layout Configuration (Row, Col) based on floor plan
+// Abstracted using last 2 digits (01-25)
+const DEFAULT_LAYOUT: Record<number, { row: number, col: number }> = {
     // Top Row (06-10)
     6: { row: 1, col: 1 },
     7: { row: 1, col: 2 },
@@ -41,11 +43,60 @@ const BASE_LAYOUT: Record<number, { row: number, col: number }> = {
     25: { row: 11, col: 4 }, 20: { row: 11, col: 5 },
 };
 
+const FLOOR_1_LAYOUT: Record<number, { row: number, col: number }> = {
+    // 1-19: Same as Default
+    ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].reduce((acc, idx) => ({ ...acc, [idx]: DEFAULT_LAYOUT[idx] }), {}),
+
+    // 20-23: Inner Column (Left of 119 column) -> Col 4
+    // 20 (New 120) takes spot of Old 121 (Row 7 Col 4)
+    20: { row: 7, col: 4 },
+    21: { row: 8, col: 4 },
+    22: { row: 9, col: 4 },
+    23: { row: 10, col: 4 }
+    // 24, 25 Deleted
+};
+
+const FLOOR_2_LAYOUT: Record<number, { row: number, col: number }> = {
+    // 1-20: Same as Default
+    ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].reduce((acc, idx) => ({ ...acc, [idx]: DEFAULT_LAYOUT[idx] }), {}),
+
+    // 21: Below 20 (Row 11 Col 5) -> Row 12 Col 5 (Outer)
+    21: { row: 12, col: 5 },
+
+    // 22 (Old 21 pos) ~ 27: Inner Column (Col 4)
+    22: { row: 7, col: 4 },
+    23: { row: 8, col: 4 },
+    24: { row: 9, col: 4 },
+    25: { row: 10, col: 4 },
+    26: { row: 11, col: 4 },
+    27: { row: 12, col: 4 }
+};
+
+const FLOOR_4_LAYOUT: Record<number, { row: number, col: number }> = {
+    // 1-19: Same as Default
+    ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].reduce((acc, idx) => ({ ...acc, [idx]: DEFAULT_LAYOUT[idx] }), {}),
+    // Old 20 (Row 11 Col 5) Deleted.
+
+    // 20-25: Inner Column (Col 4)
+    // 21 becomes 20 (Row 7 Col 4)
+    20: { row: 7, col: 4 },
+    21: { row: 8, col: 4 },
+    22: { row: 9, col: 4 },
+    23: { row: 10, col: 4 },
+    24: { row: 11, col: 4 },
+    25: { row: 12, col: 4 }
+};
+
 const FLOORS = [1, 2, 3, 4];
 const getAllRooms = () => {
     const rooms: number[] = [];
     FLOORS.forEach(floor => {
-        Object.keys(BASE_LAYOUT).forEach(idx => {
+        let layout = DEFAULT_LAYOUT;
+        if (floor === 1) layout = FLOOR_1_LAYOUT;
+        if (floor === 2) layout = FLOOR_2_LAYOUT;
+        if (floor === 4) layout = FLOOR_4_LAYOUT;
+
+        Object.keys(layout).forEach(idx => {
             rooms.push(floor * 100 + Number(idx));
         });
     });
@@ -53,6 +104,28 @@ const getAllRooms = () => {
 };
 
 const ALL_ROOMS = getAllRooms();
+
+const isWeeklyHomeTime = (date: Date) => {
+    const day = date.getDay();
+    const hour = date.getHours();
+    const minute = date.getMinutes();
+
+    // Friday (5) >= 17:00
+    if (day === 5) {
+        return hour >= 17;
+    }
+    // Saturday (6) - All day
+    if (day === 6) {
+        return true;
+    }
+    // Sunday (0) <= 18:50
+    if (day === 0) {
+        if (hour < 18) return true;
+        if (hour === 18 && minute <= 50) return true;
+        return false;
+    }
+    return false;
+};
 
 export default function HeadcountPage() {
     const [currentTime, setCurrentTime] = useState('');
@@ -66,8 +139,8 @@ export default function HeadcountPage() {
 
     // roomStatus includes name, status and student_id
     const [roomStatus, setRoomStatus] = useState<Record<number, {
-        left: { status: 'in' | 'out', name: string, student_id?: string },
-        right: { status: 'in' | 'out', name: string, student_id?: string }
+        left: { status: 'in' | 'out', name: string, student_id?: string, isWeekend?: boolean, leaveType?: '외출' | '외박' },
+        right: { status: 'in' | 'out', name: string, student_id?: string, isWeekend?: boolean, leaveType?: '외출' | '외박' }
     }>>({});
     const router = useRouter();
 
@@ -114,13 +187,17 @@ export default function HeadcountPage() {
                     .lte('start_time', nowStr)
                     .gte('end_time', nowStr);
 
-                const outStudentIds = new Set<string>();
+                // Leave Type Map: student_id -> '외출' | '외박'
+                const outStatus = new Map<string, '외출' | '외박'>();
+
                 leaveData?.forEach(req => {
+                    // Normalize type (just in case)
+                    const type = req.leave_type as '외출' | '외박';
                     // Add main applicant
-                    if (req.student_id) outStudentIds.add(req.student_id);
+                    if (req.student_id) outStatus.set(req.student_id, type);
                     // Add co-applicants
                     req.leave_request_students?.forEach((s: any) => {
-                        outStudentIds.add(s.student_id);
+                        outStatus.set(s.student_id, type);
                     });
                 });
 
@@ -128,14 +205,18 @@ export default function HeadcountPage() {
                     const roomStudents = studentsByRoom[roomNum] || [];
                     initialStatus[roomNum] = {
                         left: {
-                            status: roomStudents[0] && outStudentIds.has(roomStudents[0].student_id) ? 'out' : 'in',
+                            status: roomStudents[0] && outStatus.has(roomStudents[0].student_id) ? 'out' : 'in',
+                            leaveType: roomStudents[0] ? outStatus.get(roomStudents[0].student_id) : undefined,
                             name: roomStudents[0]?.name || '',
-                            student_id: roomStudents[0]?.student_id || ''
+                            student_id: roomStudents[0]?.student_id || '',
+                            isWeekend: roomStudents[0]?.weekend || false
                         },
                         right: {
-                            status: roomStudents[1] && outStudentIds.has(roomStudents[1].student_id) ? 'out' : 'in',
+                            status: roomStudents[1] && outStatus.has(roomStudents[1].student_id) ? 'out' : 'in',
+                            leaveType: roomStudents[1] ? outStatus.get(roomStudents[1].student_id) : undefined,
                             name: roomStudents[1]?.name || '',
-                            student_id: roomStudents[1]?.student_id || ''
+                            student_id: roomStudents[1]?.student_id || '',
+                            isWeekend: roomStudents[1]?.weekend || false
                         }
                     };
                 });
@@ -152,21 +233,31 @@ export default function HeadcountPage() {
                             if (savedRoom.left) {
                                 initialStatus[roomNum].left.name = savedRoom.left.name;
                                 initialStatus[roomNum].left.student_id = savedRoom.left.student_id;
-                                initialStatus[roomNum].left.status = savedRoom.left.student_id && outStudentIds.has(savedRoom.left.student_id) ? 'out' : 'in';
+                                initialStatus[roomNum].left.status = savedRoom.left.student_id && outStatus.has(savedRoom.left.student_id) ? 'out' : 'in';
+                                initialStatus[roomNum].left.leaveType = savedRoom.left.student_id ? outStatus.get(savedRoom.left.student_id) : undefined;
+                                // Restore weekend status from DB data
+                                const student = students?.find((s: any) => s.student_id === savedRoom.left.student_id);
+                                initialStatus[roomNum].left.isWeekend = student?.weekend || false;
                             } else {
                                 initialStatus[roomNum].left.name = '';
                                 initialStatus[roomNum].left.student_id = '';
                                 initialStatus[roomNum].left.status = 'in';
+                                initialStatus[roomNum].left.isWeekend = false;
                             }
 
                             if (savedRoom.right) {
                                 initialStatus[roomNum].right.name = savedRoom.right.name;
                                 initialStatus[roomNum].right.student_id = savedRoom.right.student_id;
-                                initialStatus[roomNum].right.status = savedRoom.right.student_id && outStudentIds.has(savedRoom.right.student_id) ? 'out' : 'in';
+                                initialStatus[roomNum].right.status = savedRoom.right.student_id && outStatus.has(savedRoom.right.student_id) ? 'out' : 'in';
+                                initialStatus[roomNum].right.leaveType = savedRoom.right.student_id ? outStatus.get(savedRoom.right.student_id) : undefined;
+                                // Restore weekend status from DB data
+                                const student = students?.find((s: any) => s.student_id === savedRoom.right.student_id);
+                                initialStatus[roomNum].right.isWeekend = student?.weekend || false;
                             } else {
                                 initialStatus[roomNum].right.name = '';
                                 initialStatus[roomNum].right.student_id = '';
                                 initialStatus[roomNum].right.status = 'in';
+                                initialStatus[roomNum].right.isWeekend = false;
                             }
                         }
                     });
@@ -228,7 +319,8 @@ export default function HeadcountPage() {
                     ...prev[room][position],
                     name: student.name,
                     student_id: student.student_id,
-                    status: 'in' // Reset status on new assignment
+                    status: 'in', // Reset status on new assignment
+                    isWeekend: student.weekend || false
                 }
             }
         }));
@@ -357,9 +449,9 @@ export default function HeadcountPage() {
             {/* Main Content - Zoomable Area */}
             <div className="flex-1 relative overflow-hidden bg-[#121212] w-full h-full">
                 <TransformWrapper
-                    initialScale={0.8}
-                    minScale={0.2}
-                    maxScale={4}
+                    initialScale={0.6}
+                    minScale={0.4}
+                    maxScale={1}
                     centerOnInit={true}
                     wheel={{ step: 0.1 }}
                     panning={{ disabled: false }}
@@ -371,17 +463,20 @@ export default function HeadcountPage() {
                         contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}
                     >
                         <div className="grid grid-cols-5 gap-1.5 min-w-[1200px] select-none">
-                            {Object.keys(BASE_LAYOUT).map((key) => {
+                            {Object.keys(currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT))).map((key) => {
                                 const idx = Number(key);
                                 const roomNum = currentFloor * 100 + idx;
                                 const roomData = roomStatus[roomNum] || { left: { status: 'in', name: '', student_id: '' }, right: { status: 'in', name: '', student_id: '' } };
-                                const pos = BASE_LAYOUT[idx];
+                                const layout = currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT));
+                                const pos = layout[idx];
 
                                 // Layout helpers based on relative index
                                 // Top Row: 6-10 (Side by Side)
                                 const isSideBySide = idx >= 6 && idx <= 10;
                                 // Left Col (1-5) & Bottom Left (21-25) are Reverse Vertical
-                                const isReverseVertical = (idx >= 1 && idx <= 5) || (idx >= 21 && idx <= 25);
+                                // NOTE: Floor 1 assumes simple vertical for 21+, Floor 2 different.
+                                // Floor 4: Inner is 20-25. Vertical.
+                                const isReverseVertical = (idx >= 1 && idx <= 5) || (currentFloor !== 1 && currentFloor !== 2 && currentFloor !== 4 && idx >= 21 && idx <= 25);
 
                                 return (
                                     <div
@@ -416,26 +511,53 @@ export default function HeadcountPage() {
                                                 className={clsx(
                                                     "relative flex-1 rounded-md border flex flex-col items-center justify-center transition-all duration-200",
                                                     "group active:scale-95",
-                                                    // Mode specific styling
                                                     mode === 'check'
                                                         ? (roomData.left.status === 'out'
-                                                            ? "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]"
-                                                            : "bg-[#1f2937] border-gray-700 hover:border-gray-500 hover:bg-gray-700")
+                                                            ? (roomData.left.leaveType === '외출'
+                                                                ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]" // Outing (Green)
+                                                                : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]") // Stay-out (Purple)
+                                                            : (
+                                                                // Present (In) & Has Student & NOT Weekly Home Goer -> Bright Light Effect
+                                                                roomData.left.name && !(isWeeklyHomeTime(new Date()) && roomData.left.isWeekend)
+                                                                    ? "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10"
+                                                                    : "bg-[#1f2937] border-gray-700 hover:border-gray-500 hover:bg-gray-700"
+                                                            ))
                                                         : "bg-[#1f2937] border-dashed border-gray-600 hover:border-purple-400 hover:bg-gray-700"
                                                 )}
                                             >
                                                 {/* Bed Position Label (Small) */}
-                                                <span className="absolute top-0.5 left-1 text-[7px] font-black text-gray-600 group-hover:text-gray-400">
+                                                <span className={clsx(
+                                                    "absolute top-0.5 left-1 text-[7px] font-black group-hover:text-gray-400",
+                                                    mode === 'check' && roomData.left.status === 'in' && roomData.left.name ? "text-gray-400" : "text-gray-600"
+                                                )}>
                                                     L
                                                 </span>
 
+                                                {/* Overlap background for Weekly Home Goer -> REMOVED to match empty dark color as requested */}
+                                                {/* {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.left.isWeekend && (
+                                                    <div className="absolute inset-0 bg-gray-200/90 z-20 flex items-center justify-center rounded-md" />
+                                                )} */}
+
                                                 {/* Student Name */}
                                                 <span className={clsx(
-                                                    "text-[12px] font-bold truncate max-w-full leading-tight px-1",
-                                                    mode === 'check' && roomData.left.status === 'out' ? "text-white" : "text-gray-300",
+                                                    "text-[12px] font-bold truncate max-w-full leading-tight px-1 flex flex-col items-center z-30",
+                                                    mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.left.isWeekend
+                                                        ? "text-gray-400" // Weekly Home text color (Light gray for dark bg)
+                                                        : (
+                                                            mode === 'check' && roomData.left.status === 'in' && roomData.left.name
+                                                                ? "text-black" // Present text color (on white)
+                                                                : (
+                                                                    mode === 'check' && roomData.left.status === 'out'
+                                                                        ? "text-white"
+                                                                        : "text-gray-300"
+                                                                )
+                                                        ),
                                                     mode === 'assign' && !roomData.left.name && "text-gray-600 text-[10px]"
                                                 )}>
                                                     {roomData.left.name ? (roomData.left.student_id || roomData.left.name) : (mode === 'assign' ? '빈 침대' : '-')}
+                                                    {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.left.isWeekend && (
+                                                        <span className="text-[12px] font-bold text-gray-600 mt-1">매주귀가</span>
+                                                    )}
                                                 </span>
                                             </button>
 
@@ -448,23 +570,51 @@ export default function HeadcountPage() {
                                                     "group active:scale-95",
                                                     mode === 'check'
                                                         ? (roomData.right.status === 'out'
-                                                            ? "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]"
-                                                            : "bg-[#1f2937] border-gray-700 hover:border-gray-500 hover:bg-gray-700")
+                                                            ? (roomData.right.leaveType === '외출'
+                                                                ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]" // Outing (Green)
+                                                                : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]") // Stay-out (Purple)
+                                                            : (
+                                                                // Present (In) & Has Student & NOT Weekly Home Goer -> Bright Light Effect
+                                                                roomData.right.name && !(isWeeklyHomeTime(new Date()) && roomData.right.isWeekend)
+                                                                    ? "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10"
+                                                                    : "bg-[#1f2937] border-gray-700 hover:border-gray-500 hover:bg-gray-700"
+                                                            ))
                                                         : "bg-[#1f2937] border-dashed border-gray-600 hover:border-purple-400 hover:bg-gray-700"
                                                 )}
                                             >
                                                 {/* Bed Position Label */}
-                                                <span className="absolute top-0.5 left-1 text-[7px] font-black text-gray-600 group-hover:text-gray-400">
+                                                <span className={clsx(
+                                                    "absolute top-0.5 left-1 text-[7px] font-black group-hover:text-gray-400",
+                                                    mode === 'check' && roomData.right.status === 'in' && roomData.right.name ? "text-gray-400" : "text-gray-600"
+                                                )}>
                                                     R
                                                 </span>
 
+                                                {/* Overlap background for Weekly Home Goer -> REMOVED to match empty dark color as requested */}
+                                                {/* {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.right.isWeekend && (
+                                                    <div className="absolute inset-0 bg-gray-200/90 z-20 flex items-center justify-center rounded-md" />
+                                                )} */}
+
                                                 {/* Student Name */}
                                                 <span className={clsx(
-                                                    "text-[12px] font-bold truncate max-w-full leading-tight px-1",
-                                                    mode === 'check' && roomData.right.status === 'out' ? "text-white" : "text-gray-300",
+                                                    "text-[12px] font-bold truncate max-w-full leading-tight px-1 flex flex-col items-center z-30",
+                                                    mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.right.isWeekend
+                                                        ? "text-gray-400" // Weekly Home text color
+                                                        : (
+                                                            mode === 'check' && roomData.right.status === 'in' && roomData.right.name
+                                                                ? "text-black" // Present text color
+                                                                : (
+                                                                    mode === 'check' && roomData.right.status === 'out'
+                                                                        ? "text-white"
+                                                                        : "text-gray-300"
+                                                                )
+                                                        ),
                                                     mode === 'assign' && !roomData.right.name && "text-gray-600 text-[10px]"
                                                 )}>
                                                     {roomData.right.name ? (roomData.right.student_id || roomData.right.name) : (mode === 'assign' ? '빈 침대' : '-')}
+                                                    {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.right.isWeekend && (
+                                                        <span className="text-[12px] font-bold text-gray-600 mt-1">매주귀가</span>
+                                                    )}
                                                 </span>
                                             </button>
                                         </div>

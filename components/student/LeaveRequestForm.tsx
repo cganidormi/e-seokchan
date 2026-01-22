@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import Select from 'react-select';
+import Select, { components } from 'react-select';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import toast from 'react-hot-toast';
@@ -16,6 +16,16 @@ interface LeaveRequestFormProps {
     onSubmitSuccess: () => void;
 }
 
+const CustomDropdownIndicator = (props: any) => {
+    return (
+        <components.DropdownIndicator {...props}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+        </components.DropdownIndicator>
+    );
+};
+
 export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
     studentId,
     students,
@@ -23,11 +33,27 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
     onSubmitSuccess
 }) => {
     const leaveTypes = ['컴이석', '이석', '외출', '외박', '자리비움'];
-    const leavePlaces = ['교실', '도서관', '식당', '기타'];
+
+    // 이석(교내) 장소 목록
+    const inSchoolPlaces = [
+        '1-1반', '1-2반', '1-3반', '2-1반', '2-2반', '2-3반', '3-1반', '3-2반', '3-3반',
+        'steam실', '교무실', '농구장', '대회의실', '멀티미디어실', '물리세미나실', '물리실험실',
+        '상담실', '생물세미나실', '생물실험실', '선각재', '소회의실', '수학탐구실', '시청각실', '음악실',
+        '지구과학세미나실', '지구과학실험실', '천문대', '체육관', '코어랩', '폴라리스', '풋살장', '학생부', '화학세미나실', '화학실험실', '휴게실'
+    ];
+
+    // 외출/외박(교외) 장소 목록
+    const outSchoolPlaces = [
+        '학원', '병원', '집',
+        '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '포항',
+        '경기도', '강원도', '충청북도', '충청남도', '전라북도', '전라남도', '경상북도', '경상남도', '제주도'
+    ];
 
     const [addedStudents, setAddedStudents] = useState<Student[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [leaveType, setLeaveType] = useState('');
+
+    const leavePlaces = (leaveType === '외출' || leaveType === '외박') ? outSchoolPlaces : inSchoolPlaces;
 
 
     const [teacherId, setTeacherId] = useState('');
@@ -214,7 +240,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
             let finalStartTime = startDate?.toISOString();
             let finalEndTime = endDate?.toISOString();
-            let finalStatus = '신청';
+            let finalStatus = (leaveType === '외출' || leaveType === '외박') ? '학부모승인대기' : '신청';
             let finalPeriod = (leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움') ? null : periods.join(',');
 
             if (leaveType === '컴이석' || leaveType === '이석') {
@@ -320,6 +346,32 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 return;
             }
 
+            // ---------------------------------------------------------
+            // Push Notification to Teacher (New Request)
+            // ---------------------------------------------------------
+            if (teacherId) {
+                const { data: teacherSubs } = await supabase
+                    .from('push_subscriptions')
+                    .select('subscription_json')
+                    .eq('teacher_id', teacherId);
+
+                if (teacherSubs && teacherSubs.length > 0) {
+                    const studentName = (students.find(s => s.student_id === studentId)?.name) || studentId;
+                    Promise.all(teacherSubs.map(sub =>
+                        fetch('/api/web-push', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                subscription: sub.subscription_json,
+                                title: '새로운 이석 신청',
+                                message: `[${leaveType}] ${studentName} 학생이 신청했습니다.`
+                            })
+                        }).catch(e => console.error('Teacher Push Error:', e))
+                    ));
+                }
+            }
+            // ---------------------------------------------------------
+
             const additionalStudents = addedStudents.filter(s => s.student_id !== studentId);
             if (additionalStudents.length > 0) {
                 await supabase.from('leave_request_students').insert(
@@ -355,11 +407,11 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             </div>
 
             <div className="flex flex-col gap-2 mb-4">
-                <span>신청자</span>
                 <Select
                     instanceId="student-select"
                     isMulti
-                    value={addedStudents.map(s => ({ value: s.student_id, label: s.student_id, student: s }))}
+                    components={{ DropdownIndicator: CustomDropdownIndicator }}
+                    value={addedStudents.map(s => ({ value: s.student_id, label: s.student_id, student: s, isFixed: s.student_id === studentId }))}
                     options={students.map(s => ({ value: s.student_id, label: s.student_id, student: s }))}
                     onChange={(options: any) => {
                         let selected = options ? (Array.isArray(options) ? options.map((o: any) => o.student) : [options.student]) : [];
@@ -371,13 +423,21 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         control: (base) => ({
                             ...base,
                             borderRadius: '1rem',
-                            padding: '0.25rem',
+                            minHeight: '3rem', // Match h-12 (48px)
                             borderColor: '#e5e7eb',
                             boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
                             ':hover': { borderColor: '#fbbf24' },
                         }),
                         multiValue: (base) => ({ ...base, backgroundColor: '#fefce8', border: '1px solid #fde68a', borderRadius: '0.5rem', margin: '2px' }),
                         multiValueLabel: (base) => ({ ...base, color: '#854d0e', fontWeight: '600', padding: '2px 8px', fontSize: '0.875rem' }),
+                        multiValueRemove: (base, { data }) => ({
+                            ...base,
+                            display: data.isFixed ? 'none' : 'flex',
+                            ':hover': {
+                                backgroundColor: '#f87171',
+                                color: 'white',
+                            },
+                        }),
                     }}
                     placeholder="신청자 선택 (검색 가능)"
                 />
@@ -496,14 +556,37 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     {/* Details for Leave/Outing/Overnight (Exclude Computer Leave/Away) */}
                     {(leaveType !== '컴이석' && leaveType !== '자리비움' && leaveType !== '') && (
                         <div className="flex flex-col gap-3">
-                            <select value={teacherId} onChange={e => setTeacherId(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full">
-                                <option value="">지도교사</option>
-                                {teachers.map(t => t.id && <option key={t.id} value={t.id}>{t.name}</option>)}
-                            </select>
-                            <select value={place} onChange={e => setPlace(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full">
-                                <option value="">이석 장소</option>
-                                {leavePlaces.map(p => <option key={p}>{p}</option>)}
-                            </select>
+                            <div className="relative w-full">
+                                <select
+                                    value={teacherId}
+                                    onChange={e => setTeacherId(e.target.value)}
+                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full appearance-none pr-10"
+                                >
+                                    <option value="">지도교사</option>
+                                    {teachers.map(t => t.id && <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div className="relative w-full">
+                                <select
+                                    value={place}
+                                    onChange={e => setPlace(e.target.value)}
+                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full appearance-none pr-10"
+                                >
+                                    <option value="">이석 장소</option>
+                                    {leavePlaces.map(p => <option key={p}>{p}</option>)}
+                                </select>
+                                <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
                             <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full" placeholder="이석 사유" />
                         </div>
                     )}

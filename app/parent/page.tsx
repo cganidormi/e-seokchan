@@ -225,7 +225,7 @@ function ParentContent() {
         setLoading(true);
         try {
             const updateData = action === 'approve'
-                ? { status: '승인', parent_approval_status: 'approved' }
+                ? { status: '학부모승인', parent_approval_status: 'approved' }
                 : { status: '거절', parent_approval_status: 'rejected' };
 
             const { error } = await supabase
@@ -234,6 +234,31 @@ function ParentContent() {
                 .eq('id', requestId);
 
             if (error) throw error;
+
+            // ---------------------------------------------------------
+            // Push Notification to Teacher (Parent Approved)
+            // ---------------------------------------------------------
+            if (action === 'approve') {
+                // Get teacher_id from the request
+                const { data: reqData } = await supabase.from('leave_requests').select('teacher_id, leave_type, student_id').eq('id', requestId).single();
+                if (reqData && reqData.teacher_id) {
+                    const { data: tSubs } = await supabase.from('push_subscriptions').select('subscription_json').eq('teacher_id', reqData.teacher_id);
+                    if (tSubs && tSubs.length > 0) {
+                        Promise.all(tSubs.map(sub =>
+                            fetch('/api/web-push', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    subscription: sub.subscription_json,
+                                    title: '학부모 승인 완료',
+                                    message: `[${reqData.leave_type}] 학부모 승인이 완료되었습니다. 최종 승인해주세요.`
+                                })
+                            }).catch(e => console.error(e))
+                        ));
+                    }
+                }
+            }
+            // ---------------------------------------------------------
 
             toast.success(action === 'approve' ? '승인되었습니다.' : '반려되었습니다.');
 
@@ -408,7 +433,7 @@ function ParentContent() {
                                                 onClick={() => handleParentAction(req.id, 'approve')}
                                                 className="flex-1 bg-green-500 text-white text-xs font-bold py-2 rounded-lg hover:bg-green-600 active:scale-95 transition-all"
                                             >
-                                                최종 승인
+                                                승인
                                             </button>
                                             <button
                                                 onClick={() => handleParentAction(req.id, 'reject')}

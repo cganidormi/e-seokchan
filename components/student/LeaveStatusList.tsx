@@ -58,8 +58,8 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
     };
 
     const getDynamicEndTime = (req: any) => {
-        // 이미 취소/반려된 건은 제외
-        if (req.status === '취소' || req.status === '반려') return null;
+        // 이미 취소/반려/복귀된 건은 제외
+        if (req.status === '취소' || req.status === '반려' || req.status === '복귀') return null;
 
         // 1. 시간표 데이터가 없거나, period 정보가 없으면 기존 end_time 사용 (fallback)
         if (!timetable || timetable.length === 0 || !req.period) {
@@ -108,7 +108,7 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
     };
 
     const isRequestActive = (req: any) => {
-        if (req.status === '취소' || req.status === '반려') return false;
+        if (req.status === '취소' || req.status === '반려' || req.status === '복귀') return false;
 
         const endTime = getDynamicEndTime(req);
         if (!endTime) return false;

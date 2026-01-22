@@ -36,7 +36,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     // ... (rest of logic unchanged)
 
     const isRequestActive = (req: any) => {
-        if (req.status === '취소' || req.status === '반려') return false;
+        if (req.status === '취소' || req.status === '반려' || req.status === '복귀') return false;
         const endTime = new Date(req.end_time);
         if (endTime < now) return false;
         if (endTime.getHours() >= 23 && req.period) {

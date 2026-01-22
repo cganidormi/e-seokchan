@@ -4,26 +4,18 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
-import { QRCodeSVG } from 'qrcode.react';
 import { LeaveProcessList } from '@/components/teacher/LeaveProcessList';
 import { LeaveRequest } from '@/components/teacher/types';
 
 export default function TeacherPage() {
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [teacherName, setTeacherName] = useState<string>('');
-  const [teacherPosition, setTeacherPosition] = useState<string>(''); // Added state for position
+  const [teacherPosition, setTeacherPosition] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [students, setStudents] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
 
-  const [showQR, setShowQR] = useState(false);
-  const [origin, setOrigin] = useState('');
-
-  const router = useRouter(); // Initialized useRouter
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
+  const router = useRouter();
 
   useEffect(() => {
     const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
@@ -37,21 +29,17 @@ export default function TeacherPage() {
       return;
     }
 
-    setTeacherId(loginId); // Set teacherId from loginId if session is valid
+    setTeacherId(loginId);
 
     const resolveTeacherInfo = async () => {
       try {
-        // The loginId and role are already checked above, so we can use them directly here.
-        // const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
-        // const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
-
         console.log('[DEBUG] resolving session:', { loginId, role });
 
         if (loginId && role === 'teacher') {
           console.log('[DEBUG] fetching teacher info for:', loginId);
           const { data: teacher, error } = await supabase
             .from('teachers')
-            .select('id, name, position') // Added position
+            .select('id, name, position')
             .eq('teacher_id', loginId)
             .single();
 
@@ -63,7 +51,7 @@ export default function TeacherPage() {
             console.log('[DEBUG] teacher found:', teacher);
             setTeacherId(teacher.id);
             setTeacherName(teacher.name);
-            setTeacherPosition(teacher.position); // Set position
+            setTeacherPosition(teacher.position);
             await fetchLeaveRequests(teacher.id, teacher.name);
           } else {
             console.error('[DEBUG] Teacher record not found in teachers table for login ID:', loginId);
@@ -116,14 +104,12 @@ export default function TeacherPage() {
     try {
       console.log('Fetching all requests for teacher view...');
 
-      // 0. Fetch Teachers Map manually
       const { data: teachersData } = await supabase.from('teachers').select('id, name');
       const teacherMap = new Map();
       teachersData?.forEach((t: { id: string; name: string }) => {
         teacherMap.set(t.id, t.name);
       });
 
-      // Optimized fetch: Get ALL requests (Without broken Teacher Join)
       const { data, error } = await supabase
         .from('leave_requests')
         .select('*, leave_request_students(student_id)')
@@ -134,7 +120,6 @@ export default function TeacherPage() {
         throw error;
       }
 
-      // Transform data
       const requestsWithDetails = (data || []).map((req) => ({
         ...req,
         teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' },
@@ -158,20 +143,15 @@ export default function TeacherPage() {
 
       toast.success(`상태가 ${newStatus}(으)로 변경되었습니다.`);
 
-      // ---------------------------------------------------------
-      // Push Notification Logic
-      // ---------------------------------------------------------
       const targetRequest = leaveRequests.find(r => r.id === requestId);
       if (targetRequest) {
         const studentIds: string[] = [];
 
-        // 1. Collect Student IDs (Single or Group)
         if (targetRequest.student_id) studentIds.push(targetRequest.student_id);
         if (targetRequest.leave_request_students) {
           targetRequest.leave_request_students.forEach(s => studentIds.push(s.student_id));
         }
 
-        // 2. Fetch Subscriptions & Send Push
         if (studentIds.length > 0) {
           const { data: subs } = await supabase
             .from('push_subscriptions')
@@ -183,11 +163,16 @@ export default function TeacherPage() {
 
             if (newStatus === '학부모승인대기') {
               message = `[${targetRequest.leave_type}] 선생님 승인 완료. 학부모님의 최종 승인이 필요합니다.`;
+            } else if (newStatus === '학부모승인') {
+              message = `[${targetRequest.leave_type}] 학부모님 승인 완료. 선생님의 최종 승인 대기 중입니다.`;
             } else if (newStatus === '승인') {
-              message = `[${targetRequest.leave_type}] 최종 승인되었습니다.`;
+              message = `[${targetRequest.leave_type}] 최종 승인되었습니다. 즐거운 시간 보내세요!`;
+            } else if (newStatus === '복귀') {
+              message = `[${targetRequest.leave_type}] 학생이 기숙사로 복귀했습니다.`;
+            } else if (newStatus === '반려') {
+              message = `[${targetRequest.leave_type}] 신청이 반려되었습니다. 사유를 확인해주세요.`;
             }
 
-            // Send in parallel
             await Promise.all(subs.map(sub =>
               fetch('/api/web-push', {
                 method: 'POST',
@@ -199,12 +184,9 @@ export default function TeacherPage() {
                 })
               }).catch(e => console.error('Push send error:', e))
             ));
-
-            console.log(`Sent push notifications to ${subs.length} parents.`);
           }
         }
       }
-      // ---------------------------------------------------------
 
       if (teacherId && teacherName) {
         await fetchLeaveRequests(teacherId, teacherName);
@@ -275,14 +257,6 @@ export default function TeacherPage() {
       {/* Admin Button for authorized teachers */}
       <div className="flex justify-end mb-4 gap-2">
         <button
-          onClick={() => setShowQR(true)}
-          className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2 text-sm"
-        >
-          <span>📲</span>
-          <span>앱 설치 QR</span>
-        </button>
-
-        <button
           onClick={() => router.push('/teacher/headcount')}
           className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2 text-sm"
         >
@@ -299,9 +273,65 @@ export default function TeacherPage() {
             <span>관리자</span>
           </button>
         )}
+
+        {/* Subscribe Notification Button */}
+        {teacherId && (
+          <button
+            onClick={async () => {
+              if (!('serviceWorker' in navigator)) {
+                toast.error('이 브라우저는 알림을 지원하지 않습니다.');
+                return;
+              }
+              try {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                  toast.error('알림 권한이 거부되었습니다.');
+                  return;
+                }
+
+                const registration = await navigator.serviceWorker.ready;
+                if (!registration) {
+                  toast.error('서비스 워커가 준비되지 않았습니다.');
+                  return;
+                }
+
+                const sub = await registration.pushManager.subscribe({
+                  userVisibleOnly: true,
+                  applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+                });
+
+                // Save to DB
+                const { error } = await supabase.from('push_subscriptions').insert({
+                  teacher_id: teacherId,
+                  subscription_json: sub
+                });
+
+                if (error) throw error;
+                toast.success('알림 구독 완료! 테스트 메시지를 보냅니다.');
+
+                // Send Test Message
+                await fetch('/api/web-push', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    subscription: sub,
+                    title: '알림 테스트',
+                    message: '선생님 알림이 성공적으로 설정되었습니다.'
+                  })
+                });
+
+              } catch (err) {
+                console.error(err);
+                toast.error('알림 구독 실패');
+              }
+            }}
+            className="bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2 text-sm"
+          >
+            <span>🔔</span>
+            <span>알림 ON</span>
+          </button>
+        )}
       </div>
-
-
 
       <LeaveProcessList
         leaveRequests={leaveRequests}
@@ -311,51 +341,6 @@ export default function TeacherPage() {
         teacherId={teacherId}
         onLogout={handleLogout}
       />
-
-      {showQR && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm animate-fade-in" onClick={() => setShowQR(false)}>
-          <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center relative" onClick={e => e.stopPropagation()}>
-            <button
-              onClick={() => setShowQR(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold"
-            >
-              &times;
-            </button>
-
-            <div className="mb-6">
-              <span className="text-4xl">📲</span>
-            </div>
-
-            <h3 className="text-2xl font-extrabold text-gray-800 mb-2">이석찬 앱 설치</h3>
-            <p className="text-gray-500 mb-6 text-sm">
-              학생들에게 카메라로 주소를 스캔하도록 안내해주세요.<br />
-              자동으로 설치 페이지로 연결됩니다.
-            </p>
-
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-inner inline-block mb-4">
-              {origin && <QRCodeSVG value={origin} size={200} level={"H"} includeMargin={true} />}
-            </div>
-
-            <div
-              className="bg-gray-50 p-3 rounded-lg text-xs text-gray-500 break-all select-all cursor-pointer hover:bg-gray-100 transition-colors"
-              onClick={() => {
-                navigator.clipboard.writeText(origin);
-                toast.success('주소가 복사되었습니다.');
-              }}
-            >
-              {origin}
-            </div>
-            <p className="text-xs text-gray-400 mt-2">클릭하여 주소 복사</p>
-
-            <button
-              onClick={() => setShowQR(false)}
-              className="w-full mt-6 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors"
-            >
-              닫기
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

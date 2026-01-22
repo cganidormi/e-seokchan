@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
 import Link from "next/link";
+import { QRCodeSVG } from 'qrcode.react';
+import toast, { Toaster } from 'react-hot-toast';
 
 interface DashboardStats {
   totalStudents: number;
@@ -31,6 +33,12 @@ export default function AdminMainPage() {
   });
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showQR, setShowQR] = useState(false);
+  const [origin, setOrigin] = useState('');
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
@@ -55,71 +63,77 @@ export default function AdminMainPage() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch total students
-      const { count: studentCount } = await supabase
-        .from("students")
-        .select("*", { count: "exact", head: true });
-
-      // Fetch students by grade
-      const { data: students } = await supabase
-        .from("students")
-        .select("grade");
-
-      const gradeDistribution = [1, 2, 3].map((grade) => ({
-        grade,
-        count: students?.filter((s) => s.grade === grade).length || 0,
-      }));
-
-      // Fetch total teachers
-      const { count: teacherCount } = await supabase
-        .from("teachers")
-        .select("*", { count: "exact", head: true });
-
-      // Fetch current approved leaves (today)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayStr = today.toISOString().split("T")[0];
 
-      const { data: currentLeaves } = await supabase
-        .from("leave_requests")
-        .select("*")
-        .eq("status", "승인")
-        .gte("start_date", todayStr)
-        .lte("start_date", todayStr);
+      // Execute all independent queries in parallel
+      const [
+        studentsResult,
+        teachersResult,
+        currentLeavesResult,
+        pendingCountResult,
+        activitiesResult
+      ] = await Promise.all([
+        // 1. Students (Count & Data for Grade dist)
+        supabase.from("students").select("grade", { count: "exact" }),
 
-      // Fetch pending requests
-      const { count: pendingCount } = await supabase
-        .from("leave_requests")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "대기");
+        // 2. Teachers (Count & Data for Name map)
+        supabase.from("teachers").select("id, name", { count: "exact" }),
 
-      // Fetch recent activities
-      const { data: activities } = await supabase
-        .from("leave_requests")
-        .select("id, student_id, leave_type, status, created_at, teacher_id")
-        .order("created_at", { ascending: false })
-        .limit(10);
+        // 3. Current Approved Leaves (Today)
+        supabase.from("leave_requests")
+          .select("*")
+          .eq("status", "승인")
+          .gte("start_date", todayStr)
+          .lte("start_date", todayStr),
 
-      // Fetch teacher names for activities
-      const activitiesWithTeachers = await Promise.all(
-        (activities || []).map(async (activity) => {
-          if (activity.teacher_id) {
-            const { data: teacher } = await supabase
-              .from("teachers")
-              .select("name")
-              .eq("id", activity.teacher_id)
-              .single();
-            return { ...activity, teacher_name: teacher?.name };
-          }
-          return activity;
-        })
-      );
+        // 4. Pending Requests (Count only)
+        supabase.from("leave_requests")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "대기"),
+
+        // 5. Recent Activities
+        supabase.from("leave_requests")
+          .select("id, student_id, leave_type, status, created_at, teacher_id")
+          .order("created_at", { ascending: false })
+          .limit(10)
+      ]);
+
+      // Process Results
+      const students = studentsResult.data || [];
+      const studentCount = studentsResult.count || 0;
+
+      const teachers = teachersResult.data || [];
+      const teacherCount = teachersResult.count || 0;
+
+      const currentLeaves = currentLeavesResult.data || [];
+      const pendingRequests = pendingCountResult.count || 0;
+      const activities = activitiesResult.data || [];
+
+      // Calculate Grade Distribution
+      const gradeDistribution = [1, 2, 3].map((grade) => ({
+        grade,
+        count: students.filter((s: any) => s.grade === grade).length,
+      }));
+
+      // Create Teacher Map for fast lookup
+      const teacherMap = new Map();
+      teachers.forEach((t: any) => {
+        teacherMap.set(t.id, t.name);
+      });
+
+      // Map Activities with Teacher Names
+      const activitiesWithTeachers = activities.map((activity: any) => ({
+        ...activity,
+        teacher_name: activity.teacher_id ? teacherMap.get(activity.teacher_id) : undefined,
+      }));
 
       setStats({
-        totalStudents: studentCount || 0,
-        totalTeachers: teacherCount || 0,
-        currentLeaves: currentLeaves?.length || 0,
-        pendingRequests: pendingCount || 0,
+        totalStudents: studentCount,
+        totalTeachers: teacherCount,
+        currentLeaves: currentLeaves.length,
+        pendingRequests: pendingRequests,
         studentsByGrade: gradeDistribution,
       });
 
@@ -171,9 +185,19 @@ export default function AdminMainPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">관리자 대시보드</h1>
-        <p className="text-gray-600">기숙사 관리 시스템 현황을 한눈에 확인하세요</p>
+      <Toaster />
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">관리자 대시보드</h1>
+          <p className="text-gray-600">기숙사 관리 시스템 현황을 한눈에 확인하세요</p>
+        </div>
+        <button
+          onClick={() => setShowQR(true)}
+          className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2 text-sm"
+        >
+          <span>📲</span>
+          <span>앱 설치 QR</span>
+        </button>
       </div>
 
       {/* Statistics Cards */}
@@ -303,6 +327,54 @@ export default function AdminMainPage() {
           )}
         </div>
       </div>
-    </div>
+
+
+      {
+        showQR && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm animate-fade-in" onClick={() => setShowQR(false)}>
+            <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center relative" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => setShowQR(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl font-bold"
+              >
+                &times;
+              </button>
+
+              <div className="mb-6">
+                <span className="text-4xl">📲</span>
+              </div>
+
+              <h3 className="text-2xl font-extrabold text-gray-800 mb-2">이석찬 앱 설치</h3>
+              <p className="text-gray-500 mb-6 text-sm">
+                학생들에게 카메라로 주소를 스캔하도록 안내해주세요.<br />
+                자동으로 설치 페이지로 연결됩니다.
+              </p>
+
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-inner inline-block mb-4">
+                {origin && <QRCodeSVG value={origin} size={200} level={"H"} includeMargin={true} />}
+              </div>
+
+              <div
+                className="bg-gray-50 p-3 rounded-lg text-xs text-gray-500 break-all select-all cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => {
+                  navigator.clipboard.writeText(origin);
+                  toast.success('주소가 복사되었습니다.');
+                }}
+              >
+                {origin}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">클릭하여 주소 복사</p>
+
+              <button
+                onClick={() => setShowQR(false)}
+                className="w-full mt-6 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 }
