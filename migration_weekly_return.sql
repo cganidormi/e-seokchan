@@ -38,7 +38,7 @@ begin
   insert into system_sync_logs (year, month) values (t_year, t_month);
 
   -- 3. 기존 '매주' 설정 초기화
-  update students set weekend = false;
+  update students set weekend = false where true;
 
   -- 4. 신청자 명단 확정 반영
   update students 

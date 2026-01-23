@@ -110,20 +110,19 @@ export default function LoginPage() {
       return;
     }
 
-    // 6️⃣ 로그인 상태 저장
-    const storage = keepLoggedIn ? localStorage : sessionStorage;
+    // 6️⃣ 로그인 상태 저장 (무조건 localStorage 사용)
+    const storage = localStorage;
 
-    // 다른 저장소에 있는 기존 세션은 삭제하여 충돌 방지
-    const otherStorage = keepLoggedIn ? sessionStorage : localStorage;
-    otherStorage.removeItem("dormichan_login_id");
-    otherStorage.removeItem("dormichan_role");
-    otherStorage.removeItem("dormichan_keepLoggedIn");
+    // sessionStorage 기존 세션 삭제 (충돌 방지)
+    sessionStorage.removeItem("dormichan_login_id");
+    sessionStorage.removeItem("dormichan_role");
+    sessionStorage.removeItem("dormichan_keepLoggedIn");
 
     storage.setItem("dormichan_login_id", cleanId);
     storage.setItem("dormichan_role", role);
-    storage.setItem("dormichan_keepLoggedIn", keepLoggedIn ? "true" : "false");
+    storage.setItem("dormichan_keepLoggedIn", "true");
 
-    console.log('[DEBUG_LOGIN] Login successful, redirecting to:', role);
+    console.log('[DEBUG_LOGIN] Login successful (Persistent), redirecting to:', role);
 
     // 7️⃣ 역할별 페이지 이동
     if (role === "student") {
@@ -233,38 +232,6 @@ export default function LoginPage() {
               {error}
             </p>
           )}
-
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            marginBottom: "20px",
-            paddingLeft: "8px"
-          }}>
-            <input
-              type="checkbox"
-              id="keepLoggedIn"
-              checked={keepLoggedIn}
-              onChange={(e) => setKeepLoggedIn(e.target.checked)}
-              style={{
-                width: "16px",
-                height: "16px",
-                cursor: "pointer",
-                accentColor: "#D7FF42"
-              }}
-            />
-            <label
-              htmlFor="keepLoggedIn"
-              style={{
-                color: "#fff",
-                fontSize: "13px",
-                cursor: "pointer",
-                fontWeight: "500"
-              }}
-            >
-              로그인 유지
-            </label>
-          </div>
 
           <button
             type="submit"

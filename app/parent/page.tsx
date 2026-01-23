@@ -30,62 +30,93 @@ function ParentContent() {
     const [leaveHistory, setLeaveHistory] = useState<any[]>([]);
     const [currentStatus, setCurrentStatus] = useState<{ type: string, text: string }>({ type: 'school', text: '학교에 있습니다' });
     const [isSubscribed, setIsSubscribed] = useState(false);
-    const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-    const [showIOSGuide, setShowIOSGuide] = useState(false);
+
+    // PWA State
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [isStandalone, setIsStandalone] = useState(false); // Default to false
+    const [isIOS, setIsIOS] = useState(false);
+    const [isChromeIOS, setIsChromeIOS] = useState(false);
+    const [isChecked, setIsChecked] = useState(false); // To ensure we checked the environment
 
     // URL에서 토큰 가져오기 (없으면 로컬스토리지 확인)
     const token = searchParams.get('token');
 
-    // 3. PWA 설치 프롬프트 이벤트 리스너 (Mount 시점에 바로 등록)
+    // ---------------------------------------------------------
+    // 1. PWA Environment Check & Install Prompt Listener
+    // ---------------------------------------------------------
     useEffect(() => {
+        // Detect Standalone
+        const checkStandalone = () => {
+            return (
+                window.matchMedia('(display-mode: standalone)').matches ||
+                (navigator as any).standalone ||
+                document.referrer.includes('android-app://')
+            );
+        };
+        const inStandalone = checkStandalone();
+        setIsStandalone(inStandalone);
+
+        // Detect iOS & Browser Type
+        const userAgent = navigator.userAgent;
+        const iOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
+        setIsIOS(iOS);
+
+        // Detect Chrome on iOS (Real Device OR DevTools Simulation)
+        // CriOS: Real Chrome App on iOS
+        // Google Inc: Chrome DevTools simulating iOS
+        const isChrome = /CriOS/.test(userAgent) || (iOS && navigator.vendor === 'Google Inc.');
+
+        if (isChrome) {
+            setIsChromeIOS(true);
+        }
+
+        setIsChecked(true);
+
         const handleBeforeInstallPrompt = (e: any) => {
             e.preventDefault();
             setDeferredPrompt(e);
-            setShowInstallPrompt(true);
         };
 
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-        return () => {
-            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        };
+        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     }, []);
 
+    // ---------------------------------------------------------
+    // 2. Data Fetching & Subscription (Only if Standalone/Authorized)
+    // ---------------------------------------------------------
     useEffect(() => {
-        // 1. 토큰 체크
+        // Token Logic
         let currentToken = token;
         if (!currentToken) {
             currentToken = localStorage.getItem('dormichan_parent_token');
         }
 
-        if (!currentToken) {
+        if (currentToken) {
+            // Save token immediately (even if in browser, so it might persist)
+            localStorage.setItem('dormichan_parent_token', currentToken);
+
+            // Clear conflicting sessions
+            localStorage.removeItem('dormichan_login_id');
+            localStorage.removeItem('dormichan_role');
+        }
+
+        // If NOT checked yet, wait
+        if (!isChecked) return;
+
+        // Force Install: If NOT standalone, stop here (don't fetch data yet, just show install gate)
+        // STRICT MODE: No localhost exception
+        if (!isStandalone) {
             setLoading(false);
             return;
         }
 
-        // 토큰 저장 (재방문 시 편의)
-        localStorage.setItem('dormichan_parent_token', currentToken);
-
-        // 중요: 학부모 모드로 진입 시, 기존 교사/학생 로그인 정보는 제거하여
-        // 앱 재실행 시 학부모 페이지로 우선 연결되도록 함 (세션 충돌 방지)
-        localStorage.removeItem('dormichan_login_id');
-        localStorage.removeItem('dormichan_role');
-
-        // 2. 학생 데이터 & 이석 기록 불러오기
-        fetchStudentData(currentToken);
-
-        // 3. iOS 감지 및 가이드 표시
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
-
-        // 이미 설치된 경우는 가이드 안 보여줌
-        if (isIOS && !isStandalone) {
-            // 약간의 딜레이 후 표시 (사용자가 페이지를 먼저 볼 수 있게)
-            setTimeout(() => setShowIOSGuide(true), 2000);
+        if (!currentToken) {
+            setLoading(false);
+            return; // Will show "Invalid Token" screen
         }
 
-        // 4. 푸시 구독 상태 확인
+        // Fetch Data
+        fetchStudentData(currentToken);
         checkSubscription(currentToken);
 
         // Realtime Subscription
@@ -104,7 +135,8 @@ function ParentContent() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [token]);
+    }, [token, isChecked, isStandalone]);
+
 
     const fetchStudentData = async (t: string) => {
         try {
@@ -167,7 +199,7 @@ function ParentContent() {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         if (outcome === 'accepted') {
-            setShowInstallPrompt(false);
+            // User accepted
         }
         setDeferredPrompt(null);
     };
@@ -236,7 +268,6 @@ function ParentContent() {
             // Push Notification to Teacher (Parent Approved)
             // ---------------------------------------------------------
             if (action === 'approve') {
-                // Get teacher_id from the request
                 const { data: reqData } = await supabase.from('leave_requests').select('teacher_id, leave_type, student_id').eq('id', requestId).single();
                 if (reqData && reqData.teacher_id) {
                     const { data: tSubs } = await supabase.from('push_subscriptions').select('subscription_json').eq('teacher_id', reqData.teacher_id);
@@ -270,10 +301,109 @@ function ParentContent() {
         }
     };
 
-    if (loading) {
+    // ---------------------------------------------------------
+    // RENDER
+    // ---------------------------------------------------------
+
+    // 1. Loading
+    if (loading && isChecked) {
         return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="animate-spin text-4xl">⏳</div></div>;
     }
 
+    // 2. Install Gate (Blocking Screen)
+    // Only show if NOT standalone
+    if (isChecked && !isStandalone) {
+        return (
+            <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center text-white relative overflow-hidden">
+                {/* Background Decoration */}
+                <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+
+                <div className="z-10 bg-white/10 backdrop-blur-lg border border-white/20 p-8 rounded-3xl shadow-2xl max-w-sm w-full">
+                    <div className="text-6xl mb-6">📲</div>
+                    <h1 className="text-2xl font-bold mb-2">앱 설치가 필요합니다</h1>
+                    <p className="text-gray-200 text-sm mb-8 leading-relaxed">
+                        실시간 알림(외출/외박 승인 등)을 받기 위해<br />
+                        <strong>이석찬 앱</strong>을 설치해주세요.
+                    </p>
+
+                    {isIOS ? (
+                        <div className="bg-white/90 text-gray-800 p-5 rounded-xl text-left border border-white/50 shadow-inner">
+                            <p className="font-bold text-center mb-4 text-indigo-800">
+                                � {isChromeIOS ? 'Chrome' : 'Safari'}에서 설치하기
+                            </p>
+                            <div className="space-y-4 text-sm">
+                                {/* Step 1: Share Button */}
+                                <div className="flex items-start gap-4">
+                                    <div className="min-w-[40px] h-[40px] bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 15V3M12 3L7 8M12 3L17 8M4 12V19C4 20.1 4.9 21 6 21H18C19.1 21 20 20.1 20 19V12" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-gray-800 mb-1">1. 공유 버튼 누르기</p>
+                                        <p className="text-gray-500 text-xs">
+                                            {isChromeIOS
+                                                ? '우측 상단에 있습니다.'
+                                                : '화면 하단 중앙에 있는 아이콘입니다.'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Step 2: Add to Home */}
+                                <div className="flex items-start gap-4">
+                                    <div className="min-w-[40px] h-[40px] bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                                        <span className="text-lg">➕</span>
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-gray-800 mb-1">2. 홈 화면에 추가</p>
+                                        <p className="text-gray-500 text-xs">메뉴 목록에서 찾아주세요.</p>
+                                    </div>
+                                </div>
+
+                                {/* Step 3: Confirm */}
+                                <div className="flex items-start gap-4">
+                                    <div className="min-w-[40px] h-[40px] bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                                        <span className="font-bold text-blue-500 text-xs">Add</span>
+                                    </div>
+                                    <div className="flex items-center h-[40px]">
+                                        <p className="font-bold text-gray-800">
+                                            상단 '추가' 버튼 누르면 완료!
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <button
+                                onClick={handleInstallClick}
+                                disabled={!deferredPrompt}
+                                className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all ${deferredPrompt
+                                    ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white hover:scale-105 active:scale-95'
+                                    : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                                    }`}
+                            >
+                                {deferredPrompt ? '✨ 앱 설치하고 시작하기' : '설치 준비 중...'}
+                            </button>
+                            {!deferredPrompt && (
+                                <p className="text-xs text-gray-400">
+                                    설치 버튼이 안 보이면 브라우저 메뉴에서<br /> '앱 설치'를 눌러주세요.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="mt-8 pt-6 border-t border-white/10">
+                        <p className="text-xs text-gray-400">
+                            설치 후 홈 화면에 생성된<br />아이콘으로 접속해주세요.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // 3. No Token Error
     if (!student) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 text-center">
@@ -285,6 +415,7 @@ function ParentContent() {
         );
     }
 
+    // 4. Main Dashboard (Authenticated & Standalone)
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             <Toaster position="top-center" />
@@ -304,63 +435,22 @@ function ParentContent() {
 
             <main className="p-4 max-w-lg mx-auto space-y-6">
 
-                {/* PWA Install Banner (Android/Desktop) */}
-                {showInstallPrompt && (
-                    <div className="bg-indigo-600 text-white p-4 rounded-xl shadow-lg flex items-center justify-between animate-fade-in-down">
-                        <div>
-                            <p className="font-bold">앱으로 더 편하게 확인하세요!</p>
-                            <p className="text-xs text-indigo-200">설치하면 홈 화면에서 바로 접속 가능</p>
+                {/* Notification Settings */}
+                {!isSubscribed && (
+                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex flex-col gap-3 animate-fade-in-down">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xl">🔔</span>
+                            <div>
+                                <p className="font-bold text-blue-900">알림 설정이 필요합니다</p>
+                                <p className="text-xs text-blue-600">외출/외박 승인 요청을 실시간으로 받아보세요.</p>
+                            </div>
                         </div>
                         <button
-                            onClick={handleInstallClick}
-                            className="bg-white text-indigo-600 px-4 py-2 rounded-lg text-sm font-bold shadow-sm active:scale-95 transition-transform"
+                            onClick={subscribeToPush}
+                            className="w-full bg-blue-600 text-white font-bold py-2 rounded-lg shadow-sm active:scale-95 transition-all text-sm"
                         >
-                            설치하기
+                            알림 받기
                         </button>
-                    </div>
-                )}
-
-                {/* iOS Install Guide Popup */}
-                {showIOSGuide && (
-                    <div className="fixed bottom-0 left-0 right-0 bg-white p-6 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-50 animate-slide-up-fade border-t border-gray-100">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-800">홈 화면에 추가하기</h3>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    아이폰에서는 앱처럼 설치하여 더 편리하게 사용할 수 있습니다.
-                                </p>
-                            </div>
-                            <button onClick={() => setShowIOSGuide(false)} className="text-gray-400 font-bold p-2 text-xl">&times;</button>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg">
-                                    <img src="/ios-share.svg" alt="공유" className="w-6 h-6 text-blue-500" />
-                                </div>
-                                <p className="text-sm font-medium text-gray-700">
-                                    1. 하단의 <span className="text-blue-500 font-bold">공유 버튼</span>을 누르세요.
-                                </p>
-                            </div>
-                            <div className="w-px h-6 bg-gray-200 ml-5"></div>
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg">
-                                    <span className="text-xl">➕</span>
-                                </div>
-                                <p className="text-sm font-medium text-gray-700">
-                                    2. 메뉴에서 <span className="font-bold">'홈 화면에 추가'</span>를 찾아 선택하세요.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="mt-6 text-center">
-                            <button
-                                onClick={() => setShowIOSGuide(false)}
-                                className="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
-                            >
-                                닫기
-                            </button>
-                        </div>
                     </div>
                 )}
 
@@ -449,30 +539,9 @@ function ParentContent() {
                     </div>
                 </section>
 
-                {/* Notification Settings */}
-                <section className="pt-4">
-                    <button
-                        onClick={subscribeToPush}
-                        disabled={isSubscribed}
-                        className={`w-full py-4 rounded-xl font-bold shadow-sm transition-all flex items-center justify-center gap-2 ${isSubscribed
-                            ? 'bg-gray-100 text-gray-400 cursor-default'
-                            : 'bg-gradient-to-r from-orange-400 to-red-500 text-white shadow-orange-200 hover:shadow-orange-300 active:scale-95'
-                            }`}
-                    >
-                        {isSubscribed ? (
-                            <>
-                                <span>🔔</span> 알림 받는 중
-                            </>
-                        ) : (
-                            <>
-                                <span>🔕</span> 자녀 외출/외박 알림 받기
-                            </>
-                        )}
-                    </button>
-                    <p className="text-center text-xs text-gray-400 mt-2">
-                        알림을 켜두시면 승인/취소 내역을 바로 알려드립니다.
-                    </p>
-                </section>
+                <div className="pt-8 pb-4 text-center">
+                    <p className="text-xs text-gray-300">Dormichan Parent App</p>
+                </div>
 
             </main>
 
