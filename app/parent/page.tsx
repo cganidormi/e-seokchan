@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
+import WeeklyReturnApplicationCard from '@/components/student/WeeklyReturnApplicationCard';
 
 // 헬퍼: VAPID 키를 Uint8Array로 변환
 function urlBase64ToUint8Array(base64String: string) {
@@ -188,34 +189,30 @@ function ParentContent() {
 
         try {
             const registration = await navigator.serviceWorker.ready;
+            const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
-            // VAPID Public Key (환경변수에서 가져오거나 하드코딩)
-            // 실제 배포 시에는 process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY 사용
-            const vapidPublicKey = 'BOyF_qX ... (나중에 실제 키로 교체 필요) ...';
-            // 중요: 사용자가 VAPID 키를 아직 설정하지 않았을 수 있음.
-            // 일단 기능 구현 구조만 잡아둠.
+            if (!vapidPublicKey) {
+                return toast.error('서버 설정(VAPID)이 필요합니다.');
+            }
 
-            /*
             const subscription = await registration.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
             });
-      
+
             // DB에 저장
             await supabase.from('push_subscriptions').insert({
-              parent_token: currentToken,
-              subscription_json: subscription,
-              device_type: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+                parent_token: currentToken,
+                subscription_json: subscription,
+                device_type: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
             });
-      
+
             setIsSubscribed(true);
             toast.success('알림이 설정되었습니다! 🔔');
-            */
-            toast('알림 기능은 서버 설정(VAPID) 후 활성화됩니다.', { icon: '🚧' });
 
-        } catch (err) {
+        } catch (err: any) {
             console.error('Push subscription failed:', err);
-            toast.error('알림 설정 실패');
+            toast.error('알림 설정 실패: ' + err.message);
         }
     };
 
@@ -366,6 +363,9 @@ function ParentContent() {
                         </div>
                     </div>
                 )}
+
+                {/* Weekly Return Application (Monthly 10th-12th) */}
+                <WeeklyReturnApplicationCard student={student} />
 
                 {/* Current Status Card */}
                 <section className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">

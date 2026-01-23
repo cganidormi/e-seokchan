@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { Student, Teacher, LeaveRequest } from '@/components/student/types';
 import { LeaveRequestForm } from '@/components/student/LeaveRequestForm';
 import { LeaveStatusList } from '@/components/student/LeaveStatusList';
+import WeeklyReturnApplicationCard from '@/components/student/WeeklyReturnApplicationCard';
 
 export default function StudentPage() {
   const [studentId, setStudentId] = useState('');
@@ -187,6 +188,8 @@ export default function StudentPage() {
     );
   }
 
+  const currentStudent = students.find(s => s.student_id === studentId) || null;
+
   return (
     <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
       <Toaster />
@@ -194,7 +197,7 @@ export default function StudentPage() {
       {/* Header with Logout */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold text-gray-800">
-          {students.find(s => s.student_id === studentId)?.name || studentId} 학생
+          {currentStudent?.name || studentId} 학생
         </h1>
         <button
           onClick={handleLogout}
@@ -205,6 +208,7 @@ export default function StudentPage() {
       </div>
 
       <div className="flex flex-col gap-8">
+        <WeeklyReturnApplicationCard student={currentStudent} />
         <LeaveRequestForm
           studentId={studentId}
           students={students}

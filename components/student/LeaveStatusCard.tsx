@@ -163,7 +163,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         </div>
 
                         {/* 3. 시간 (Time - 교시 램프 스타일 & 날짜 조건부 표시) */}
-                        <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-32">
+                        <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center">
                             {(() => {
                                 const start = new Date(req.start_time);
                                 const day = start.getDay();
@@ -241,7 +241,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
 
                         {/* 4. 사유 (Reason) */}
                         {req.reason && (
-                            <div className="flex items-center shrink-0 ml-1">
+                            <div className="flex items-center shrink-0">
                                 <span className="text-gray-400 text-xs font-medium" title={req.reason}>
                                     {req.reason.length > 6 ? req.reason.slice(0, 6) + '...' : req.reason}
                                 </span>

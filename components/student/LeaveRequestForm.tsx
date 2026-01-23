@@ -517,30 +517,75 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                             />
                             <div className={clsx(
                                 "bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden",
-                                isDateHoliday(targetDate) ? "grid grid-cols-3 divide-x divide-gray-100" : "flex flex-col p-3 gap-1"
+                                isDateHoliday(targetDate) ? "flex items-center justify-between p-2" : "flex flex-col p-3 gap-1"
                             )}>
                                 {(isDateHoliday(targetDate)
-                                    ? [{ key: '오전', label: '오전', p: ['1', '2', '3'] }, { key: '오후', label: '오후', p: ['4', '5', '6'] }, { key: '야간_공휴일', label: '야간', p: ['1', '2', '3'] }]
-                                    : [{ key: '주간', label: '주간', p: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] }, { key: '야간', label: '야간', p: ['1', '2', '3', '4'] }]
-                                ).map((type) => (
-                                    <div key={type.key} className="flex flex-col gap-2 p-2 w-full">
-                                        <div className="flex items-center gap-2 px-1">
-                                            <div className="w-1 h-4 bg-yellow-400 rounded-full"></div>
-                                            <span className="text-sm font-bold text-gray-700">{type.label}</span>
-                                        </div>
-                                        <div className="grid gap-1 w-full grid-cols-9">
-                                            {type.p.map(p => {
-                                                const label = `${type.label}${p}교시`;
-                                                const isSelected = periods.includes(label);
-                                                return (
-                                                    <button key={p} onClick={() => togglePeriod(label)} className={clsx('w-full aspect-square rounded-lg text-sm font-bold transition-all border shadow-sm flex items-center justify-center', isSelected ? 'bg-yellow-400 text-white border-yellow-400 scale-105' : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100')}>
-                                                        {p}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
+                                    ? [
+                                        { key: '오전', label: '오전', p: ['1', '2', '3'] },
+                                        { key: '오후', label: '오후', p: ['4', '5', '6'] },
+                                        { key: '야간_공휴일', label: '야간', p: ['1', '2', '3'] }
+                                    ]
+                                    : [
+                                        { key: '주간', label: '주간', p: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] },
+                                        { key: '야간', label: '야간', p: ['1', '2', '3', '4'] }
+                                    ]
+                                ).map((type) => {
+                                    if (isDateHoliday(targetDate)) {
+                                        // Weekend Layout: Strict Single Line (No Scroll, Compact, Yellow Square 3D)
+                                        return (
+                                            <div key={type.key} className="flex items-center gap-0.5 shrink-0">
+                                                <span className="text-xs font-bold text-gray-700 mr-0.5">{type.label}</span>
+                                                <div className="flex gap-0.5">
+                                                    {type.p.map(p => {
+                                                        const label = `${type.label === '야간' ? '야간' : type.label}${p}교시`;
+                                                        const isSelected = periods.includes(label);
+                                                        return (
+                                                            <button
+                                                                key={p}
+                                                                onClick={() => togglePeriod(label)}
+                                                                className={clsx(
+                                                                    'w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center transition-colors duration-200 border',
+                                                                    isSelected
+                                                                        ? 'bg-yellow-400 text-white shadow-[0_0_10px_rgba(250,204,21,0.6)] border-transparent' // Yellow Light Effect, no scale
+                                                                        : 'bg-gray-50 text-gray-400 border border-gray-200 hover:bg-gray-100'
+                                                                )}
+                                                            >
+                                                                {p}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    } else {
+                                        // Weekday Layout (Refactored to match Weekend Horizontal Style)
+                                        return (
+                                            <div key={type.key} className="flex items-center gap-1 shrink-0 px-1 py-1 overflow-x-auto no-scrollbar">
+                                                <span className="text-xs font-bold text-gray-700 mr-1 shrink-0">{type.label}</span>
+                                                <div className="flex gap-0.5">
+                                                    {type.p.map(p => {
+                                                        const label = `${type.label}${p}교시`;
+                                                        const isSelected = periods.includes(label);
+                                                        return (
+                                                            <button
+                                                                key={p}
+                                                                onClick={() => togglePeriod(label)}
+                                                                className={clsx(
+                                                                    'w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center transition-colors duration-200 border',
+                                                                    isSelected
+                                                                        ? 'bg-yellow-400 text-white shadow-[0_0_10px_rgba(250,204,21,0.6)] border-transparent' // Yellow Light Effect, no scale
+                                                                        : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
+                                                                )}
+                                                            >
+                                                                {p}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                })}
                             </div>
                         </div>
                     )}

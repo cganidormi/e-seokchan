@@ -131,7 +131,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                         ))}
                     </div>
                     {/* 3. 시간 (Time - 학생 페이지와 동일한 램프 스타일) */}
-                    <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-32">
+                    <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center">
                         {(() => {
                             const start = new Date(req.start_time);
                             // ... (Time logic omitted for brevity as it is unchanged, but ensuring full function)
@@ -202,7 +202,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
 
                     {/* 4. 사유 (Reason) */}
                     {req.reason && (
-                        <div className="flex items-center shrink-0 ml-1">
+                        <div className="flex items-center shrink-0">
                             <span className="text-gray-400 text-xs font-medium" title={req.reason}>
                                 {req.reason.length > 6 ? req.reason.slice(0, 6) + '...' : req.reason}
                             </span>
