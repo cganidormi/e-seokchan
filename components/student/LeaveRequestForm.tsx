@@ -312,7 +312,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         const existEnd = new Date(exist.end_time);
 
                         // Check time overlap: (StartA < EndB) and (EndA > StartB)
-                        if (existStart < newEnd && existEnd > newStart) {
+                        // Allow 1 minute buffer for consecutive period requests (since end_time has 59s padded)
+                        const BUFFER = 60 * 1000;
+                        if (existStart < newEnd && existEnd.getTime() > newStart.getTime() + BUFFER) {
                             toast.error(`[시간 중복] ${exist.student_id} 학생: '${exist.leave_type}'(${existStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}~${existEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})과 시간이 겹칩니다.`);
                             return;
                         }
@@ -412,7 +414,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     isMulti
                     components={{ DropdownIndicator: CustomDropdownIndicator }}
                     value={addedStudents.map(s => ({ value: s.student_id, label: s.student_id, student: s, isFixed: s.student_id === studentId }))}
-                    options={students.map(s => ({ value: s.student_id, label: s.student_id, student: s }))}
+                    options={students
+                        .sort((a, b) => a.student_id.localeCompare(b.student_id))
+                        .map(s => ({ value: s.student_id, label: s.student_id, student: s }))}
                     onChange={(options: any) => {
                         let selected = options ? (Array.isArray(options) ? options.map((o: any) => o.student) : [options.student]) : [];
                         const loginStudent = students.find(s => s.student_id === studentId);
@@ -544,9 +548,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                                                 key={p}
                                                                 onClick={() => togglePeriod(label)}
                                                                 className={clsx(
-                                                                    'w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center transition-colors duration-200 border',
+                                                                    'w-9 h-9 rounded-lg text-sm font-bold flex items-center justify-center transition-colors duration-200 border', // Increased size: w-7/h-7 -> w-9/h-9, text-xs -> text-sm
                                                                     isSelected
-                                                                        ? 'bg-yellow-400 text-white shadow-[0_0_10px_rgba(250,204,21,0.6)] border-transparent' // Yellow Light Effect, no scale
+                                                                        ? 'bg-yellow-400 text-white shadow-[0_0_10px_rgba(250,204,21,0.6)] border-transparent'
                                                                         : 'bg-gray-50 text-gray-400 border border-gray-200 hover:bg-gray-100'
                                                                 )}
                                                             >
@@ -571,9 +575,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                                                 key={p}
                                                                 onClick={() => togglePeriod(label)}
                                                                 className={clsx(
-                                                                    'w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center transition-colors duration-200 border',
+                                                                    'w-9 h-9 rounded-lg text-sm font-bold flex items-center justify-center transition-colors duration-200 border', // Increased size: w-7/h-7 -> w-9/h-9, text-xs -> text-sm
                                                                     isSelected
-                                                                        ? 'bg-yellow-400 text-white shadow-[0_0_10px_rgba(250,204,21,0.6)] border-transparent' // Yellow Light Effect, no scale
+                                                                        ? 'bg-yellow-400 text-white shadow-[0_0_10px_rgba(250,204,21,0.6)] border-transparent'
                                                                         : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
                                                                 )}
                                                             >

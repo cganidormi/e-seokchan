@@ -211,30 +211,50 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                 </div>
 
                 {/* 5. 취소 및 복귀 버튼 (우측 끝) - Only if canEdit */}
+                {/* 5. 취소 및 복귀 버튼 (우측 끝) - Only if canEdit */}
                 {canEdit && (
                     <div className="ml-auto flex items-center gap-2 shrink-0">
-                        {/* 조기 복귀 버튼 - 승인 상태이고 외출/외박인 경우에만 표시 */}
-                        {req.status === '승인' && (req.leave_type === '외출' || req.leave_type === '외박') && (
-                            <button
-                                onClick={handleEarlyReturn}
-                                className="px-2 py-1 bg-gray-700 text-gray-300 text-[10px] font-bold rounded hover:bg-gray-600 transition-colors border border-white/10"
-                            >
-                                복귀
-                            </button>
-                        )}
+                        {/* 
+                           조기 복귀 Logic:
+                           - 승인 상태 AND (외출 OR 외박)
+                           - 시작 시간이 지났을 때만 '복귀' 버튼 노출
+                           - 시작 전이면 '취소(X)' 버튼 노출
+                        */}
+                        {(() => {
+                            const isOutingOrOvernight = req.leave_type === '외출' || req.leave_type === '외박';
+                            const isApproved = req.status === '승인';
+                            const now = new Date();
+                            const startTime = new Date(req.start_time);
+                            const hasStarted = now >= startTime;
 
-                        {/* 취소(X) 버튼 - 승인된 외출/외박인 경우는 '복귀'가 있으므로 숨김 (취소 필요 시 '반려' 사용) */}
-                        {!(req.status === '승인' && (req.leave_type === '외출' || req.leave_type === '외박')) && (
-                            <button
-                                onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
-                                className="text-gray-500 hover:text-red-500 transition-colors p-1"
-                                title="취소"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        )}
+                            if (isApproved && isOutingOrOvernight && hasStarted) {
+                                return (
+                                    <button
+                                        onClick={handleEarlyReturn}
+                                        className="px-2 py-1 bg-gray-700 text-gray-300 text-[10px] font-bold rounded hover:bg-gray-600 transition-colors border border-white/10"
+                                    >
+                                        복귀
+                                    </button>
+                                );
+                            }
+
+                            // 그 외의 경우:
+                            // 승인된 상태라면 -> 이미 승인되었으므로 '삭제(취소)' 불가 (기록 보존)
+                            if (isApproved) return null;
+
+                            // 아직 승인되지 않은 상태(신청, 학부모승인대기 등) -> 취소(삭제) 가능
+                            return (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
+                                    className="text-gray-500 hover:text-red-500 transition-colors p-1"
+                                    title="취소/삭제"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            );
+                        })()}
                     </div>
                 )}
             </div>

@@ -71,6 +71,19 @@ export default function StudentPage() {
     }
   }, []);
 
+  // 1-1. Online/Offline Revalidation
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('[DEBUG_PAGE] Network recovered (Online). Refetching data...');
+      if (studentId) fetchLeaveRequests(studentId);
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [studentId]);
+
   const fetchLeaveRequests = async (id: string) => {
     try {
       // 0. Fetch Teachers Map manually (since FK join failed)

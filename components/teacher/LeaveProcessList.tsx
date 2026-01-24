@@ -22,11 +22,14 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     teacherId,
     onLogout
 }) => {
-    const [viewMode, setViewMode] = useState<'active' | 'past'>('active');
-    const [isMyLeaveOnly, setIsMyLeaveOnly] = useState(false);
+    // Unified View Mode: 'my_active' | 'all_active' | 'past_all'
+    const [unifiedViewMode, setUnifiedViewMode] = useState<'my_active' | 'all_active' | 'past_all'>('my_active');
+    const [filterType, setFilterType] = useState('전체'); // Added filter type state
     const [expandedId, setExpandedId] = useState<string | number | null>(null);
     const [statusMenuId, setStatusMenuId] = useState<string | number | null>(null);
     const [now, setNow] = useState(new Date());
+
+    const leaveTypes = ['컴이석', '이석', '외출', '외박', '자리비움']; // Define leave types
 
     React.useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 30000);
@@ -39,23 +42,36 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
         if (req.status === '취소' || req.status === '반려' || req.status === '복귀') return false;
         const endTime = new Date(req.end_time);
         if (endTime < now) return false;
-        if (endTime.getHours() >= 23 && req.period) {
-            const isDaytime = req.period.includes('주간') || req.period.includes('오전') || req.period.includes('오후');
-            const isWeekend = now.getDay() === 0 || now.getDay() === 6;
-            if (isDaytime && !isWeekend && now.getHours() >= 19) return false;
-            if (isDaytime && isWeekend && now.getHours() >= 18) return false;
-        }
+        // 시간대에 따른 숨김 로직 제거 (주말 및 야간에도 신청 내역 항상 노출)
+        // if (endTime.getHours() >= 23 && req.period) {
+        //     const isDaytime = req.period.includes('주간') || req.period.includes('오전') || req.period.includes('오후');
+        //     const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+        //     if (isDaytime && !isWeekend && now.getHours() >= 19) return false;
+        //     if (isDaytime && isWeekend && now.getHours() >= 18) return false;
+        // }
         return true;
     };
 
     const filtered = (leaveRequests || []).filter(req => {
-        // 1. Status/Time Filter
+        // 1. Unified Filter
         const isActive = isRequestActive(req);
-        if (viewMode === 'active' && !isActive) return false;
-        if (viewMode === 'past' && isActive) return false;
 
-        // 2. Ownership Filter (My Teacher Only)
-        if (isMyLeaveOnly && req.teacher_id !== teacherId) return false;
+        if (unifiedViewMode === 'past_all') {
+            // "지난 내역": Show inactive items (past/cancelled). No user restriction (show all).
+            if (isActive) return false;
+        } else {
+            // "내 담당", "전체 현황": Show ACTIVE items only.
+            if (!isActive) return false;
+
+            if (unifiedViewMode === 'my_active') {
+                // "내 담당": Filter by my ID
+                if (req.teacher_id !== teacherId) return false;
+            }
+            // "전체 현황": No user restriction.
+        }
+
+        // 2. Leave Type Filter
+        if (filterType !== '전체' && req.leave_type !== filterType) return false;
 
         return true;
     });
@@ -77,6 +93,14 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                 </div>
             </div>
 
+            {/* Headcount Mapping Button */}
+            <button
+                onClick={() => window.location.href = '/teacher/headcount'}
+                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-indigo-100 bg-indigo-600 hover:bg-indigo-500 shadow-lg text-center"
+            >
+                취침지도 호실배치도 →
+            </button>
+
             {/* Seat Map Button */}
             <button
                 onClick={() => window.location.href = '/teacher/seats'}
@@ -86,62 +110,55 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             </button>
 
             {/* 탭 전환 UI */}
-            <div className="flex flex-wrap gap-2 mb-4">
-                {/* 내 담당 필터 */}
-                <div className="flex bg-[#1a1a1a] rounded-xl p-1 gap-1 w-fit">
-                    <button
-                        onClick={() => setIsMyLeaveOnly(false)}
-                        className={clsx(
-                            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-                            !isMyLeaveOnly ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-300"
-                        )}
-                    >
-                        전체 보기
-                    </button>
-                    <button
-                        onClick={() => setIsMyLeaveOnly(true)}
-                        className={clsx(
-                            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-                            isMyLeaveOnly ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-300"
-                        )}
-                    >
-                        내 담당만
-                    </button>
+            <div className="flex flex-col gap-3 mb-4">
+                {/* 3-Tab UI */}
+                <div className="flex p-1 bg-[#1a1a1a] rounded-xl w-full">
+                    {[
+                        { id: 'my_active', label: '내 담당' },
+                        { id: 'all_active', label: '전체 현황' },
+                        { id: 'past_all', label: '지난 내역' },
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setUnifiedViewMode(tab.id as any)}
+                            className={clsx(
+                                "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center",
+                                unifiedViewMode === tab.id
+                                    ? "bg-blue-600 text-white shadow-sm"
+                                    : "text-gray-500 hover:text-gray-300"
+                            )}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
 
-                <div className="flex bg-[#1a1a1a] rounded-xl p-1 gap-1 w-fit">
-                    <button
-                        onClick={() => setViewMode('active')}
-                        className={clsx(
-                            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-                            viewMode === 'active' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"
-                        )}
-                    >
-                        진행 중
-                    </button>
-                    <button
-                        onClick={() => setViewMode('past')}
-                        className={clsx(
-                            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
-                            viewMode === 'past' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300"
-                        )}
-                    >
-                        지난 내역
-                    </button>
+                {/* 이석 종류 필터 (가로 스크롤) */}
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    {['전체', ...leaveTypes].map((type) => (
+                        <button
+                            key={type}
+                            onClick={() => setFilterType(type)}
+                            className={clsx(
+                                "px-3 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap border",
+                                filterType === type
+                                    ? "bg-amber-400 text-black border-amber-400"
+                                    : "bg-transparent text-gray-500 border-white/10 hover:border-white/20"
+                            )}
+                        >
+                            {type}
+                        </button>
+                    ))}
                 </div>
-
-
             </div>
 
             <div className="flex flex-col gap-3 pb-24">
                 {filtered.length === 0 ? (
                     <div className="bg-[#1a1a1a] p-10 rounded-[2rem] border border-dashed border-white/10 text-center text-gray-600 text-xs italic">
-                        {viewMode === 'active' ? '처리할 이석 내역이 없습니다.' : '지난 내역이 없습니다.'}
-                        {isMyLeaveOnly && leaveRequests.length > 0 && (
-                            <p className="mt-2 text-gray-500">
-                                (전체 보기를 선택하면 다른 이석 내역이 있을 수 있습니다)
-                            </p>
-                        )}
+                        {unifiedViewMode === 'my_active' && '처리할 내 담당 이석 내역이 없습니다.'}
+                        {unifiedViewMode === 'all_active' && '현재 처리할 이석 내역이 없습니다.'}
+                        {unifiedViewMode === 'past_all' && '지난 내역이 없습니다.'}
+                        {filterType !== '전체' && <p>('{filterType}' 필터 적용됨)</p>}
                     </div>
                 ) : (
                     filtered.map((req) => (
@@ -160,7 +177,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                                 setStatusMenuId(null);
                             }}
                             onCancel={onCancel}
-                            viewMode={viewMode}
+                            viewMode={unifiedViewMode === 'past_all' ? 'past' : 'active'}
                             currentTeacherId={teacherId}
                         />
                     ))

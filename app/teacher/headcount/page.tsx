@@ -449,7 +449,7 @@ export default function HeadcountPage() {
             {/* Main Content - Zoomable Area */}
             <div className="flex-1 relative overflow-hidden bg-[#121212] w-full h-full">
                 <TransformWrapper
-                    initialScale={0.6}
+                    initialScale={0.4}
                     minScale={0.4}
                     maxScale={1}
                     centerOnInit={true}

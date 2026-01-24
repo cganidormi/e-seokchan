@@ -517,7 +517,8 @@ function ParentContent() {
                                     </div>
 
                                     {/* 학부모 승인 버튼 영역 */}
-                                    {req.status === '학부모승인대기' && (
+                                    {/* 학부모 승인 버튼 영역 */}
+                                    {req.status === '학부모승인대기' ? (
                                         <div className="flex gap-2 mt-2 pt-2 border-t border-gray-50">
                                             <button
                                                 onClick={() => handleParentAction(req.id, 'approve')}
@@ -532,7 +533,24 @@ function ParentContent() {
                                                 반려
                                             </button>
                                         </div>
-                                    )}
+                                    ) : req.status === '학부모승인' ? (
+                                        // 교사 승인 전(학부모만 승인한 상태): 취소 가능
+                                        <div className="flex gap-2 mt-2 pt-2 border-t border-gray-50">
+                                            <button
+                                                onClick={() => handleParentAction(req.id, 'reject')}
+                                                className="w-full bg-red-100 text-red-600 text-xs font-bold py-2 rounded-lg hover:bg-red-200 active:scale-95 transition-all"
+                                            >
+                                                승인 취소 (반려)
+                                            </button>
+                                        </div>
+                                    ) : req.status === '승인' ? (
+                                        // 교사 최종 승인 완료: 변경 불가 안내
+                                        <div className="mt-2 pt-2 border-t border-gray-50 text-center">
+                                            <p className="text-xs text-gray-400 font-medium">
+                                                ✅ 선생님 최종 승인이 완료되어 변경할 수 없습니다.
+                                            </p>
+                                        </div>
+                                    ) : null}
                                 </div>
                             ))
                         )}
