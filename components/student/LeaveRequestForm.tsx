@@ -527,57 +527,72 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             </div>
 
             <div className="grid grid-cols-5 gap-2 mb-4">
-                {leaveTypes.map((t) => {
-                    let activeClass = '';
-                    let inactiveClass = '';
-                    switch (t) {
-                        case '컴이석':
-                            activeClass = 'bg-blue-500 text-white border-blue-500 shadow-md font-bold';
-                            inactiveClass = 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100';
-                            break;
-                        case '이석':
-                            activeClass = 'bg-orange-500 text-white border-orange-500 shadow-md font-bold';
-                            inactiveClass = 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100';
-                            break;
-                        case '외출':
-                            activeClass = 'bg-green-500 text-white border-green-500 shadow-md font-bold';
-                            inactiveClass = 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100';
-                            break;
-                        case '외박':
-                            activeClass = 'bg-purple-500 text-white border-purple-500 shadow-md font-bold';
-                            inactiveClass = 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100';
-                            break;
-                        case '자리비움':
-                            activeClass = 'bg-red-500 text-white border-red-500 shadow-md font-bold';
-                            inactiveClass = 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100';
-                            break;
-                        default:
-                            activeClass = 'bg-yellow-400 text-white border-yellow-400 shadow-md font-bold';
-                            inactiveClass = 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50';
-                    }
+                {[
+                    { id: '컴이석', symbol: 'Com', number: '01', color: 'blue', numColor: 'text-blue-200' },
+                    { id: '이석', symbol: 'Es', number: '02', color: 'orange', numColor: 'text-orange-200' },
+                    { id: '외출', symbol: 'Chul', number: '03', color: 'green', numColor: 'text-green-200' },
+                    { id: '외박', symbol: 'Park', number: '04', color: 'purple', numColor: 'text-purple-200' },
+                    { id: '자리비움', symbol: 'Bi', number: '10', color: 'red', numColor: 'text-red-200' },
+                ].map((item) => {
+                    const isActive = leaveType === item.id;
+
+                    // Tailwind dynamic classes must be complete strings usually, but we can construct them if they are standard palette.
+                    // However, to be safe and cleaner, we'll switch-case or map.
+                    // Actually, let's just use the item.color prop for logic.
+
+                    const colorClasses: any = {
+                        blue: isActive ? 'bg-blue-500 border-blue-600 text-white' : 'bg-white border-blue-200 text-blue-600 hover:bg-blue-50',
+                        orange: isActive ? 'bg-orange-500 border-orange-600 text-white' : 'bg-white border-orange-200 text-orange-600 hover:bg-orange-50',
+                        green: isActive ? 'bg-green-500 border-green-600 text-white' : 'bg-white border-green-200 text-green-600 hover:bg-green-50',
+                        purple: isActive ? 'bg-purple-500 border-purple-600 text-white' : 'bg-white border-purple-200 text-purple-600 hover:bg-purple-50',
+                        red: isActive ? 'bg-red-500 border-red-600 text-white' : 'bg-white border-red-200 text-red-600 hover:bg-red-50',
+                    };
+
+                    const activeShadow = isActive ? 'shadow-md scale-[1.02]' : 'shadow-sm hover:shadow';
 
                     return (
                         <button
-                            key={t}
+                            key={item.id}
                             onClick={() => {
-                                setLeaveType(t);
+                                setLeaveType(item.id);
                                 setPeriods([]);
                                 setTeacherId('');
                                 setPlace('');
                                 setReason('');
                                 setStartDate(new Date());
                                 setEndDate(new Date());
-                                if (t === '외출' || t === '외박' || t === '자리비움') {
+                                if (item.id === '외출' || item.id === '외박' || item.id === '자리비움') {
                                     const loginStudent = students.find(s => s.student_id === studentId);
                                     if (loginStudent) setAddedStudents([loginStudent]);
                                 }
                             }}
                             className={clsx(
-                                'h-12 rounded-2xl shadow-sm border transition-all duration-200 active:scale-95 font-medium w-full flex items-center justify-center text-sm break-keep',
-                                leaveType === t ? activeClass : inactiveClass
+                                'relative aspect-square rounded-2xl border-2 transition-all duration-200 flex flex-col items-center justify-center p-1',
+                                colorClasses[item.color],
+                                activeShadow
                             )}
                         >
-                            {t}
+                            {/* Number */}
+                            <span className={clsx(
+                                "absolute top-1 left-2 text-[10px] font-bold opacity-80",
+                                isActive ? "text-white/80" : "text-gray-400"
+                            )}>
+                                {item.number}
+                            </span>
+
+                            {/* Symbol */}
+                            <span className={clsx(
+                                "text-2xl font-black tracking-tighter sm:text-3xl mt-2 mb-1 leading-none font-sans"
+                            )}>
+                                {item.symbol}
+                            </span>
+
+                            {/* Full Name */}
+                            <span className={clsx(
+                                "text-[10px] font-bold tracking-tight opacity-90 whitespace-nowrap"
+                            )}>
+                                {item.id}
+                            </span>
                         </button>
                     );
                 })}
