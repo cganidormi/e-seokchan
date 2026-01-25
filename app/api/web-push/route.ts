@@ -1,15 +1,18 @@
 import { NextResponse } from 'next/server';
 import webpush from 'web-push';
 
-// VAPID 설정
-webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:admin@dormichan.com',
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!
-);
+// VAPID 설정 (lazy init)
+const initWebPush = () => {
+    webpush.setVapidDetails(
+        process.env.VAPID_SUBJECT || 'mailto:admin@dormichan.com',
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+        process.env.VAPID_PRIVATE_KEY!
+    );
+};
 
 export async function POST(request: Request) {
     try {
+        initWebPush();
         const { subscription, message, title } = await request.json();
 
         // 1. 구독 저장 요청인 경우 (message가 없음)

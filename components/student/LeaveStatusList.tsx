@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 interface LeaveStatusListProps {
     leaveRequests: LeaveRequest[];
     onCancel: (id: number) => void;
+    onCopy: (req: LeaveRequest) => void;
     leaveTypes: string[];
     students: Student[];
     studentId: string;
@@ -18,6 +19,7 @@ interface LeaveStatusListProps {
 export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
     leaveRequests,
     onCancel,
+    onCopy,
     leaveTypes,
     students,
     studentId
@@ -200,6 +202,7 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
                             isExpanded={expandedId === req.id}
                             onToggleExpand={() => setExpandedId(expandedId === req.id ? null : req.id)}
                             onCancel={onCancel}
+                            onCopy={onCopy}
                             viewMode={unifiedViewMode === 'past_all' ? 'past' : 'active'}
                             currentStudentId={studentId}
                             allStudentsList={students}

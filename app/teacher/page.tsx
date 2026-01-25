@@ -21,22 +21,22 @@ export default function TeacherPage() {
     const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
     const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
 
-    console.log('[DEBUG_TEACHER] Session Check - ID:', loginId, 'Role:', role);
-
     if (!loginId || role !== 'teacher') {
-      console.warn('[DEBUG_TEACHER] Invalid session. Redirecting to login.');
       router.push('/login');
       return;
     }
 
     setTeacherId(loginId);
 
+  }, [router]);
+
+  useEffect(() => {
+    const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
+    const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
+
     const resolveTeacherInfo = async () => {
       try {
-        console.log('[DEBUG] resolving session:', { loginId, role });
-
         if (loginId && role === 'teacher') {
-          console.log('[DEBUG] fetching teacher info for:', loginId);
           const { data: teacher, error } = await supabase
             .from('teachers')
             .select('id, name, position')
@@ -48,7 +48,6 @@ export default function TeacherPage() {
           }
 
           if (teacher) {
-            console.log('[DEBUG] teacher found:', teacher);
             setTeacherId(teacher.id);
             setTeacherName(teacher.name);
             setTeacherPosition(teacher.position);
@@ -57,8 +56,6 @@ export default function TeacherPage() {
             console.error('[DEBUG] Teacher record not found in teachers table for login ID:', loginId);
             toast.error('교사 정보를 찾을 수 없습니다. 관리자에게 문의하세요.');
           }
-        } else {
-          console.log('[DEBUG] No valid session found');
         }
       } catch (err) {
         console.error('[DEBUG] Session resolution error:', err);
@@ -81,7 +78,6 @@ export default function TeacherPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_requests' },
         () => {
-          console.log('Realtime update detected for teacher (leave_requests), refetching...');
           fetchLeaveRequests(teacherId, teacherName);
         }
       )
@@ -89,7 +85,6 @@ export default function TeacherPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_request_students' },
         () => {
-          console.log('Realtime update detected for teacher (leave_request_students), refetching...');
           fetchLeaveRequests(teacherId, teacherName);
         }
       )
@@ -102,7 +97,6 @@ export default function TeacherPage() {
 
   const fetchLeaveRequests = async (id: string, name: string) => {
     try {
-      console.log('Fetching all requests for teacher view...');
 
       const { data: teachersData } = await supabase.from('teachers').select('id, name');
       const teacherMap = new Map();

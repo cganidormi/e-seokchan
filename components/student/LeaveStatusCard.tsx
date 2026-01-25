@@ -11,6 +11,7 @@ interface LeaveStatusCardProps {
     isExpanded: boolean;
     onToggleExpand: () => void;
     onCancel: (id: number) => void;
+    onCopy?: (req: LeaveRequest) => void;
     viewMode: 'active' | 'past';
     currentStudentId: string;
     allStudentsList?: Student[];
@@ -21,6 +22,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
     isExpanded,
     onToggleExpand,
     onCancel,
+    onCopy,
     viewMode,
     currentStudentId,
     allStudentsList = []
@@ -248,7 +250,24 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                             </div>
                         )}
                     </div>
-                    {/* 5. 취소 버튼 (우측 끝) */}
+
+                    {/* 5. 따라가기 버튼 (내가 아닌 경우) */}
+                    {req.student_id !== currentStudentId && onCopy && (
+                        <div className="flex items-center shrink-0 ml-2">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onCopy(req); }}
+                                className="text-[10px] bg-blue-600/30 hover:bg-blue-600 text-blue-200 hover:text-white px-2 py-1 rounded-full transition-all border border-blue-500/30 flex items-center gap-1"
+                                title="이 내용으로 신청하기"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                                </svg>
+                                <span className="hidden sm:inline">따라가기</span>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* 6. 취소 버튼 (우측 끝) */}
                     {!isPast && (
                         <div className="ml-auto flex items-center shrink-0">
                             {req.student_id === currentStudentId && (req.status === '신청' || req.leave_type === '컴이석') && (
@@ -295,11 +314,49 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                             <div className="flex flex-col gap-1">
                                 <span className="text-gray-500 font-bold">함께하는 학생들</span>
                                 <div className="flex flex-wrap gap-1.5 items-center">
-                                    {allStudents.map(id => (
-                                        <div key={id} className="bg-gray-800 px-2 py-1 rounded text-gray-300 flex items-center gap-1">
-                                            <span>{id}</span>
-                                        </div>
-                                    ))}
+                                    {allStudents.map(id => {
+                                        const isMe = id === currentStudentId;
+                                        const isMain = id === req.student_id;
+                                        // Allow withdrawal if: I am this student, I am NOT the main applicant, and status is Approved/Pending/ParentPending
+                                        const canWithdraw = isMe && !isMain && (req.status === '승인' || req.status === '신청' || req.status === '학부모승인대기');
+
+                                        return (
+                                            <div key={id} className={clsx(
+                                                "px-2 py-1 rounded flex items-center gap-1 transition-colors",
+                                                isMe ? "bg-blue-900/40 text-blue-200 border border-blue-500/30 font-bold" : "bg-gray-800 text-gray-300"
+                                            )}>
+                                                <span>{id}</span>
+                                                {canWithdraw && (
+                                                    <button
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            if (!confirm('정말로 이석 명단에서 빠지시겠습니까?')) return;
+                                                            try {
+                                                                const { error } = await supabase
+                                                                    .from('leave_request_students')
+                                                                    .delete()
+                                                                    .eq('leave_request_id', req.id)
+                                                                    .eq('student_id', currentStudentId);
+
+                                                                if (error) throw error;
+                                                                toast.success('명단에서 제외되었습니다.');
+                                                                // Realtime subscription will refresh the list, or we could optimistic update
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                                toast.error('오류가 발생했습니다.');
+                                                            }
+                                                        }}
+                                                        className="ml-1 text-blue-400 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors"
+                                                        title="명단에서 빠지기"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}

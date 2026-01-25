@@ -35,7 +35,6 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
                     filter: `student_id=eq.${student.student_id}`
                 },
                 (payload) => {
-                    console.log('[WeeklyReturn] Realtime update:', payload);
                     checkDateAndStatus();
                 }
             )
@@ -124,7 +123,7 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
             setIsSubscribed(true);
             toast.success('알림이 설정되었습니다! 🔔');
         } catch (err: any) {
-            console.error('Subscription failed', err);
+            console.error(err);
             toast.error('알림 설정 실패: ' + err.message);
         } finally {
             setLoading(false);

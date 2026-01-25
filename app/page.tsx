@@ -49,7 +49,6 @@ export default function Home() {
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      console.log('Install prompt captured');
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -82,7 +81,6 @@ export default function Home() {
     }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    console.log('User response to install prompt:', outcome);
     setDeferredPrompt(null);
   };
 

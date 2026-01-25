@@ -16,6 +16,7 @@ export default function StudentPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [initialFormData, setInitialFormData] = useState<any>(null); // State for Copy functionality
   const router = useRouter(); // Initialized useRouter
 
   useEffect(() => {
@@ -23,26 +24,18 @@ export default function StudentPage() {
     const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
     const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
 
-    console.log('[DEBUG_STUDENT] Session Check - ID:', loginId, 'Role:', role);
-
     if (!loginId || role !== 'student') {
-      console.warn('[DEBUG_STUDENT] Invalid session. Redirecting to login.');
       router.push('/login');
       return;
     }
 
     setStudentId(loginId);
-    console.log('[DEBUG_STUDENT] Session Valid. Loaded Student ID:', loginId);
 
     // Initial data fetch
     const fetchData = async () => {
-      console.log('[DEBUG_PAGE] Fetching initial data...');
       const { data: studentsData } = await supabase.from('students').select('*');
       if (studentsData) {
-        console.log(`[DEBUG_PAGE] Loaded ${studentsData.length} students`);
         setStudents(studentsData as Student[]);
-      } else {
-        console.error('[DEBUG_PAGE] Failed to load students');
       }
 
       const { data: teachersData } = await supabase.from('teachers').select('id, name');
@@ -59,11 +52,9 @@ export default function StudentPage() {
       const channel = supabase
         .channel('leave_requests_student')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, () => {
-          console.log('[DEBUG_PAGE] Realtime update detected (leave_requests)');
           fetchLeaveRequests(loginId);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_request_students' }, () => {
-          console.log('[DEBUG_PAGE] Realtime update detected (leave_request_students)');
           fetchLeaveRequests(loginId);
         })
         .subscribe();
@@ -74,7 +65,6 @@ export default function StudentPage() {
   // 1-1. Online/Offline Revalidation
   useEffect(() => {
     const handleOnline = () => {
-      console.log('[DEBUG_PAGE] Network recovered (Online). Refetching data...');
       if (studentId) fetchLeaveRequests(studentId);
     };
 
@@ -102,7 +92,6 @@ export default function StudentPage() {
         .order('created_at', { ascending: false });
 
       if (publicError) {
-        console.error('[DEBUG] Public Request Fetch Error:', JSON.stringify(publicError));
         throw publicError;
       }
 
@@ -138,7 +127,6 @@ export default function StudentPage() {
           .order('created_at', { ascending: false });
 
         if (coError) {
-          console.error('[DEBUG] Co-student Private Fetch Error:', JSON.stringify(coError));
           throw coError;
         }
 
@@ -167,8 +155,6 @@ export default function StudentPage() {
 
       setLeaveRequests(transformed as any[]);
     } catch (err: any) {
-      console.error('Fetch error full object:', err);
-      console.error('Fetch error message:', err.message || JSON.stringify(err));
     }
   };
 
@@ -203,6 +189,13 @@ export default function StudentPage() {
 
   const currentStudent = students.find(s => s.student_id === studentId) || null;
 
+  const handleCopyRequest = (req: LeaveRequest) => {
+    setInitialFormData(req);
+    // Scroll to top to see form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast.success('신청 내용이 복사되었습니다. 내용을 확인 후 신청 버튼을 눌러주세요.');
+  };
+
   return (
     <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
       <Toaster />
@@ -227,10 +220,12 @@ export default function StudentPage() {
           students={students}
           teachers={teachers}
           onSubmitSuccess={() => fetchLeaveRequests(studentId)}
+          initialData={initialFormData}
         />
         <LeaveStatusList
           leaveRequests={leaveRequests}
           onCancel={handleCancelRequest}
+          onCopy={handleCopyRequest}
           leaveTypes={['컴이석', '이석', '외출', '외박', '자리비움']}
           students={students}
           studentId={studentId}

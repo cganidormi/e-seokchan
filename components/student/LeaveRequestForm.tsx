@@ -14,6 +14,7 @@ interface LeaveRequestFormProps {
     students: Student[];
     teachers: Teacher[];
     onSubmitSuccess: () => void;
+    initialData?: any; // New prop for copy
 }
 
 const CustomDropdownIndicator = (props: any) => {
@@ -30,7 +31,8 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
     studentId,
     students,
     teachers,
-    onSubmitSuccess
+    onSubmitSuccess,
+    initialData
 }) => {
     const leaveTypes = ['컴이석', '이석', '외출', '외박', '자리비움'];
 
@@ -100,6 +102,28 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
         );
     };
 
+    // Populate form when initialData changes (Copy feature)
+    React.useEffect(() => {
+        if (!initialData) return;
+
+        setLeaveType(initialData.leave_type);
+        setTeacherId(initialData.teacher_id || '');
+        setPlace(initialData.place || '');
+        setReason(initialData.reason || '');
+
+        if (initialData.period) {
+            setPeriods(initialData.period.split(',').map((p: string) => p.trim()));
+        } else {
+            setPeriods([]);
+        }
+
+        if (initialData.start_time) setStartDate(new Date(initialData.start_time));
+        if (initialData.end_time) setEndDate(new Date(initialData.end_time));
+        if (initialData.start_time) setTargetDate(new Date(initialData.start_time)); // Set target date for leave/comp leave
+
+        // Students are NOT copied by design (only current user applies)
+    }, [initialData]);
+
     const handleSubmit = async () => {
         if (isSubmitting) return;
 
@@ -121,8 +145,8 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
                         if (p.startsWith('주간')) matchType = 'weekday day';
                         else if (p.startsWith('야간')) matchType = isHoliday ? 'weekend night' : 'weekday night';
-                        else if (p.startsWith('오전')) matchType = 'weekend morning';
-                        else if (p.startsWith('오후')) matchType = 'weekend afternoon';
+                        else if (p.startsWith('오전')) matchType = 'weekend day';
+                        else if (p.startsWith('오후')) matchType = 'weekend day';
 
                         const entry = timetable.find(t => {
                             const dt = t.day_type.toLowerCase();
@@ -163,6 +187,12 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     toast.error('외출은 당일 신청만 가능합니다.');
                     return;
                 }
+            }
+
+            // Strict Validation for Outing/Overnight (Single Person Only)
+            if ((leaveType === '외출' || leaveType === '외박') && addedStudents.length > 1) {
+                toast.error(`${leaveType}은(는) 1인만 신청 가능합니다.`);
+                return;
             }
 
             const checkDate = (leaveType === '외출' || leaveType === '외박') ? startDate : targetDate;
@@ -266,14 +296,19 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         const periodNum = p.match(/\d+/) ? p.match(/\d+/)![0] : '';
                         if (p.startsWith('주간')) matchType = 'weekday day';
                         else if (p.startsWith('야간')) matchType = isHoliday ? 'weekend night' : 'weekday night';
-                        else if (p.startsWith('오전')) matchType = 'weekend morning';
-                        else if (p.startsWith('오후')) matchType = 'weekend afternoon';
+                        else if (p.startsWith('오전')) matchType = 'weekend day';
+                        else if (p.startsWith('오후')) matchType = 'weekend day';
 
                         const entry = timetable.find(t => {
                             const dt = t.day_type.toLowerCase();
                             const desc = t.description?.toLowerCase() || '';
                             const normalizedMatchType = matchType.toLowerCase();
-                            return dt.includes(normalizedMatchType) && (dt.includes(periodNum) || desc.includes(periodNum));
+
+                            // 1. Try exact match type
+                            if (dt.includes(normalizedMatchType)) {
+                                return dt.includes(periodNum) || desc.includes(periodNum);
+                            }
+                            return false;
                         });
 
                         if (entry) {
@@ -289,6 +324,27 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                 const d = new Date(targetDate);
                                 d.setHours(hours, minutes, 59, 999);
                                 if (d > latestDate) latestDate = d;
+                            }
+                        } else {
+                            // Fallback for Weekend/Holiday if DB fails
+                            // Prevents 24-hour lock
+                            let startH = 0, endH = 23;
+                            if (p.includes('오전') || p.includes('주간1') || p.includes('주간2') || p.includes('주간3')) {
+                                startH = 9; endH = 12;
+                            } else if (p.includes('오후') || p.includes('주간4') || p.includes('주간5') || p.includes('주간6')) {
+                                startH = 13; endH = 17;
+                            } else if (p.includes('야간')) {
+                                startH = 19; endH = 23;
+                            }
+
+                            // Specific period adjustments could be added here if needed
+                            // For now, grouped by time of day to ensure separation
+                            if (startH !== 0 || endH !== 23) {
+                                foundAny = true;
+                                const s = new Date(targetDate); s.setHours(startH, 0, 0, 0);
+                                const e = new Date(targetDate); e.setHours(endH, 59, 59, 999);
+                                if (s < earliestDate) earliestDate = s;
+                                if (e > latestDate) latestDate = e;
                             }
                         }
                     }
@@ -392,6 +448,13 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             setPeriods([]);
             setStartDate(null);
             setEndDate(null);
+
+            // Reset students list to current user only
+            const loginStudent = students.find(s => s.student_id === studentId);
+            if (loginStudent) {
+                setAddedStudents([loginStudent]);
+            }
+
             toast.success(leaveType === '자리비움' ? '10분간 자리비움이 승인되었습니다.' : '이석 신청이 완료되었습니다.');
         } catch (error) {
             console.error(error);
@@ -420,17 +483,32 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     onChange={(options: any) => {
                         let selected = options ? (Array.isArray(options) ? options.map((o: any) => o.student) : [options.student]) : [];
                         const loginStudent = students.find(s => s.student_id === studentId);
-                        if (loginStudent && !selected.some((s: any) => s.student_id === studentId)) selected = [loginStudent, ...selected];
+
+                        // Strict Single Person Rule for Outing/Overnight
+                        if (leaveType === '외출' || leaveType === '외박') {
+                            if (selected.length > 1) {
+                                toast.error('외출/외박은 1인만 신청 가능합니다.');
+                            }
+                            // Force reset to only login student
+                            if (loginStudent) selected = [loginStudent];
+                        } else {
+                            // Helper to always keep me in the list
+                            if (loginStudent && !selected.some((s: any) => s.student_id === studentId)) {
+                                selected = [loginStudent, ...selected];
+                            }
+                        }
                         setAddedStudents(selected);
                     }}
                     styles={{
-                        control: (base) => ({
+                        control: (base, state) => ({
                             ...base,
                             borderRadius: '1rem',
-                            minHeight: '3rem', // Match h-12 (48px)
+                            minHeight: '3rem',
                             borderColor: '#e5e7eb',
                             boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
                             ':hover': { borderColor: '#fbbf24' },
+                            backgroundColor: (leaveType === '외출' || leaveType === '외박') ? '#f3f4f6' : 'white', // Visual cue
+                            cursor: (leaveType === '외출' || leaveType === '외박') ? 'not-allowed' : 'default',
                         }),
                         multiValue: (base) => ({ ...base, backgroundColor: '#fefce8', border: '1px solid #fde68a', borderRadius: '0.5rem', margin: '2px' }),
                         multiValueLabel: (base) => ({ ...base, color: '#854d0e', fontWeight: '600', padding: '2px 8px', fontSize: '0.875rem' }),
@@ -444,6 +522,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         }),
                     }}
                     placeholder="신청자 선택 (검색 가능)"
+                    isDisabled={leaveType === '외출' || leaveType === '외박'} // Disable the input entirely based on requirement
                 />
             </div>
 

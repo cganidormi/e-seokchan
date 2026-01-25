@@ -126,7 +126,6 @@ function ParentContent() {
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'leave_requests' },
                 (payload) => {
-                    console.log('Realtime change received!', payload);
                     fetchStudentData(currentToken!);
                 }
             )
@@ -186,7 +185,6 @@ function ParentContent() {
             }
 
         } catch (err: any) {
-            console.error(err);
             toast.error(err.message || '데이터를 불러오지 못했습니다.');
             localStorage.removeItem('dormichan_parent_token'); // 잘못된 토큰이면 삭제
         } finally {
@@ -243,7 +241,6 @@ function ParentContent() {
             toast.success('알림이 설정되었습니다! 🔔');
 
         } catch (err: any) {
-            console.error('Push subscription failed:', err);
             toast.error('알림 설정 실패: ' + err.message);
         }
     };

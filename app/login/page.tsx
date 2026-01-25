@@ -19,10 +19,8 @@ export default function LoginPage() {
     const checkDb = async () => {
       const { error } = await supabase.from('students_auth').select('student_id').limit(1);
       if (error) {
-        console.error('[DEBUG_LOGIN] DB Check Failed:', error);
         setDbStatus(`시스템 연결 실패: ${error.message}`);
       } else {
-        console.log('[DEBUG_LOGIN] DB Check Success');
         setDbStatus("시스템 연결 정상");
       }
     };
@@ -41,19 +39,11 @@ export default function LoginPage() {
     let role: "student" | "teacher" | null = null;
 
     // 1️⃣ 학생 auth 조회
-    console.log(`[DEBUG_LOGIN] Attempting login. Input: "${loginId}", Cleaned: "${cleanId}"`);
-
     const { data: student, error: studentError } = await supabase
       .from("students_auth")
       .select("*")
       .eq("student_id", cleanId)
       .single();
-
-    if (studentError) {
-      console.warn('[DEBUG_LOGIN] Student auth fetch error (ignore if teacher):', studentError);
-    } else {
-      console.log('[DEBUG_LOGIN] Student found:', student);
-    }
 
     if (student) {
       user = student;
@@ -62,18 +52,11 @@ export default function LoginPage() {
 
     // 2️⃣ 학생이 아니면 교사 auth 조회
     if (!user) {
-      console.log('[DEBUG_LOGIN] Student not found, checking teacher...');
       const { data: teacher, error: teacherError } = await supabase
         .from("teachers_auth")
         .select("*")
         .eq("teacher_id", cleanId)
         .single();
-
-      if (teacherError) {
-        console.warn('[DEBUG_LOGIN] Teacher auth fetch error:', teacherError);
-      } else {
-        console.log('[DEBUG_LOGIN] Teacher found:', teacher);
-      }
 
       if (teacher) {
         user = teacher;
@@ -83,14 +66,11 @@ export default function LoginPage() {
 
     // 3️⃣ 둘 다 없으면 실패
     if (!user || !role) {
-      console.warn('[DEBUG_LOGIN] Login failed: User not found. ID used:', cleanId);
       setError(`계정을 찾을 수 없습니다. (ID: ${cleanId})`);
       return;
     }
 
-    // 4️⃣ 비밀번호 확인
     if (String(user.temp_password) !== String(password)) {
-      console.warn('[DEBUG_LOGIN] Password mismatch. Input:', password, 'Expected:', user.temp_password);
       setError("비밀번호가 틀렸습니다.");
       return;
     }
@@ -103,7 +83,6 @@ export default function LoginPage() {
       user.must_change_password === "1";
 
     if (mustChange) {
-      console.log('[DEBUG_LOGIN] Password change required');
       router.push(
         `/change-password?id=${encodeURIComponent(cleanId)}&role=${role}`
       );
@@ -122,7 +101,8 @@ export default function LoginPage() {
     storage.setItem("dormichan_role", role);
     storage.setItem("dormichan_keepLoggedIn", "true");
 
-    console.log('[DEBUG_LOGIN] Login successful (Persistent), redirecting to:', role);
+    storage.setItem("dormichan_role", role);
+    storage.setItem("dormichan_keepLoggedIn", "true");
 
     // 7️⃣ 역할별 페이지 이동
     if (role === "student") {

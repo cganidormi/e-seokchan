@@ -3,18 +3,25 @@ import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
 
 // Admin permission is required for fetching all subscriptions and inserting logs
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || 'mailto:admin@dormichan.com',
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-    process.env.VAPID_PRIVATE_KEY!
-);
-
 export async function POST(request: Request) {
+    // Admin permission is required for fetching all subscriptions and inserting logs
+    // Lazy initialization to prevent build-time errors if keys are missing
+    const supabaseAdmin = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || 'MISSING_KEY' // Prevent crash if missing, handle at runtime
+    );
+
+
+    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+        console.warn('VAPID keys are missing. Push notifications will fail.');
+    } else {
+        webpush.setVapidDetails(
+            process.env.VAPID_SUBJECT || 'mailto:admin@dormichan.com',
+            process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+            process.env.VAPID_PRIVATE_KEY
+        );
+    }
+
     try {
         const { date, type } = await request.json(); // e.g., date: '2024-03-10', type: 'period_start'
 

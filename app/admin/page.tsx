@@ -50,7 +50,6 @@ export default function AdminMainPage() {
         "postgres_changes",
         { event: "*", schema: "public", table: "leave_requests" },
         () => {
-          console.log("Leave request changed, refreshing dashboard...");
           fetchDashboardData();
         }
       )
@@ -139,7 +138,7 @@ export default function AdminMainPage() {
 
       setRecentActivities(activitiesWithTeachers);
     } catch (error) {
-      console.error("Dashboard data fetch error:", error);
+      // Silent fail or toast error
     } finally {
       setIsLoading(false);
     }
