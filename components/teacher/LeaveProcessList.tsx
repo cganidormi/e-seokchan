@@ -11,7 +11,6 @@ interface LeaveProcessListProps {
     onCancel: (requestId: string | number) => void;
     teacherName: string;
     teacherId: string;
-    onLogout: () => void;
 }
 
 export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
@@ -20,7 +19,6 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     onCancel,
     teacherName,
     teacherId,
-    onLogout
 }) => {
     // Unified View Mode: 'my_active' | 'all_active' | 'past_all'
     const [unifiedViewMode, setUnifiedViewMode] = useState<'my_active' | 'all_active' | 'past_all'>('my_active');
@@ -83,12 +81,6 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                     <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
                     <div className="flex items-baseline gap-2">
                         <h1 className="text-xl font-extrabold text-gray-800">이석 처리 ({teacherName} 감독선생님)</h1>
-                        <button
-                            onClick={onLogout}
-                            className="text-xs text-red-500 hover:text-red-700 underline font-bold"
-                        >
-                            로그아웃
-                        </button>
                     </div>
                 </div>
             </div>

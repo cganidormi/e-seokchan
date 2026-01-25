@@ -111,21 +111,26 @@ export default function TimetablePage() {
     }
   };
 
-  const handleTimeInputChange = (id: number, field: 'start_time' | 'end_time', value: string) => {
+  const handleInputChange = (id: number, field: 'start_time' | 'end_time' | 'description', value: string) => {
     if (value === undefined || value === null) return;
 
-    // Only allow numbers and colon
-    let cleaned = value.replace(/[^0-9:]/g, '');
+    if (field === 'start_time' || field === 'end_time') {
+      // Only allow numbers and colon
+      let cleaned = value.replace(/[^0-9:]/g, '');
 
-    // Auto-colon logic
-    if (cleaned.length === 3 && !cleaned.includes(':') && !value.includes(':')) {
-      cleaned = cleaned.substring(0, 2) + ':' + cleaned.substring(2);
-    } else if (cleaned.length === 4 && !cleaned.includes(':')) {
-      cleaned = cleaned.substring(0, 2) + ':' + cleaned.substring(2);
+      // Auto-colon logic
+      if (cleaned.length === 3 && !cleaned.includes(':') && !value.includes(':')) {
+        cleaned = cleaned.substring(0, 2) + ':' + cleaned.substring(2);
+      } else if (cleaned.length === 4 && !cleaned.includes(':')) {
+        cleaned = cleaned.substring(0, 2) + ':' + cleaned.substring(2);
+      }
+
+      if (cleaned.length > 5) cleaned = cleaned.substring(0, 5);
+      setData(prev => prev.map(item => item.id === id ? { ...item, [field]: cleaned } : item));
+    } else {
+      // Description update
+      setData(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
     }
-
-    if (cleaned.length > 5) cleaned = cleaned.substring(0, 5);
-    setData(prev => prev.map(item => item.id === id ? { ...item, [field]: cleaned } : item));
   };
 
   const validateTime = (time: string) => {
@@ -150,7 +155,11 @@ export default function TimetablePage() {
       const changed = data.filter((item) => {
         const original = originalData.find(o => o.id === item.id);
         if (!original) return true;
-        return item.start_time !== original.start_time || item.end_time !== original.end_time;
+        return (
+          item.start_time !== original.start_time ||
+          item.end_time !== original.end_time ||
+          item.description !== original.description
+        );
       });
 
       if (changed.length === 0) {
@@ -166,7 +175,8 @@ export default function TimetablePage() {
       for (const item of changed) {
         const updateData = {
           start_time: item.start_time.substring(0, 5) + ':00',
-          end_time: item.end_time.substring(0, 5) + ':00'
+          end_time: item.end_time.substring(0, 5) + ':00',
+          description: item.description
         };
 
         const { data: updateResult, error } = await supabase
@@ -189,8 +199,6 @@ export default function TimetablePage() {
       if (successCount === changed.length) {
         toast.success(`${successCount}개의 교시 정보가 저장되었습니다.`);
         setOriginalData(JSON.parse(JSON.stringify(data)));
-
-        // 데이터베이스에서 다시 불러와서 검증 (Optional, skipping for now to save complexity)
 
       } else if (successCount > 0) {
         toast.error(`${changed.length}개 중 ${successCount}개만 저장되었습니다. 에러: ${failMessage}`);
@@ -216,8 +224,9 @@ export default function TimetablePage() {
   const categories = [
     { title: '📅 평일 주간 (Day)', filter: (dt: string) => dt.includes('weekday day') },
     { title: '🌙 평일 야간 (Night)', filter: (dt: string) => dt.includes('weekday night') },
-    { title: '☀️ 주말/공휴일 주간', filter: (dt: string) => dt.includes('weekend day') },
-    { title: '✨ 주말/공휴일 야간', filter: (dt: string) => dt.includes('weekend night') },
+    { title: '🌅 주말/공휴일 오전 (Morning)', filter: (dt: string) => dt.includes('weekend morning') },
+    { title: '☀️ 주말/공휴일 오후 (Afternoon)', filter: (dt: string) => dt.includes('weekend day') },
+    { title: '✨ 주말/공휴일 야간 (Night)', filter: (dt: string) => dt.includes('weekend night') },
   ];
 
   return (
@@ -264,8 +273,14 @@ export default function TimetablePage() {
 
                   return (
                     <div key={entry.id} className="grid grid-cols-4 items-center gap-2 p-2 rounded-2xl bg-gray-50 hover:bg-yellow-50/50 transition-colors border border-transparent hover:border-yellow-100 group">
-                      <div className="col-span-2">
-                        <span className="text-sm font-bold text-gray-700">{entry.description}</span>
+                      <div className="col-span-2 flex flex-col gap-1">
+                        <input
+                          type="text"
+                          value={entry.description || ''}
+                          onChange={(e) => handleInputChange(entry.id, 'description', e.target.value)}
+                          className="text-sm font-bold text-gray-700 bg-transparent border-b border-transparent focus:border-yellow-400 outline-none transition-colors w-full"
+                          placeholder="교시명"
+                        />
                         <span className="text-[10px] text-gray-400 block font-medium uppercase tracking-tight">{entry.day_type}</span>
                       </div>
                       <div>
@@ -273,7 +288,7 @@ export default function TimetablePage() {
                           type="text"
                           placeholder="HH:mm"
                           value={entry.start_time?.substring(0, 5) || ''}
-                          onChange={(e) => handleTimeInputChange(entry.id, 'start_time', e.target.value)}
+                          onChange={(e) => handleInputChange(entry.id, 'start_time', e.target.value)}
                           className={clsx(
                             "w-full bg-white border rounded-xl px-1 py-1.5 text-xs font-black text-center transition-all outline-none",
                             isStartValid
@@ -287,7 +302,7 @@ export default function TimetablePage() {
                           type="text"
                           placeholder="HH:mm"
                           value={entry.end_time?.substring(0, 5) || ''}
-                          onChange={(e) => handleTimeInputChange(entry.id, 'end_time', e.target.value)}
+                          onChange={(e) => handleInputChange(entry.id, 'end_time', e.target.value)}
                           className={clsx(
                             "w-full bg-white border rounded-xl px-1 py-1.5 text-xs font-black text-center transition-all outline-none",
                             isEndValid

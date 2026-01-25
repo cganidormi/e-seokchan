@@ -9,6 +9,8 @@ import { Student, Teacher, LeaveRequest } from '@/components/student/types';
 import { LeaveRequestForm } from '@/components/student/LeaveRequestForm';
 import { LeaveStatusList } from '@/components/student/LeaveStatusList';
 import WeeklyReturnApplicationCard from '@/components/student/WeeklyReturnApplicationCard';
+import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
+import PullToRefresh from '@/components/PullToRefresh';
 
 export default function StudentPage() {
   const [studentId, setStudentId] = useState('');
@@ -200,37 +202,38 @@ export default function StudentPage() {
     <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
       <Toaster />
 
+      {/* Persistent Notification Warning */}
+      {studentId && (
+        <NotificationPermissionBanner userId={studentId} userType="student" />
+      )}
+
       {/* Header with Logout */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold text-gray-800">
           {currentStudent?.name || studentId} 학생
         </h1>
-        <button
-          onClick={handleLogout}
-          className="bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-        >
-          로그아웃
-        </button>
       </div>
 
-      <div className="flex flex-col gap-8">
-        <WeeklyReturnApplicationCard student={currentStudent} />
-        <LeaveRequestForm
-          studentId={studentId}
-          students={students}
-          teachers={teachers}
-          onSubmitSuccess={() => fetchLeaveRequests(studentId)}
-          initialData={initialFormData}
-        />
-        <LeaveStatusList
-          leaveRequests={leaveRequests}
-          onCancel={handleCancelRequest}
-          onCopy={handleCopyRequest}
-          leaveTypes={['컴이석', '이석', '외출', '외박', '자리비움']}
-          students={students}
-          studentId={studentId}
-        />
-      </div>
+      <PullToRefresh onRefresh={() => studentId ? fetchLeaveRequests(studentId) : Promise.resolve()}>
+        <div className="flex flex-col gap-8">
+          <WeeklyReturnApplicationCard student={currentStudent} />
+          <LeaveRequestForm
+            studentId={studentId}
+            students={students}
+            teachers={teachers}
+            onSubmitSuccess={() => fetchLeaveRequests(studentId)}
+            initialData={initialFormData}
+          />
+          <LeaveStatusList
+            leaveRequests={leaveRequests}
+            onCancel={handleCancelRequest}
+            onCopy={handleCopyRequest}
+            leaveTypes={['컴이석', '이석', '외출', '외박', '자리비움']}
+            students={students}
+            studentId={studentId}
+          />
+        </div>
+      </PullToRefresh>
     </div>
   );
 }

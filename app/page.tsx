@@ -94,17 +94,27 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-500 to-yellow-400 flex items-center justify-center p-6">
+    <div
+      className="min-h-screen flex items-center justify-center p-6 text-center text-white relative overflow-hidden"
+      style={{
+        backgroundImage: `url('/dorm.jpg')`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
       <Toaster />
-      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden p-8 text-center animate-fade-in-up">
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-0"></div>
+
+      <div className="z-10 bg-white/10 backdrop-blur-md border border-white/20 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden p-8 text-center animate-fade-in-up relative">
 
         {/* Logo Section */}
         <div className="mb-8">
-          <div className="w-24 h-24 bg-orange-100 rounded-[2rem] mx-auto flex items-center justify-center mb-6 shadow-inner">
+          <div className="w-24 h-24 bg-white/20 rounded-[2rem] mx-auto flex items-center justify-center mb-6 shadow-inner backdrop-blur-sm border border-white/10">
             <span className="text-5xl">🏫</span>
           </div>
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">이석찬</h1>
-          <p className="text-gray-500 font-medium">
+          <h1 className="text-3xl font-extrabold text-white mb-2 tracking-wide drop-shadow-md">이석찬</h1>
+          <p className="text-gray-200 font-medium">
             기숙사 생활의 모든 것<br />
             앱으로 더 편리하게 시작하세요
           </p>
@@ -117,7 +127,7 @@ export default function Home() {
             <div className="flex flex-col gap-4">
               <button
                 onClick={handleInstallClick}
-                className="w-full bg-orange-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-orange-700 active:scale-95 transition-all flex items-center justify-center gap-2 text-lg"
+                className="w-full bg-gradient-to-r from-orange-500 to-pink-500 text-white font-bold py-4 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2 text-lg border border-white/20"
               >
                 {(deferredPrompt) ? '📲 앱 설치하고 시작하기' : '✨ 앱으로 시작하기'}
               </button>
@@ -128,26 +138,24 @@ export default function Home() {
             </div>
           ) : (
             // iOS Guide Box
-            <div className="bg-gray-50 p-4 rounded-2xl text-left border border-gray-100">
-              <p className="font-bold text-gray-800 mb-3 text-center">📱 아이폰/아이패드 설치 방법</p>
-              <div className="space-y-3 text-sm text-gray-600">
+            <div className="bg-black/30 p-4 rounded-2xl text-left border border-white/10 backdrop-blur-sm">
+              <p className="font-bold text-white mb-3 text-center">📱 아이폰/아이패드 설치 방법</p>
+              <div className="space-y-3 text-sm text-gray-200">
                 <div className="flex items-center gap-3">
-                  <span className="bg-white p-2 rounded-lg shadow-sm">1</span>
-                  <span>브라우저 상단 또는 하단 <strong>공유 버튼</strong><img src="/ios-share.svg" className="inline w-4 h-4 mx-1" alt="share" />터치</span>
+                  <span className="bg-white/20 p-2 rounded-lg shadow-sm shrink-0 font-bold">1</span>
+                  <span>브라우저 상단 또는 하단 <strong className="text-white">공유 버튼</strong><img src="/ios-share.svg" className="inline w-4 h-4 mx-1 brightness-200" alt="share" />터치</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="bg-white p-2 rounded-lg shadow-sm">2</span>
-                  <span>메뉴에서 <strong>'홈 화면에 추가'</strong> 선택</span>
+                  <span className="bg-white/20 p-2 rounded-lg shadow-sm shrink-0 font-bold">2</span>
+                  <span>메뉴에서 <strong className="text-white">'홈 화면에 추가'</strong> 선택</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="bg-white p-2 rounded-lg shadow-sm">3</span>
-                  <span>상단 <strong>'추가'</strong> 버튼 누르면 완료!</span>
+                  <span className="bg-white/20 p-2 rounded-lg shadow-sm shrink-0 font-bold">3</span>
+                  <span>상단 <strong className="text-white">'추가'</strong> 버튼 누르면 완료!</span>
                 </div>
               </div>
             </div>
           )}
-
-          {/* Fallback Link Removed for Mandatory PWA Install */}
         </div>
       </div>
     </div>

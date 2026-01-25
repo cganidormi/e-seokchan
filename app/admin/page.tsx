@@ -183,11 +183,11 @@ export default function AdminMainPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 bg-white min-h-screen text-gray-900">
       <Toaster />
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold mb-2">관리자 대시보드</h1>
+          <h1 className="text-3xl font-bold mb-2 text-gray-900">관리자 대시보드</h1>
           <p className="text-gray-600">기숙사 관리 시스템 현황을 한눈에 확인하세요</p>
         </div>
         <button

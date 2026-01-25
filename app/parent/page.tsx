@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
 import WeeklyReturnApplicationCard from '@/components/student/WeeklyReturnApplicationCard';
+import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 
 // 헬퍼: VAPID 키를 Uint8Array로 변환
 function urlBase64ToUint8Array(base64String: string) {
@@ -311,11 +312,19 @@ function ParentContent() {
     // Only show if NOT standalone
     if (isChecked && !isStandalone) {
         return (
-            <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 text-center text-white relative overflow-hidden">
-                {/* Background Decoration */}
-                <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[140%] bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
+            <div
+                className="min-h-screen flex flex-col items-center justify-center p-6 text-center text-white relative overflow-hidden"
+                style={{
+                    backgroundImage: `url('/dorm.jpg')`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                }}
+            >
+                {/* Overlay for better readability */}
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-0"></div>
 
-                <div className="z-10 bg-white/10 backdrop-blur-lg border border-white/20 p-8 rounded-3xl shadow-2xl max-w-sm w-full">
+                {/* Content */}
+                <div className="z-10 bg-white/10 backdrop-blur-md border border-white/20 p-8 rounded-3xl shadow-2xl max-w-sm w-full relative">
                     <div className="text-6xl mb-6">📲</div>
                     <h1 className="text-2xl font-bold mb-2">앱 설치가 필요합니다</h1>
                     <p className="text-gray-200 text-sm mb-8 leading-relaxed">
@@ -433,22 +442,14 @@ function ParentContent() {
             <main className="p-4 max-w-lg mx-auto space-y-6">
 
                 {/* Notification Settings */}
-                {!isSubscribed && (
-                    <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex flex-col gap-3 animate-fade-in-down">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xl">🔔</span>
-                            <div>
-                                <p className="font-bold text-blue-900">알림 설정이 필요합니다</p>
-                                <p className="text-xs text-blue-600">외출/외박 승인 요청을 실시간으로 받아보세요.</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={subscribeToPush}
-                            className="w-full bg-blue-600 text-white font-bold py-2 rounded-lg shadow-sm active:scale-95 transition-all text-sm"
-                        >
-                            알림 받기
-                        </button>
-                    </div>
+                {/* Notification Settings */}
+                {/* Replaced with Persistent Banner */}
+                {student && (
+                    <NotificationPermissionBanner
+                        userId={student.student_id ? student.student_id : 'parent'}
+                        userType="parent"
+                        parentToken={token || localStorage.getItem('dormichan_parent_token') || ''}
+                    />
                 )}
 
                 {/* Weekly Return Application (Monthly 10th-12th) */}

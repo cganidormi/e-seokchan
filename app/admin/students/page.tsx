@@ -273,9 +273,108 @@ export default function StudentsPage() {
     }
 
     toast.success(`${targetGrade}학년 변경된 ${changed.length}명 저장 완료`);
+
+    // -------------------------
+    // Credentials CSV Download
+    // -------------------------
+    if (changed.length > 0) {
+      // Fetch latest auth info for changed students to get passwords
+      const studentIds = changed.map(s => toStudentId(s)).filter(Boolean) as string[];
+      if (studentIds.length > 0) {
+        const { data: authData } = await supabase
+          .from("students_auth")
+          .select("student_id, temp_password")
+          .in("student_id", studentIds);
+
+        if (authData && authData.length > 0) {
+          const csvRows = [
+            ["학년", "반", "번호", "이름", "아이디", "임시비밀번호", "학부모링크"]
+          ];
+
+          changed.forEach(s => {
+            const sid = toStudentId(s);
+            const auth = authData.find(a => a.student_id === sid);
+            if (sid && auth) {
+              const link = s.parent_token ? `${window.location.origin}/parent?token=${s.parent_token}` : '';
+              csvRows.push([
+                s.grade.toString(),
+                s.class.toString(),
+                s.number.toString(),
+                s.name,
+                sid,
+                auth.temp_password || '',
+                link
+              ]);
+            }
+          });
+
+          if (csvRows.length > 1) {
+            const csvContent = "\uFEFF" + csvRows.map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `${targetGrade}학년_계정정보_업데이트_${new Date().toLocaleDateString()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast.success("계정 정보 파일이 다운로드되었습니다.");
+          }
+        }
+      }
+    }
+
     // 깊은 복사로 원본 상태 업데이트
     setOriginalStudents(JSON.parse(JSON.stringify(students)));
     fetchStudents();
+  };
+
+  // -------------------------
+  // 전체 계정 정보 다운로드 (학년별)
+  // -------------------------
+  const handleDownloadCredentials = async (grade: number) => {
+    const gradeStudents = students.filter(s => s.grade === grade && s.name);
+    if (gradeStudents.length === 0) {
+      toast.error("다운로드할 학생 데이터가 없습니다.");
+      return;
+    }
+
+    const studentIds = gradeStudents.map(s => s.name ? `${s.grade}${s.class}${String(s.number).padStart(2, "0")}${s.name}` : '').filter(Boolean);
+
+    const { data: authData } = await supabase
+      .from("students_auth")
+      .select("student_id, temp_password")
+      .in("student_id", studentIds);
+
+    const csvRows = [
+      ["학년", "반", "번호", "이름", "아이디", "임시비밀번호", "학부모링크"]
+    ];
+
+    gradeStudents.forEach(s => {
+      const sid = `${s.grade}${s.class}${String(s.number).padStart(2, "0")}${s.name}`;
+      const auth = authData?.find(a => a.student_id === sid);
+      const link = s.parent_token ? `${window.location.origin}/parent?token=${s.parent_token}` : '';
+
+      csvRows.push([
+        s.grade.toString(),
+        s.class.toString(),
+        s.number.toString(),
+        s.name,
+        sid,
+        auth?.temp_password || '설정안됨',
+        link
+      ]);
+    });
+
+    const csvContent = "\uFEFF" + csvRows.map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${grade}학년_전체계정정보_${new Date().toLocaleDateString()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // -------------------------
@@ -351,25 +450,33 @@ export default function StudentsPage() {
   // UI
   // -------------------------
   return (
-    <div className="p-4 space-y-8 overflow-x-auto">
+    <div className="p-4 space-y-8 overflow-x-auto bg-white min-h-screen text-gray-900">
       <Toaster position="top-right" />
 
       {grades.map((grade) => (
         <div key={grade}>
           <div className="flex items-center mb-4 gap-2">
-            <h2 className="font-bold text-xl">{grade}학년</h2>
-            <button
-              onClick={() => handleSave(grade)}
-              className="px-3 py-1 bg-gray-200 rounded-xl shadow-inner hover:shadow-md"
-            >
-              저장
-            </button>
-            <button
-              onClick={() => handleReset(grade)}
-              className="px-3 py-1 bg-red-200 rounded-xl shadow-inner hover:shadow-md"
-            >
-              초기화
-            </button>
+            <h2 className="font-bold text-xl text-gray-900">{grade}학년</h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleSave(grade)}
+                className="px-3 py-1 bg-blue-100 text-blue-800 rounded-xl shadow-inner hover:shadow-md font-bold text-sm whitespace-nowrap"
+              >
+                변경 저장
+              </button>
+              <button
+                onClick={() => handleDownloadCredentials(grade)}
+                className="px-3 py-1 bg-green-100 text-green-800 rounded-xl shadow-inner hover:shadow-md font-bold text-sm whitespace-nowrap"
+              >
+                계정 다운로드
+              </button>
+              <button
+                onClick={() => handleReset(grade)}
+                className="px-3 py-1 bg-red-100 text-red-800 rounded-xl shadow-inner hover:shadow-md text-sm whitespace-nowrap"
+              >
+                초기화
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -378,7 +485,7 @@ export default function StudentsPage() {
                 key={cls}
                 className="min-w-[200px] p-3 rounded-xl bg-gray-100 shadow-inner"
               >
-                <h3 className="font-semibold mb-2">{cls}반</h3>
+                <h3 className="font-semibold mb-2 text-gray-900">{cls}반</h3>
 
                 <div className="flex flex-col gap-2">
                   {numbers.map((num) => {
@@ -393,7 +500,7 @@ export default function StudentsPage() {
 
                     return (
                       <div key={num} className="flex items-center gap-2">
-                        <span className="w-12 text-right text-sm">
+                        <span className="w-12 text-right text-sm text-gray-900 font-medium">
                           {getStudentNumber(grade, cls, num)}
                         </span>
 
@@ -404,7 +511,7 @@ export default function StudentsPage() {
                             handleNameChange(grade, cls, num, e.target.value)
                           }
                           onPaste={(e) => handlePaste(grade, cls, num, e)}
-                          className="flex-1 max-w-[80px] px-2 py-1 rounded-lg border border-gray-300 text-sm shadow-inner"
+                          className="flex-1 max-w-[80px] px-2 py-1 rounded-lg border border-gray-300 text-sm shadow-inner text-gray-900 bg-white"
                         />
 
                         <label className="flex items-center gap-1 cursor-pointer text-sm">

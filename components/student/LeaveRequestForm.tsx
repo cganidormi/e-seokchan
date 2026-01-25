@@ -145,7 +145,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
                         if (p.startsWith('주간')) matchType = 'weekday day';
                         else if (p.startsWith('야간')) matchType = isHoliday ? 'weekend night' : 'weekday night';
-                        else if (p.startsWith('오전')) matchType = 'weekend day';
+                        else if (p.startsWith('오전')) matchType = 'weekend morning';
                         else if (p.startsWith('오후')) matchType = 'weekend day';
 
                         const entry = timetable.find(t => {
@@ -296,7 +296,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         const periodNum = p.match(/\d+/) ? p.match(/\d+/)![0] : '';
                         if (p.startsWith('주간')) matchType = 'weekday day';
                         else if (p.startsWith('야간')) matchType = isHoliday ? 'weekend night' : 'weekday night';
-                        else if (p.startsWith('오전')) matchType = 'weekend day';
+                        else if (p.startsWith('오전')) matchType = 'weekend morning';
                         else if (p.startsWith('오후')) matchType = 'weekend day';
 
                         const entry = timetable.find(t => {

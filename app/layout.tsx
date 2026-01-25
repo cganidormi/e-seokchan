@@ -5,15 +5,15 @@ import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 export const metadata: Metadata = {
   title: "이석찬",
   description: "기숙사 이석/외박 관리 시스템",
-  manifest: "/manifest.json",
+  manifest: "/manifest.json?v=6",
   icons: {
-    icon: "/icon-192x192.png",
-    apple: "/icon-192x192.png",
+    icon: "/icon-v3-192.png?v=6",
+    apple: "/icon-v3-192.png?v=6",
   }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f97316",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({

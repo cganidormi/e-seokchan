@@ -175,6 +175,8 @@ export default function TeachersPage() {
       return;
     }
 
+    const createdCredentials: string[] = [];
+
     for (const t of changed) {
       // teacher_id 생성 (이름 기반)
       const newTeacherId = generateTeacherID(t.name);
@@ -197,7 +199,6 @@ export default function TeachersPage() {
       t.teacher_id = newTeacherId;
 
       // 1. 계정(teachers_auth) 생성/업데이트
-      // 계정 생성이 실패하면 teachers 테이블에도 넣지 않아야 "로그인 안되는 교사"가 생기지 않음
       const { data: existing } = await supabase
         .from("teachers_auth")
         .select("*")
@@ -216,14 +217,26 @@ export default function TeachersPage() {
       if (authError) {
         console.error("Auth creation failed:", authError);
         toast.error(`'${t.name}' 계정 생성 실패: ${authError.message}`);
-        continue; // 이 교사는 저장 건너뜀
+        continue;
+      }
+
+      // 신규 계정이거나 비번이 변경된 경우 알림 목록에 추가
+      if (!existing || existing.temp_password !== tempPassword) {
+        createdCredentials.push(`${t.name} 선생님: ID=${newTeacherId}, PW=${tempPassword}`);
+      }
+      // 하지만 기존 계정이 있어도 관리자가 '저장'을 눌렀다는 건 신규 등록일 수도 있으니 안전하게 보여주는 게 좋음
+      // 여기서는 '신규 생성'된 경우에만 보여주거나, 아니면 그냥 다 보여주는 게 나을 수도.
+      // 일단 '신규 교사'인 경우에만 확실히 보여주자.
+      const isNewTeacher = !originalTeachers.find(ot => ot.id === t.id);
+      if (isNewTeacher) {
+        // 중복 push 방지
+        if (!createdCredentials.some(s => s.startsWith(`${t.name} 선생님`))) {
+          createdCredentials.push(`${t.name} 선생님: ID=${newTeacherId}, PW=${tempPassword}`);
+        }
       }
 
       // 2. teachers 테이블 업데이트/삽입
-      const isNewTeacher = !originalTeachers.find(ot => ot.id === t.id);
-
       if (isNewTeacher) {
-        // 신규 교사 추가
         const { error } = await supabase
           .from("teachers")
           .insert({
@@ -238,7 +251,6 @@ export default function TeachersPage() {
           toast.error(`저장 실패: ${t.name}`);
         }
       } else {
-        // 기존 교사 업데이트
         const { error } = await supabase
           .from("teachers")
           .update({
@@ -258,6 +270,10 @@ export default function TeachersPage() {
 
     toast.success(`작업 완료`);
     fetchTeachers();
+
+    if (createdCredentials.length > 0) {
+      alert(`[계정 생성 완료]\n\n다음 정보를 선생님들께 전달해주세요:\n\n${createdCredentials.join('\n\n')}`);
+    }
   };
 
   // ----------------------------------------
@@ -300,7 +316,7 @@ export default function TeachersPage() {
   // UI
   // ----------------------------------------
   return (
-    <div className="p-4 space-y-6 overflow-x-auto">
+    <div className="p-4 space-y-6 overflow-x-auto bg-white min-h-screen text-gray-900">
       <Toaster position="top-right" />
 
       {/* 상단 버튼 */}
@@ -340,57 +356,69 @@ export default function TeachersPage() {
           teachers.map((t) => (
             <div
               key={t.id}
-              className="flex flex-col md:flex-row md:items-center gap-3 bg-white md:bg-gray-100 p-4 md:p-2 rounded-xl shadow-sm md:shadow-inner border border-gray-200 md:border-transparent"
+              className="flex items-center gap-2 bg-white p-3 rounded-xl shadow-sm border border-gray-100 overflow-x-auto"
             >
-              <div className="flex gap-2 w-full md:w-auto">
-                {/* 이름 */}
+              {/* 이름 */}
+              <input
+                type="text"
+                value={t.name}
+                placeholder="이름"
+                onChange={(e) => handleFieldChange(t.id, "name", e.target.value)}
+                className="w-20 px-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-center bg-gray-50 focus:bg-white transition-colors"
+                title={generateTeacherID(t.name) ? `ID: ${generateTeacherID(t.name)}` : 'ID 생성 예정'}
+              />
+
+              {/* 직책 */}
+              <input
+                type="text"
+                value={t.position}
+                placeholder="직책"
+                onChange={(e) => handleFieldChange(t.id, "position", e.target.value)}
+                className="w-20 px-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-center bg-gray-50 focus:bg-white transition-colors"
+              />
+
+              {/* 승인권한 */}
+              <label className="flex items-center justify-center cursor-pointer px-2 py-1.5 rounded-lg hover:bg-gray-50 transition border border-transparent hover:border-gray-100">
                 <input
-                  type="text"
-                  value={t.name}
-                  placeholder="이름"
-                  onChange={(e) =>
-                    handleFieldChange(t.id, "name", e.target.value)
-                  }
-                  className="w-20 px-2 py-2 md:py-1 rounded-lg border border-gray-300 shadow-sm md:shadow-inner text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none text-center"
+                  type="checkbox"
+                  checked={t.can_approve}
+                  onChange={() => toggleApprove(t.id)}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
                 />
+                <span className="text-xs text-gray-500 ml-1.5 whitespace-nowrap">승인권한</span>
+              </label>
 
-                {/* 직책 */}
-                <input
-                  type="text"
-                  value={t.position}
-                  placeholder="직책"
-                  onChange={(e) =>
-                    handleFieldChange(t.id, "position", e.target.value)
-                  }
-                  className="w-20 px-2 py-2 md:py-1 rounded-lg border border-gray-300 shadow-sm md:shadow-inner text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none text-center"
-                />
-              </div>
+              <div className="flex-1"></div>
 
-              <div className="flex items-center justify-between w-full md:w-auto gap-4 md:flex-1">
-                {/* 승인권한 */}
-                <label className="flex items-center gap-2 cursor-pointer bg-gray-50 md:bg-transparent px-2 py-1 rounded-lg md:p-0 border border-gray-100 md:border-none">
-                  <input
-                    type="checkbox"
-                    checked={t.can_approve}
-                    onChange={() => toggleApprove(t.id)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-600">승인권한</span>
-                </label>
+              <div className="flex items-center gap-1">
+                {/* 비번 초기화 */}
+                {originalTeachers.find(ot => ot.id === t.id) && t.teacher_id && (
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`'${t.name}' 선생님의 비밀번호를 초기화하시겠습니까?`)) return;
+                      const newPw = generateTempPassword();
+                      const { error } = await supabase.from('teachers_auth').update({
+                        temp_password: newPw,
+                        must_change_password: true
+                      }).eq('teacher_id', t.teacher_id);
 
-                {/* 생성된 ID 표시 (미리보기) */}
-                <span className="text-xs text-green-700 font-mono truncate max-w-[100px] md:max-w-none text-right">
-                  {t.name ? (
-                    generateTeacherID(t.name) ? `ID: ${generateTeacherID(t.name)}` : ""
-                  ) : (
-                    <span className="text-gray-400">ID 생성 예정</span>
-                  )}
-                </span>
+                      if (error) toast.error('초기화 실패');
+                      else {
+                        alert(`[비밀번호 초기화 완료]\n\n선생님: ${t.name}\n임시 비밀번호: ${newPw}\n\n이 정보를 선생님께 전달해주세요.`);
+                      }
+                    }}
+                    className="px-2.5 py-1.5 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 active:scale-95 transition text-xs font-bold whitespace-nowrap"
+                    title="비밀번호 초기화"
+                  >
+                    비번초기화
+                  </button>
+                )}
 
-                {/* 삭제 버튼 */}
+                {/* 삭제 */}
                 <button
                   onClick={() => handleDeleteTeacher(t.id)}
-                  className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 active:scale-95 transition text-sm font-medium whitespace-nowrap"
+                  className="px-2.5 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-100 active:scale-95 transition text-xs font-bold whitespace-nowrap"
+                  title="삭제"
                 >
                   삭제
                 </button>

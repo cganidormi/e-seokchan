@@ -6,6 +6,8 @@ import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
 import { LeaveProcessList } from '@/components/teacher/LeaveProcessList';
 import { LeaveRequest } from '@/components/teacher/types';
+import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
+import PullToRefresh from '@/components/PullToRefresh';
 
 export default function TeacherPage() {
   const [teacherId, setTeacherId] = useState<string | null>(null);
@@ -72,28 +74,66 @@ export default function TeacherPage() {
   useEffect(() => {
     if (!teacherId || !teacherName) return;
 
-    const channel = supabase
-      .channel('leave_requests_teacher_global')
+    // Separate channels for clarity and reliability
+    const channel1 = supabase
+      .channel('teacher_main_requests')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_requests' },
-        () => {
+        (payload) => {
+          console.log('[Realtime] leave_requests changed:', payload);
           fetchLeaveRequests(teacherId, teacherName);
         }
       )
+      .subscribe();
+
+    const channel2 = supabase
+      .channel('teacher_sub_students')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_request_students' },
-        () => {
+        (payload) => {
+          console.log('[Realtime] leave_request_students changed:', payload);
           fetchLeaveRequests(teacherId, teacherName);
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channel1);
+      supabase.removeChannel(channel2);
     };
   }, [teacherId, teacherName]);
+
+  // 자동 알림 구독 시도
+  useEffect(() => {
+    const autoSubscribe = async () => {
+      if (!teacherId) return;
+      if (!('serviceWorker' in navigator)) return;
+
+      try {
+        const permission = Notification.permission;
+        if (permission === 'granted') {
+          // 이미 권한이 있으면 조용히 구독 갱신 시도
+          const registration = await navigator.serviceWorker.ready;
+          const sub = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+          });
+
+          // DB 업데이트 (중복 무시됨 or 업데이트)
+          await supabase.from('push_subscriptions').upsert({
+            teacher_id: teacherId,
+            subscription_json: sub
+          }, { onConflict: 'teacher_id, subscription_json' }); // 단순화를 위해. 스키마에 따라 다를 수 있음. 실제로는 insert하고 에러 무시가 나음.
+        }
+      } catch (e) {
+        console.log('Auto subscribe failed', e);
+      }
+    };
+
+    autoSubscribe();
+  }, [teacherId]);
 
   const fetchLeaveRequests = async (id: string, name: string) => {
     try {
@@ -248,8 +288,25 @@ export default function TeacherPage() {
     <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
       <Toaster />
 
-      {/* Admin & Notification Buttons */}
+      {/* Persistent Notification Warning */}
+      {teacherId && (
+        <NotificationPermissionBanner userId={teacherId} userType="teacher" />
+      )}
+
+      {/* Admin Buttons & Refresh */}
       <div className="flex justify-end mb-4 gap-2">
+        <button
+          onClick={() => {
+            if (teacherId && teacherName) {
+              fetchLeaveRequests(teacherId, teacherName);
+              toast.success('새로고침 완료');
+            }
+          }}
+          className="bg-white border border-gray-300 text-gray-600 font-bold py-2 px-3 rounded-xl shadow-sm hover:bg-gray-50 transition-all flex items-center gap-1 text-sm"
+        >
+          <span>🔄</span>
+        </button>
+
         {teacherPosition === '관리자' && (
           <button
             onClick={() => router.push('/admin')}
@@ -259,74 +316,17 @@ export default function TeacherPage() {
             <span>관리자</span>
           </button>
         )}
-
-        {/* Subscribe Notification Button */}
-        {teacherId && (
-          <button
-            onClick={async () => {
-              if (!('serviceWorker' in navigator)) {
-                toast.error('이 브라우저는 알림을 지원하지 않습니다.');
-                return;
-              }
-              try {
-                const permission = await Notification.requestPermission();
-                if (permission !== 'granted') {
-                  toast.error('알림 권한이 거부되었습니다.');
-                  return;
-                }
-
-                const registration = await navigator.serviceWorker.ready;
-                if (!registration) {
-                  toast.error('서비스 워커가 준비되지 않았습니다.');
-                  return;
-                }
-
-                const sub = await registration.pushManager.subscribe({
-                  userVisibleOnly: true,
-                  applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-                });
-
-                // Save to DB
-                const { error } = await supabase.from('push_subscriptions').insert({
-                  teacher_id: teacherId,
-                  subscription_json: sub
-                });
-
-                if (error) throw error;
-                toast.success('알림 구독 완료! 테스트 메시지를 보냅니다.');
-
-                // Send Test Message
-                await fetch('/api/web-push', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    subscription: sub,
-                    title: '알림 테스트',
-                    message: '선생님 알림이 성공적으로 설정되었습니다.'
-                  })
-                });
-
-              } catch (err) {
-                console.error(err);
-                toast.error('알림 구독 실패');
-              }
-            }}
-            className="bg-yellow-500 hover:bg-yellow-400 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2 text-sm"
-          >
-            <span>🔔</span>
-            <span>알림 ON</span>
-          </button>
-        )}
       </div>
 
-      <LeaveProcessList
-        leaveRequests={leaveRequests}
-        onUpdateStatus={handleUpdateStatus}
-        onCancel={handleCancelRequest}
-        teacherName={teacherName}
-        teacherId={teacherId}
-        onLogout={handleLogout}
-      />
+      <PullToRefresh onRefresh={() => teacherId && teacherName ? fetchLeaveRequests(teacherId, teacherName) : Promise.resolve()}>
+        <LeaveProcessList
+          leaveRequests={leaveRequests}
+          onUpdateStatus={handleUpdateStatus}
+          onCancel={handleCancelRequest}
+          teacherName={teacherName}
+          teacherId={teacherId}
+        />
+      </PullToRefresh>
     </div>
   );
 }

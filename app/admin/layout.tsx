@@ -43,7 +43,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         })}
       </aside>
 
-      <main className="flex-1 p-4 overflow-x-hidden">{children}</main>
+      <main className="flex-1 p-4 overflow-x-hidden bg-white text-gray-900 min-h-screen">{children}</main>
     </div>
   );
 }
