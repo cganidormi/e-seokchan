@@ -170,7 +170,7 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
                 </div>
 
                 {/* 이석 종류 필터 (가로 스크롤) */}
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                <div className="flex gap-2 justify-center overflow-x-auto no-scrollbar">
                     {['전체', ...leaveTypes].map((type) => (
                         <button
                             key={type}

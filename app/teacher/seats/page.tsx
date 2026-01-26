@@ -5,6 +5,7 @@ import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
 import clsx from 'clsx';
 import Select from 'react-select';
+import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 
 interface Student {
     student_id: string;
@@ -86,6 +87,35 @@ export default function SeatManagementPage() {
     // Student Selection Modal
     const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // History Modal State
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
+    const [historyRecords, setHistoryRecords] = useState<any[]>([]);
+
+    // Morning Checkout Modal State
+    const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
+
+    const fetchStudentHistory = async (studentId: string) => {
+        try {
+            const { data } = await supabase
+                .from('leave_requests')
+                .select('*')
+                .eq('student_id', studentId)
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (data) {
+                setHistoryRecords(data);
+                const s = students.find(st => st.student_id === studentId);
+                setHistoryStudent(s || { student_id: studentId, name: 'Unknown', grade: 0, class: 0 });
+                setIsHistoryModalOpen(true);
+            }
+        } catch (e) {
+            console.error(e);
+            toast.error('기록을 불러오지 못했습니다.');
+        }
+    };
 
     useEffect(() => {
         fetchCommonData();
@@ -668,6 +698,12 @@ export default function SeatManagementPage() {
                                         <div key={seatNum} className="relative group">
                                             {/* Rectangular Seat Card */}
                                             <div
+                                                onDoubleClick={(e) => {
+                                                    if (mode === 'monitor' && assignment?.student_id) {
+                                                        e.stopPropagation();
+                                                        fetchStudentHistory(assignment.student_id);
+                                                    }
+                                                }}
                                                 onClick={async () => {
                                                     if (mode === 'edit') {
                                                         setSelectedSeat(seatNum);
@@ -922,6 +958,104 @@ export default function SeatManagementPage() {
                     </div>
                 )
             }
+
+            {/* Student History Modal */}
+            {isHistoryModalOpen && historyStudent && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsHistoryModalOpen(false)}>
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
+                                    {historyStudent.name[0]}
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-lg font-bold text-gray-800">{historyStudent.student_id}</h3>
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
+                                                try {
+                                                    const res = await fetch('/api/teacher/summon', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            studentId: historyStudent.student_id,
+                                                            teacherName: '담당 교사' // Or pass actual teacher name found in auth
+                                                        })
+                                                    });
+                                                    if (res.ok) toast.success('호출 알림을 보냈습니다.');
+                                                    else toast.error('호출 실패');
+                                                } catch (err) {
+                                                    toast.error('오류 발생');
+                                                }
+                                            }}
+                                            className="px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded-lg hover:bg-red-200 transition-colors flex items-center gap-1"
+                                        >
+                                            <span>🔔 호출</span>
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500">최근 이석 기록 (최신순 20건)</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400">
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="overflow-y-auto p-4 flex flex-col gap-3">
+                            {historyRecords.length === 0 ? (
+                                <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
+                            ) : (
+                                historyRecords.map((rec) => {
+                                    const statusColors: any = {
+                                        '신청': 'bg-blue-50 text-blue-600',
+                                        '승인': 'bg-green-50 text-green-600',
+                                        '반려': 'bg-red-50 text-red-600',
+                                        '취소': 'bg-gray-50 text-gray-500',
+                                        '복귀': 'bg-gray-100 text-gray-600',
+                                        '학부모승인': 'bg-orange-50 text-orange-600',
+                                        '학부모승인대기': 'bg-yellow-50 text-yellow-600',
+                                    };
+
+                                    return (
+                                        <div key={rec.id} className="flex flex-col p-3 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors bg-white shadow-sm">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={clsx("px-2 py-0.5 rounded text-[10px] font-bold border border-opacity-10", statusColors[rec.status] || 'bg-gray-50 text-gray-500')}>
+                                                        {rec.status}
+                                                    </span>
+                                                    <span className="font-bold text-gray-700 text-sm">{rec.leave_type}</span>
+                                                </div>
+                                                <span className="text-[10px] text-gray-400">{new Date(rec.created_at).toLocaleDateString()}</span>
+                                            </div>
+
+                                            <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg mb-2">
+                                                {rec.leave_type === '컴이석' || rec.leave_type === '이석' ? (
+                                                    <div className="font-mono text-xs">
+                                                        {rec.period}
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        {new Date(rec.start_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
+                                                        {new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {rec.reason && (
+                                                <p className="text-[11px] text-gray-500 truncate">
+                                                    Running: {rec.reason}
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }

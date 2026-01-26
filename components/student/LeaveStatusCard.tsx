@@ -270,17 +270,24 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                     {/* 6. 취소 버튼 (우측 끝) */}
                     {!isPast && (
                         <div className="ml-auto flex items-center shrink-0">
-                            {req.student_id === currentStudentId && (req.status === '신청' || req.leave_type === '컴이석') && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
-                                    className="text-gray-500 hover:text-red-500 transition-colors p-1"
-                                    title="취소"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            )}
+                            {req.student_id === currentStudentId && (
+                                req.status === '신청' ||
+                                req.status === '학부모승인' ||
+                                req.status === '학부모승인대기' ||
+                                req.status === '승인' ||
+                                req.status === '승인전' ||
+                                req.leave_type === '컴이석'
+                            ) && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
+                                        className="text-gray-500 hover:text-red-500 transition-colors p-1"
+                                        title="취소"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                )}
                         </div>
                     )}
                 </div>

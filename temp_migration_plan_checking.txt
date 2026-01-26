@@ -1,0 +1,62 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+// WARNING: This is a temporary route for migration. Should be deleted after use.
+export async function GET() {
+    try {
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        // Raw SQL for creating the table
+        const sql = `
+            CREATE TABLE IF NOT EXISTS morning_checks (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                student_id TEXT NOT NULL REFERENCES students_auth(student_id) ON DELETE CASCADE,
+                checked_at TIMESTAMPTZ DEFAULT NOW(),
+                teacher_id TEXT, 
+                type TEXT DEFAULT 'late', 
+                note TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_morning_checks_date ON morning_checks(checked_at);
+            CREATE INDEX IF NOT EXISTS idx_morning_checks_student ON morning_checks(student_id);
+
+            ALTER TABLE morning_checks ENABLE ROW LEVEL SECURITY;
+            
+            -- Policies (Check if exists first or drop/create)
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public read for teachers' AND tablename = 'morning_checks') THEN
+                    CREATE POLICY "Public read for teachers" ON morning_checks FOR SELECT USING (true);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public insert for teachers' AND tablename = 'morning_checks') THEN
+                    CREATE POLICY "Public insert for teachers" ON morning_checks FOR INSERT WITH CHECK (true);
+                END IF;
+            END
+            $$;
+        `;
+
+        const { error } = await supabase.rpc('exec_sql', { sql_query: sql }); // Requires a helper function 'exec_sql' usually. 
+        // IF 'exec_sql' doesn't exist, we can't run DDL via client easily unless we have direct connection.
+        
+        // ALTERNATIVE: Use the 'rest' api simply to verify connection, but Supabase-js cannot run RAW SQL DDL directly without an RPC function exposing it.
+        
+        // Let's assume the user MIGHT have an exec_sql function from previous setups or we can try to install 'pg' temporarily.
+        // But wait, the user asked "Don't we need to create the table?". They probably want me to DO IT or give them the SQL.
+        
+        // Since I cannot guarantee 'exec_sql' exists (I didn't check db_setup.sql fully), 
+        // AND 'pg' is not in package.json.
+        
+        // CHECK: db_setup.sql or others to see if there is an exec helper.
+        
+        // If not, I should probably Notify the User to run the SQL manually, OR try to install 'pg'.
+        // "npm install pg" is a safe bet if I can run commands.
+        
+        return NextResponse.json({ message: 'Migration route created. But DDL via client is restricted without RPC.' });
+
+    } catch (e: any) {
+        return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+}

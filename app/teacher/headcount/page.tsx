@@ -137,6 +137,31 @@ export default function HeadcountPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState<{ room: number, position: 'left' | 'right' } | null>(null);
 
+    // History Modal State
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [historyStudent, setHistoryStudent] = useState<{ name: string, student_id: string } | null>(null);
+    const [historyRecords, setHistoryRecords] = useState<any[]>([]);
+
+    const fetchStudentHistory = async (studentId: string, name: string) => {
+        try {
+            const { data } = await supabase
+                .from('leave_requests')
+                .select('*')
+                .eq('student_id', studentId)
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (data) {
+                setHistoryRecords(data);
+                setHistoryStudent({ student_id: studentId, name });
+                setIsHistoryModalOpen(true);
+            }
+        } catch (e) {
+            console.error(e);
+            toast.error('기록을 불러오지 못했습니다.');
+        }
+    };
+
     // roomStatus includes name, status and student_id
     const [roomStatus, setRoomStatus] = useState<Record<number, {
         left: { status: 'in' | 'out', name: string, student_id?: string, isWeekend?: boolean, leaveType?: '외출' | '외박' },
@@ -304,6 +329,9 @@ export default function HeadcountPage() {
         if (mode === 'assign') {
             setSelectedSlot({ room: roomNum, position });
             setIsModalOpen(true);
+        } else if (mode === 'check') {
+            // In check mode, a single click toggles status
+            toggleStatus(roomNum, position);
         }
     };
 
@@ -506,6 +534,12 @@ export default function HeadcountPage() {
                                         )}>
                                             {/* Left Bed */}
                                             <button
+                                                onDoubleClick={(e) => {
+                                                    if (roomData.left.student_id) {
+                                                        e.stopPropagation();
+                                                        fetchStudentHistory(roomData.left.student_id, roomData.left.name);
+                                                    }
+                                                }}
                                                 onClick={() => handleBedClick(roomNum, 'left')}
                                                 disabled={false}
                                                 className={clsx(
@@ -563,6 +597,12 @@ export default function HeadcountPage() {
 
                                             {/* Right Bed */}
                                             <button
+                                                onDoubleClick={(e) => {
+                                                    if (roomData.right.student_id) {
+                                                        e.stopPropagation();
+                                                        fetchStudentHistory(roomData.right.student_id, roomData.right.name);
+                                                    }
+                                                }}
                                                 onClick={() => handleBedClick(roomNum, 'right')}
                                                 disabled={false}
                                                 className={clsx(
@@ -635,6 +675,104 @@ export default function HeadcountPage() {
                     Object.values(roomStatus).flatMap(r => [r.left.student_id, r.right.student_id]).filter(Boolean) as string[]
                 }
             />
+
+            {/* Student History Modal */}
+            {isHistoryModalOpen && historyStudent && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsHistoryModalOpen(false)}>
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden text-gray-800" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
+                                    {historyStudent.name[0]}
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-lg font-bold text-gray-800">{historyStudent.student_id}</h3>
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
+                                                try {
+                                                    const res = await fetch('/api/teacher/summon', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            studentId: historyStudent.student_id,
+                                                            teacherName: '담당 교사'
+                                                        })
+                                                    });
+                                                    if (res.ok) toast.success('호출 알림을 보냈습니다.');
+                                                    else toast.error('호출 실패');
+                                                } catch (err) {
+                                                    toast.error('오류 발생');
+                                                }
+                                            }}
+                                            className="px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded-lg hover:bg-red-200 transition-colors flex items-center gap-1"
+                                        >
+                                            <span>🔔 호출</span>
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500">최근 이석 기록 (최신순 20건)</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400">
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="overflow-y-auto p-4 flex flex-col gap-3">
+                            {historyRecords.length === 0 ? (
+                                <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
+                            ) : (
+                                historyRecords.map((rec) => {
+                                    const statusColors: any = {
+                                        '신청': 'bg-blue-50 text-blue-600',
+                                        '승인': 'bg-green-50 text-green-600',
+                                        '반려': 'bg-red-50 text-red-600',
+                                        '취소': 'bg-gray-50 text-gray-500',
+                                        '복귀': 'bg-gray-100 text-gray-600',
+                                        '학부모승인': 'bg-orange-50 text-orange-600',
+                                        '학부모승인대기': 'bg-yellow-50 text-yellow-600',
+                                    };
+
+                                    return (
+                                        <div key={rec.id} className="flex flex-col p-3 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors bg-white shadow-sm">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={clsx("px-2 py-0.5 rounded text-[10px] font-bold border border-opacity-10", statusColors[rec.status] || 'bg-gray-50 text-gray-500')}>
+                                                        {rec.status}
+                                                    </span>
+                                                    <span className="font-bold text-gray-700 text-sm">{rec.leave_type}</span>
+                                                </div>
+                                                <span className="text-[10px] text-gray-400">{new Date(rec.created_at).toLocaleDateString()}</span>
+                                            </div>
+
+                                            <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg mb-2">
+                                                {rec.leave_type === '컴이석' || rec.leave_type === '이석' ? (
+                                                    <div className="font-mono text-xs">
+                                                        {rec.period}
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        {new Date(rec.start_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
+                                                        {new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {rec.reason && (
+                                                <p className="text-[11px] text-gray-500 truncate">
+                                                    Running: {rec.reason}
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import clsx from 'clsx';
 import { LeaveRequest } from './types';
 import { LeaveProcessCard } from './LeaveProcessCard';
+import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 
 interface LeaveProcessListProps {
     leaveRequests: LeaveRequest[];
@@ -25,7 +26,9 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     const [filterType, setFilterType] = useState('전체'); // Added filter type state
     const [expandedId, setExpandedId] = useState<string | number | null>(null);
     const [statusMenuId, setStatusMenuId] = useState<string | number | null>(null);
+
     const [now, setNow] = useState(new Date());
+    const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
 
     const leaveTypes = ['컴이석', '이석', '외출', '외박', '자리비움']; // Define leave types
 
@@ -96,9 +99,17 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Seat Map Button */}
             <button
                 onClick={() => window.location.href = '/teacher/seats'}
-                className="w-full mb-6 py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
+                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
             >
                 학습감독 자리배치도 →
+            </button>
+
+            {/* Morning Checkout Button */}
+            <button
+                onClick={() => setIsMorningModalOpen(true)}
+                className="w-full mb-6 py-3 rounded-xl text-sm font-bold transition-all text-orange-100 bg-orange-600 hover:bg-orange-500 shadow-lg text-center"
+            >
+                일과시간 미준수지도 →
             </button>
 
             {/* 탭 전환 UI */}
@@ -126,7 +137,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                 </div>
 
                 {/* 이석 종류 필터 (가로 스크롤) */}
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                <div className="flex gap-2 justify-center overflow-x-auto no-scrollbar">
                     {['전체', ...leaveTypes].map((type) => (
                         <button
                             key={type}
@@ -175,6 +186,12 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                     ))
                 )}
             </div>
+
+
+            <MorningCheckoutModal
+                isOpen={isMorningModalOpen}
+                onClose={() => setIsMorningModalOpen(false)}
+            />
         </div>
     );
 };

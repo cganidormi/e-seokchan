@@ -464,6 +464,36 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
         }
     };
 
+    // Generate Class Options (e.g. "1학년 1반 전체")
+    const classOptions = React.useMemo(() => {
+        const classes = new Set<string>();
+        students.forEach(s => {
+            if (s.grade && s.class) {
+                classes.add(`${s.grade}-${s.class}`);
+            }
+        });
+
+        return Array.from(classes).sort().map(c => {
+            const [g, cl] = c.split('-');
+            return {
+                value: `ALL-${c}`,
+                label: `------ ${g}학년 ${cl}반 전체 ------`,
+                isClassOption: true,
+                grade: parseInt(g),
+                class: parseInt(cl),
+                student: null // Dummy
+            };
+        });
+    }, [students]);
+
+    const studentOptions = React.useMemo(() => {
+        return students
+            .sort((a, b) => a.student_id.localeCompare(b.student_id))
+            .map(s => ({ value: s.student_id, label: `${s.student_id} ${s.name}`, student: s }));
+    }, [students]);
+
+    const allOptions = [...classOptions, ...studentOptions];
+
     return (
         <div className="flex flex-col w-full max-w-xl mx-auto relative">
             <div className="flex items-center gap-2 mb-4">
@@ -477,27 +507,58 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     isMulti
                     components={{ DropdownIndicator: CustomDropdownIndicator }}
                     value={addedStudents.map(s => ({ value: s.student_id, label: s.student_id, student: s, isFixed: s.student_id === studentId }))}
-                    options={students
-                        .sort((a, b) => a.student_id.localeCompare(b.student_id))
-                        .map(s => ({ value: s.student_id, label: s.student_id, student: s }))}
+                    options={allOptions}
                     onChange={(options: any) => {
-                        let selected = options ? (Array.isArray(options) ? options.map((o: any) => o.student) : [options.student]) : [];
+                        let newSelectedStudents: Student[] = [];
+
+                        // 1. Check if any "Class Option" was selected just now
+                        // React-Select passes the new list of selected options. 
+                        // If we clicked a class option, it will be in the list.
+                        // We need to process it and then REMOVE it from the final selection (replace with actual students).
+
+                        const hasClassOption = options.find((o: any) => o.isClassOption);
+
+                        if (hasClassOption) {
+                            // Find all students in that class
+                            const targetStudents = students.filter(s =>
+                                s.grade === hasClassOption.grade &&
+                                s.class === hasClassOption.class
+                            );
+
+                            // Merge with existing non-class options logic would be complex because `options` contains the mix.
+                            // Easier strategy: Look at `options`, separate "Class Options" and "Normal Options".
+
+                            const existingNormalSelected = options.filter((o: any) => !o.isClassOption).map((o: any) => o.student);
+
+                            // Merge targetStudents into existing, avoiding duplicates (by student_id)
+                            const mergedMap = new Map();
+                            existingNormalSelected.forEach((s: Student) => mergedMap.set(s.student_id, s));
+                            targetStudents.forEach(s => mergedMap.set(s.student_id, s));
+
+                            newSelectedStudents = Array.from(mergedMap.values());
+
+                        } else {
+                            // Normal selection
+                            newSelectedStudents = options ? options.map((o: any) => o.student) : [];
+                        }
+
+                        // 2. Standard Login Student & Rule Logic
                         const loginStudent = students.find(s => s.student_id === studentId);
 
                         // Strict Single Person Rule for Outing/Overnight
                         if (leaveType === '외출' || leaveType === '외박') {
-                            if (selected.length > 1) {
+                            if (newSelectedStudents.length > 1) {
                                 toast.error('외출/외박은 1인만 신청 가능합니다.');
                             }
                             // Force reset to only login student
-                            if (loginStudent) selected = [loginStudent];
+                            if (loginStudent) newSelectedStudents = [loginStudent];
                         } else {
                             // Helper to always keep me in the list
-                            if (loginStudent && !selected.some((s: any) => s.student_id === studentId)) {
-                                selected = [loginStudent, ...selected];
+                            if (loginStudent && !newSelectedStudents.some((s: any) => s.student_id === studentId)) {
+                                newSelectedStudents = [loginStudent, ...newSelectedStudents];
                             }
                         }
-                        setAddedStudents(selected);
+                        setAddedStudents(newSelectedStudents);
                     }}
                     styles={{
                         control: (base, state) => ({

@@ -161,13 +161,44 @@ export default function StudentPage() {
   };
 
   const handleCancelRequest = async (requestId: number) => {
-    if (!confirm('신청을 취소하시겠습니까?')) return;
-    const { error } = await supabase.from('leave_requests').update({ status: '취소' }).eq('id', requestId);
-    if (error) {
-      toast.error('취소 실패');
-    } else {
-      toast.success('취소되었습니다.');
+    const targetReq = leaveRequests.find(r => r.id === requestId);
+    if (!targetReq) return;
+
+    let message = '신청을 취소하시겠습니까?';
+    if (targetReq.leave_type === '외출' || targetReq.leave_type === '외박') {
+      const isApproved = targetReq.status === '승인' || targetReq.status === '학부모승인';
+      if (isApproved) {
+        message = '신청을 취소하시겠습니까? 승인된 건은 보호자와 선생님께 알림이 전송될 수 있습니다.';
+      }
+    }
+
+    if (!confirm(message)) return;
+
+    try {
+      const res = await fetch('/api/student/cancel-leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId, studentId })
+      });
+
+      const responseText = await res.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Response parsing failed:', responseText);
+        throw new Error('서버 응답 오류 (JSON 파싱 실패)');
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || '취소 실패');
+      }
+
+      toast.success(data.message || '처리되었습니다.');
       if (studentId) fetchLeaveRequests(studentId);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message);
     }
   };
 
@@ -215,7 +246,7 @@ export default function StudentPage() {
       </div>
 
       <PullToRefresh onRefresh={() => studentId ? fetchLeaveRequests(studentId) : Promise.resolve()}>
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-4">
           <WeeklyReturnApplicationCard student={currentStudent} />
           <LeaveRequestForm
             studentId={studentId}
