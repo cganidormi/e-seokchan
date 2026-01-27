@@ -24,11 +24,14 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
 
 
 
+    const [checkDate, setCheckDate] = useState(new Date().toISOString().split('T')[0]);
+
     useEffect(() => {
         if (isOpen) {
             fetchStudents();
             setSearchTerm('');
             setSelectedStudentIds([]);
+            setCheckDate(new Date().toISOString().split('T')[0]);
         }
     }, [isOpen]);
 
@@ -67,14 +70,19 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
 
         setIsSaving(true);
         try {
-            const today = new Date().toISOString().split('T')[0];
+            const timestamp = new Date(checkDate);
+            // Set to current time hours/minutes to keep sorting order if needed, or just noon?
+            // Let's keep current time's H:M but change Y-M-D
+            const now = new Date();
+            timestamp.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
 
             // Checks for duplicates (if needed in future)
             const payload = selectedStudentIds.map(id => ({
                 student_id: id,
                 type: 'late',
                 teacher_id: localStorage.getItem('dormichan_login_id') || 'teacher',
-                note: '일과시간 미준수'
+                note: '일과시간 미준수',
+                checked_at: timestamp.toISOString()
             }));
 
             const { error } = await supabase.from('morning_checks').insert(payload);
@@ -123,6 +131,12 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                         {/* Controls */}
                         <div className="p-4 flex flex-col gap-3 bg-white border-b border-gray-100">
                             <div className="flex gap-2">
+                                <input
+                                    type="date"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-orange-400"
+                                    value={checkDate}
+                                    onChange={e => setCheckDate(e.target.value)}
+                                />
                                 <input
                                     type="text"
                                     placeholder="이름/학번 검색..."

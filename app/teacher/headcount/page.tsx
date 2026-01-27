@@ -682,9 +682,6 @@ export default function HeadcountPage() {
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden text-gray-800" onClick={e => e.stopPropagation()}>
                         <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
-                                    {historyStudent.name[0]}
-                                </div>
                                 <div>
                                     <div className="flex items-center gap-2">
                                         <h3 className="text-lg font-bold text-gray-800">{historyStudent.student_id}</h3>
@@ -707,9 +704,10 @@ export default function HeadcountPage() {
                                                     toast.error('오류 발생');
                                                 }
                                             }}
-                                            className="px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded-lg hover:bg-red-200 transition-colors flex items-center gap-1"
+                                            className="text-xl p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                            title="호출"
                                         >
-                                            <span>🔔 호출</span>
+                                            🔔
                                         </button>
                                     </div>
                                     <p className="text-xs text-gray-500">최근 이석 기록 (최신순 20건)</p>

@@ -295,17 +295,7 @@ export default function TeacherPage() {
 
       {/* Admin Buttons & Refresh */}
       <div className="flex justify-end mb-4 gap-2">
-        <button
-          onClick={() => {
-            if (teacherId && teacherName) {
-              fetchLeaveRequests(teacherId, teacherName);
-              toast.success('새로고침 완료');
-            }
-          }}
-          className="bg-white border border-gray-300 text-gray-600 font-bold py-2 px-3 rounded-xl shadow-sm hover:bg-gray-50 transition-all flex items-center gap-1 text-sm"
-        >
-          <span>🔄</span>
-        </button>
+
 
         {teacherPosition === '관리자' && (
           <button

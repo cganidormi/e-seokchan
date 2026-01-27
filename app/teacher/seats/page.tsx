@@ -6,6 +6,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import clsx from 'clsx';
 import Select from 'react-select';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
+import { FaBell } from "react-icons/fa";
 
 interface Student {
     student_id: string;
@@ -963,44 +964,52 @@ export default function SeatManagementPage() {
             {isHistoryModalOpen && historyStudent && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsHistoryModalOpen(false)}>
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
-                                    {historyStudent.name[0]}
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-lg font-bold text-gray-800">{historyStudent.student_id}</h3>
-                                        <button
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
-                                                try {
-                                                    const res = await fetch('/api/teacher/summon', {
-                                                        method: 'POST',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({
-                                                            studentId: historyStudent.student_id,
-                                                            teacherName: '담당 교사' // Or pass actual teacher name found in auth
-                                                        })
-                                                    });
-                                                    if (res.ok) toast.success('호출 알림을 보냈습니다.');
-                                                    else toast.error('호출 실패');
-                                                } catch (err) {
-                                                    toast.error('오류 발생');
-                                                }
-                                            }}
-                                            className="px-2 py-1 bg-red-100 text-red-600 text-xs font-bold rounded-lg hover:bg-red-200 transition-colors flex items-center gap-1"
-                                        >
-                                            <span>🔔 호출</span>
-                                        </button>
-                                    </div>
-                                    <p className="text-xs text-gray-500">최근 이석 기록 (최신순 20건)</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400">
+                        <div className="p-5 border-b border-gray-100 flex flex-col relative">
+                            {/* Close Button Top Right */}
+                            <button
+                                onClick={() => setIsHistoryModalOpen(false)}
+                                className="absolute top-4 right-4 p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400"
+                            >
                                 ✕
                             </button>
+
+                            {/* Center Content - Horizontal Layout */}
+                            <div className="flex items-center justify-center gap-6 mt-4 mb-4">
+                                {/* Student Info - ID Only */}
+                                <h3 className="text-3xl font-black text-gray-800 tracking-tight">{historyStudent.student_id}</h3>
+
+                                {/* Call Button Group */}
+                                <div className="flex flex-col items-center gap-1">
+                                    <button
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
+                                            try {
+                                                const res = await fetch('/api/teacher/summon', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        studentId: historyStudent.student_id,
+                                                        teacherName: '담당 교사'
+                                                    })
+                                                });
+                                                if (res.ok) toast.success('호출 알림을 보냈습니다.');
+                                                else toast.error('호출 실패');
+                                            } catch (err) {
+                                                toast.error('오류 발생');
+                                            }
+                                        }}
+                                        className="p-3 rounded-xl bg-red-500 border-b-4 border-red-700 text-white hover:bg-red-400 hover:border-red-600 transition-all active:border-b-0 active:translate-y-1 shadow-lg flex items-center justify-center group"
+                                        title="호출"
+                                    >
+                                        <FaBell className="w-6 h-6 group-hover:animate-swing" />
+                                    </button>
+                                    <span className="text-[10px] font-bold text-red-500">호출</span>
+                                </div>
+                            </div>
+                            <div className="w-full text-center pb-2">
+                                <p className="text-xs text-gray-400">최근 이석 기록 (20건)</p>
+                            </div>
                         </div>
 
                         <div className="overflow-y-auto p-4 flex flex-col gap-3">
