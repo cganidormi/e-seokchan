@@ -109,13 +109,14 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center sm:p-4"
                 >
                     <motion.div
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.95, opacity: 0 }}
-                        className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
+                        initial={{ y: "100%", opacity: 0, scale: 0.95 }}
+                        animate={{ y: 0, opacity: 1, scale: 1 }}
+                        exit={{ y: "100%", opacity: 0, scale: 0.95 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        className="bg-white w-full sm:max-w-2xl rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl flex flex-col max-h-[70vh] sm:max-h-[85vh] overflow-hidden"
                     >
                         {/* Header */}
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-orange-50">
@@ -183,17 +184,25 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                         </div>
 
                         {/* Footer */}
-                        <div className="p-4 border-t border-gray-100 bg-white flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                            <div className="text-sm font-bold text-gray-600">
-                                <span className="text-orange-600 text-lg mr-1">{selectedStudentIds.length}</span>명 선택됨
-                            </div>
+                        <div className="p-4 border-t border-gray-100 bg-white flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-6 sm:pb-4">
                             <button
-                                onClick={handleSave}
-                                disabled={isSaving || selectedStudentIds.length === 0}
-                                className="px-8 py-3 bg-orange-500 text-white font-bold rounded-xl shadow-lg shadow-orange-200 hover:bg-orange-600 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none"
+                                onClick={onClose}
+                                className="px-6 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors"
                             >
-                                {isSaving ? '저장 중...' : '저장하기'}
+                                닫기
                             </button>
+                            <div className="flex items-center gap-3">
+                                <div className="text-sm font-bold text-gray-600 hidden xs:block">
+                                    <span className="text-orange-600 text-lg mr-1">{selectedStudentIds.length}</span>명
+                                </div>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={isSaving || selectedStudentIds.length === 0}
+                                    className="px-8 py-3 bg-orange-500 text-white font-bold rounded-xl shadow-lg shadow-orange-200 hover:bg-orange-600 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none"
+                                >
+                                    {isSaving ? '저장 중...' : '저장하기'}
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
                 </motion.div>

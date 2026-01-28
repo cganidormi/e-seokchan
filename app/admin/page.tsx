@@ -8,17 +8,19 @@ import toast, { Toaster } from 'react-hot-toast';
 import {
   FaUserFriends, FaBuilding, FaBed, FaWalking, FaWrench,
   FaFirstAid, FaHome, FaPlus, FaTrash, FaBell, FaMobileAlt,
-  FaUserGraduate, FaChartPie, FaChevronDown, FaCheck
+  FaUserGraduate, FaChartPie, FaChevronDown, FaCheck, FaCalendarAlt, FaUserClock, FaStickyNote
 } from "react-icons/fa";
+import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 
 // Types
 interface DashboardStats {
   totalStudents: number;
   totalTeachers: number;
   studentsByGrade: { grade: number; count: number; overnight: number; current: number }[];
-  studentsByFloor: { floor: number; capacity: number; assigned: number; current: number }[];
+  studentsByFloor: { floor: number; capacity: number; assigned: number; current: number; overnight: number }[];
   currentLeaves: { overnight: number; short: number };
   violationCount: number;
+  violationList: { id: number; student_id: string; student_name: string; checked_at: string }[];
 }
 
 interface WeeklyReturnee {
@@ -56,6 +58,7 @@ export default function AdminMainPage() {
     studentsByFloor: [],
     currentLeaves: { overnight: 0, short: 0 },
     violationCount: 0,
+    violationList: []
   });
 
   const [weeklyReturnees, setWeeklyReturnees] = useState<WeeklyReturnee[]>([]);
@@ -72,6 +75,15 @@ export default function AdminMainPage() {
   // Form States
   const [newFacility, setNewFacility] = useState({ title: '', room: '' });
   const [newPatient, setNewPatient] = useState({ studentId: '', symptom: '' });
+
+  // Student Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
+
+  // Modals
+  const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
+  const [violationModal, setViolationModal] = useState<{ grade: number, classNum: number } | null>(null);
 
   // Refresh Trigger for Realtime
   const [refreshKey, setRefreshKey] = useState(0);
@@ -107,10 +119,44 @@ export default function AdminMainPage() {
   const fetchDashboardData = async () => {
     try {
       const targetDateStr = selectedDate.toISOString().split("T")[0];
+      const startOfDay = new Date(selectedDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(selectedDate);
+      endOfDay.setHours(23, 59, 59, 999);
 
-      // 1. Students & Weekly Returnees
-      const { data: studentsData } = await supabase.from("students").select("*");
-      const students = studentsData || [];
+      // Parallel Data Fetching
+      const [
+        studentsRes,
+        teachersRes,
+        leavesRes,
+        violationsRes,
+        roomsRes,
+        seatsRes
+      ] = await Promise.all([
+        // 1. Students
+        supabase.from("students").select("*"),
+        // 2. Teachers
+        supabase.from("teachers").select("*", { count: "exact", head: true }),
+        // 3. Leaves
+        supabase.from("leave_requests")
+          .select("student_id, leave_type")
+          .eq("status", "승인")
+          .lte("start_date", targetDateStr)
+          .gte("end_date", targetDateStr),
+        // 4. Violation Checks (Late)
+        supabase.from('morning_checks')
+          .select('id, student_id, checked_at')
+          .eq('type', 'late')
+          .gte('checked_at', startOfDay.toISOString())
+          .lte('checked_at', endOfDay.toISOString()),
+        // 5. Room Layouts
+        supabase.from("room_layouts").select("room_number, total_seats"),
+        // 6. Seat Assignments
+        supabase.from("seat_assignments").select("room_number, student_id")
+      ]);
+
+      // --- Process 1: Students & Weekly Returnees ---
+      const students = studentsRes.data || [];
       const totalStudents = students.length;
 
       const weekly = students.filter((s: any) => s.weekend).sort((a: any, b: any) => {
@@ -120,22 +166,11 @@ export default function AdminMainPage() {
       });
       setWeeklyReturnees(weekly);
 
-      // 2. Teachers
-      const { count: teacherCount } = await supabase.from("teachers").select("*", { count: "exact", head: true });
-
-      // 3. Leaves (Filtered by Selected Date)
-      const { data: leavesData } = await supabase
-        .from("leave_requests")
-        .select("student_id, leave_type")
-        .eq("status", "승인")
-        .lte("start_date", targetDateStr)
-        .gte("end_date", targetDateStr);
-
-      const activeLeaves = leavesData || [];
+      // --- Process 2: Leaves ---
+      const activeLeaves = leavesRes.data || [];
       const overnight = activeLeaves.filter((l: any) => l.leave_type === '외박').length;
       const short = activeLeaves.filter((l: any) => l.leave_type === '외출').length;
 
-      // Helper to count leaves for a specific subset
       const countLeaves = (subsetStudents: any[], type?: '외박' | '외출') => {
         const subsetIds = new Set(subsetStudents.map((s: any) => s.student_id));
         return activeLeaves.filter((l: any) => {
@@ -145,53 +180,12 @@ export default function AdminMainPage() {
         }).length;
       };
 
-      // 5. Violation Counter (Morning Checks - 'late')
-      // Count for the SELECTED DATE
-      const startOfDay = new Date(selectedDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(selectedDate);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const { count: violationCount } = await supabase
-        .from('morning_checks')
-        .select('*', { count: 'exact', head: true })
-        .eq('type', 'late')
-        .gte('checked_at', startOfDay.toISOString())
-        .lte('checked_at', endOfDay.toISOString());
-
-      // 4. Floor Stats (Capacity & Current)
-      // Fetch Room Layouts (Capacity) & Seat Assignments (Current Assigned)
-      const { data: roomsData } = await supabase.from("room_layouts").select("room_number, total_seats");
-      const { data: seatsData } = await supabase.from("seat_assignments").select("room_number, student_id");
-
-      const floorStats = [1, 2, 3, 4].map(floor => {
-        // Rooms on this floor (e.g. 100-199)
-        const floorRooms = (roomsData || []).filter((r: any) => r.room_number >= floor * 100 && r.room_number < (floor + 1) * 100);
-        const capacity = floorRooms.reduce((acc: number, r: any) => acc + r.total_seats, 0);
-
-        // Assigned students on this floor
-        const assignedSeats = (seatsData || []).filter((s: any) => s.room_number >= floor * 100 && s.room_number < (floor + 1) * 100);
-        const assignedCount = assignedSeats.length;
-
-        // Check how many of these assigned students are currently Absent (Overnight or Short)
-        // "Current" = Assigned - Absent
-        const assignedStudentIds = new Set(assignedSeats.map((s: any) => s.student_id));
-        const absentCount = activeLeaves.filter((l: any) => assignedStudentIds.has(l.student_id)).length;
-
-        return {
-          floor,
-          capacity: capacity > 0 ? capacity : 0, // Default to 0 if no data
-          assigned: assignedCount,
-          current: Math.max(0, assignedCount - absentCount)
-        };
-      });
-
-      // 5. Grade Stats
+      // --- Process 3: Grade Stats ---
       const gradeStats = [1, 2, 3].map(g => {
         const gradeStudents = students.filter((s: any) => s.grade === g);
         const total = gradeStudents.length;
         const overnightCount = countLeaves(gradeStudents, '외박');
-        const totalAbsent = countLeaves(gradeStudents); // Overnight + Short
+        const totalAbsent = countLeaves(gradeStudents);
         return {
           grade: g,
           count: total,
@@ -200,15 +194,57 @@ export default function AdminMainPage() {
         };
       });
 
-      setStats({
-        totalStudents,
-        totalTeachers: teacherCount || 0,
-        studentsByGrade: gradeStats,
-        studentsByFloor: floorStats,
-        currentLeaves: { overnight, short },
-        violationCount: violationCount || 0,
+      // --- Process 4: Floor Stats ---
+      const floorStats = [1, 2, 3, 4].map(floor => {
+        const floorRooms = (roomsRes.data || []).filter((r: any) => r.room_number >= floor * 100 && r.room_number < (floor + 1) * 100);
+        const capacity = floorRooms.reduce((acc: number, r: any) => acc + r.total_seats, 0);
+
+        const assignedSeats = (seatsRes.data || []).filter((s: any) => s.room_number >= floor * 100 && s.room_number < (floor + 1) * 100);
+        const assignedCount = assignedSeats.length;
+
+        const assignedStudentIds = new Set(assignedSeats.map((s: any) => s.student_id));
+        const absentCount = activeLeaves.filter((l: any) => assignedStudentIds.has(l.student_id)).length;
+
+        return {
+          floor,
+          capacity: capacity > 0 ? capacity : 0,
+          assigned: assignedCount,
+          current: Math.max(0, assignedCount - absentCount),
+          overnight: absentCount
+        };
       });
 
+      // --- Process 5: Violations ---
+      const violations = violationsRes.data || [];
+      let violationList: any[] = [];
+
+      if (violations.length > 0) {
+        // We can optimize this by using the ALREADY FETCHED 'students' list instead of a new query
+        const studentMap = new Map();
+        students.forEach((s: any) => studentMap.set(s.student_id, s.name));
+
+        violationList = violations.map((v: any) => ({
+          id: v.id,
+          student_id: v.student_id,
+          student_name: studentMap.get(v.student_id) || v.student_id,
+          checked_at: v.checked_at
+        }));
+      }
+
+      setStats({
+        totalStudents: totalStudents || 0,
+        totalTeachers: teachersRes.count || 0,
+        studentsByGrade: gradeStats,
+        studentsByFloor: floorStats,
+        currentLeaves: {
+          overnight: overnight,
+          short: short
+        },
+        violationCount: violations.length,
+        violationList
+      });
+
+      // Fetch others in background
       fetchFacilityData();
       fetchPatientData();
 
@@ -238,45 +274,140 @@ export default function AdminMainPage() {
     }
   };
 
+  // --- Student Search Handler ---
+  useEffect(() => {
+    const searchStudents = async () => {
+      if (searchQuery.length < 1) {
+        setSearchResults([]);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('students')
+        .select('student_id, name')
+        .or(`name.ilike.%${searchQuery}%,student_id.ilike.%${searchQuery}%`)
+        .limit(5);
+
+      setSearchResults(data || []);
+    };
+
+    const debounce = setTimeout(() => {
+      searchStudents();
+    }, 300);
+
+    return () => clearTimeout(debounce);
+  }, [searchQuery]);
+
+
   // --- Handlers ---
   const handleCreateFacility = async () => {
     if (!newFacility.title) return toast.error("제목을 입력하세요");
-    await supabase.from("facility_requests").insert({
+
+    const { data, error } = await supabase.from("facility_requests").insert({
       title: newFacility.title,
       room_number: newFacility.room ? parseInt(newFacility.room) : null,
       status: '대기'
-    });
+    }).select().single();
+
+    if (error) {
+      toast.error("등록 실패");
+      return;
+    }
+
+    if (data) {
+      setFacilityRequests(prev => [data, ...prev]);
+    }
+
     setNewFacility({ title: '', room: '' });
     toast.success("등록되었습니다");
   };
 
   const handleDeleteFacility = async (id: number) => {
     if (!confirm("삭제하시겠습니까?")) return;
-    await supabase.from("facility_requests").delete().eq("id", id);
-    toast.success("삭제되었습니다");
+
+    // Optimistic Update
+    setFacilityRequests(prev => prev.filter(item => item.id !== id));
+
+    const { error } = await supabase.from("facility_requests").delete().eq("id", id);
+    if (error) {
+      toast.error("삭제 실패");
+      fetchFacilityData(); // Revert on error
+    } else {
+      toast.success("삭제되었습니다");
+    }
   };
 
   const handleToggleFacilityStatus = async (id: number, currentStatus: string) => {
     const newStatus = currentStatus === '완료' ? '대기' : '완료';
-    await supabase.from("facility_requests").update({ status: newStatus }).eq("id", id);
-    toast.success(`상태가 ${newStatus}로 변경되었습니다`);
+
+    // Optimistic Update
+    setFacilityRequests(prev => prev.map(item =>
+      item.id === id ? { ...item, status: newStatus } : item
+    ));
+
+    const { error } = await supabase.from("facility_requests").update({ status: newStatus }).eq("id", id);
+    if (error) {
+      toast.error("상태 변경 실패");
+      fetchFacilityData(); // Revert on error
+    } else {
+      toast.success(`상태가 ${newStatus}로 변경되었습니다`);
+    }
   }
 
-  const handleCreatePatient = async () => {
-    if (!newPatient.studentId || !newPatient.symptom) return toast.error("정보를 입력하세요");
-    await supabase.from("patients").insert({
-      student_id: newPatient.studentId,
+  const handleCreatePatient = async (selectedStudent?: any) => {
+    const targetId = selectedStudent?.student_id || newPatient.studentId;
+    if (!targetId || !newPatient.symptom) return toast.error("정보를 입력하세요");
+
+    // Optimistic Update (Immediate Feedback)
+    // We construct a temporary object to show immediately
+    const tempId = Date.now(); // Temp ID
+    const optimisitcPatient = {
+      id: tempId,
+      student_id: targetId,
+      symptom: newPatient.symptom,
+      status: '기숙사',
+      created_at: new Date().toISOString(),
+      student_name: selectedStudent?.name || targetId, // Use name if we have it from search
+      note: ''
+    };
+
+    setPatients(prev => [optimisitcPatient, ...prev]);
+    setNewPatient({ studentId: '', symptom: '' });
+    setSearchQuery('');
+    setShowSearch(false);
+
+    const { data, error } = await supabase.from("patients").insert({
+      student_id: targetId,
       symptom: newPatient.symptom,
       status: '기숙사'
-    });
-    setNewPatient({ studentId: '', symptom: '' });
-    toast.success("등록되었습니다");
+    }).select().single();
+
+    if (error) {
+      toast.error("등록 실패");
+      setPatients(prev => prev.filter(p => p.id !== tempId)); // Revert
+      return;
+    }
+
+    if (data) {
+      // Replace temp item with real item (mostly for the ID)
+      setPatients(prev => prev.map(p => p.id === tempId ? { ...p, id: data.id, student_name: optimisitcPatient.student_name } : p));
+      toast.success("등록되었습니다");
+    }
   };
 
   const handleDeletePatient = async (id: number) => {
     if (!confirm("삭제하시겠습니까? (완치)")) return;
-    await supabase.from("patients").delete().eq("id", id);
-    toast.success("삭제되었습니다");
+
+    // Optimistic Update
+    setPatients(prev => prev.filter(p => p.id !== id));
+
+    const { error } = await supabase.from("patients").delete().eq("id", id);
+    if (error) {
+      toast.error("삭제 실패");
+      fetchPatientData();
+    } else {
+      toast.success("삭제되었습니다");
+    }
   };
 
   // --- Filter Helpers ---
@@ -328,35 +459,32 @@ export default function AdminMainPage() {
 
       {/* Header */}
       <div className="px-6 pt-12 pb-6 flex items-center justify-between sticky top-0 bg-[#FDFDFD]/90 backdrop-blur-md z-10 transition-all">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-lg text-gray-600 font-bold">
-            D
+        <div
+          className="relative inline-block cursor-pointer"
+          onClick={() => {
+            const dateInput = document.getElementById('date-picker-input') as HTMLInputElement;
+            if (dateInput && 'showPicker' in dateInput) {
+              dateInput.showPicker();
+            } else {
+              dateInput?.click();
+            }
+          }}
+        >
+          <div className="flex items-center justify-center bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 transition pointer-events-none">
+            <span className="font-bold text-base text-gray-800 tracking-tight">{dateString}</span>
           </div>
-
-          {/* Functional Date Picker */}
-          <div className="relative group">
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition">
-              <span className="font-bold text-sm text-gray-700">{dateString}</span>
-              <FaChevronDown className="text-xs text-gray-400" />
-            </div>
-            {/* Simple HTML Date Input Overlay */}
-            <input
-              type="date"
-              className="absolute inset-0 opacity-0 cursor-pointer"
-              onChange={(e) => {
-                if (e.target.value) setSelectedDate(new Date(e.target.value));
-              }}
-            />
-          </div>
+          <input
+            id="date-picker-input"
+            type="date"
+            required
+            className="absolute inset-0 w-full h-full opacity-0 z-0 pointer-events-none"
+            style={{ display: 'block', visibility: 'hidden', position: 'absolute', top: 0, left: 0 }}
+            onChange={(e) => {
+              if (e.target.value) setSelectedDate(new Date(e.target.value));
+            }}
+          />
         </div>
         <div className="flex gap-3">
-          <button onClick={() => setShowQR(true)} className="w-10 h-10 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition">
-            <FaMobileAlt />
-          </button>
-          <button className="w-10 h-10 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition relative">
-            <FaBell />
-            <span className="absolute top-2 right-3 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-          </button>
         </div>
       </div>
 
@@ -365,39 +493,14 @@ export default function AdminMainPage() {
         {/* Section 1: Overview (Custom Layout) */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <FaChartPie className="text-gray-400" /> <span className="text-gray-600">Overview</span>
-            </h2>
-          </div>
-
-          {/* 1. Grade Overview */}
-          {/* 1. Grade Overview (List Style) */}
-          {/* 1. Grade Overview (List Style) */}
-          {/* 1. Grade Overview (List Style) */}
-          <div className="space-y-3">
-            {stats.studentsByGrade.map(g => (
-              <div key={g.grade} className="bg-white px-5 py-3 rounded-[1.5rem] border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer group">
-                <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${g.grade === 1 ? 'bg-blue-50 text-blue-500' : g.grade === 2 ? 'bg-purple-50 text-purple-500' : 'bg-orange-50 text-orange-500'}`}>
-                    {g.grade}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-extrabold text-gray-700">{g.grade}학년</span>
-                    <div className="w-px h-3 bg-gray-200 mx-1"></div>
-                    <p className="text-sm text-gray-500 font-medium whitespace-nowrap flex items-center gap-2">
-                      <span>총원 <strong className="text-gray-800">{g.count}</strong></span>
-                      <span className="w-px h-3 bg-gray-300"></span>
-                      <span>외박 <strong className="text-red-500">{g.overnight}</strong></span>
-                      <span className="w-px h-3 bg-gray-300"></span>
-                      <span>현재 <strong className="text-blue-600">{g.current}명</strong></span>
-                    </p>
-                  </div>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:shadow-sm transition-all">
-                  <FaChevronDown className="-rotate-90 text-xs" />
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+              <div className="p-[2px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500">
+                <div className="p-[2px] bg-white rounded-full">
+                  <img src="/dorm.jpg" alt="Profile" className="w-12 h-12 rounded-full object-cover" />
                 </div>
               </div>
-            ))}
+              <span className="text-gray-900">오늘의 홍지관</span>
+            </h2>
           </div>
 
           {/* Total Summary */}
@@ -409,47 +512,166 @@ export default function AdminMainPage() {
             </div>
           </div>
 
-          {/* 2. Floor Overview (List Style) */}
-          <div className="space-y-3">
-            {stats.studentsByFloor.map(f => (
-              <div key={f.floor} className="bg-white px-5 py-3 rounded-[1.5rem] border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer group">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center text-sm font-bold text-indigo-500">
-                    {f.floor}
+          {/* Stats Flex Container (Unified Width) */}
+          <div className="flex w-full items-stretch justify-between gap-1 mb-4">
+
+            {/* All Cards share the same flex-1 to be equal width */}
+
+            {/* Grade 1 */}
+            {stats.studentsByGrade.map(g => (
+              <div key={`g-${g.grade}`} className="flex-1 bg-white py-2 rounded-[1rem] border border-gray-100 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between gap-1 hover:bg-gray-50 transition-colors cursor-pointer group min-w-0">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold border ${g.grade === 1 ? 'bg-blue-50 text-blue-500 border-blue-100' :
+                  g.grade === 2 ? 'bg-purple-50 text-purple-500 border-purple-100' :
+                    'bg-orange-50 text-orange-500 border-orange-100'
+                  }`}>
+                  {g.grade}
+                </div>
+                <div className="flex flex-col items-center gap-0.5 text-center w-full">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-gray-400 font-medium transform scale-90">총원</span>
+                    <strong className="text-xs text-gray-800 leading-none">{g.count}</strong>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-extrabold text-gray-700">{f.floor}F</span>
-                    <div className="w-px h-3 bg-gray-200 mx-1"></div>
-                    <p className="text-sm text-gray-500 font-medium whitespace-nowrap flex items-center gap-2">
-                      <span>정원 <strong className="text-gray-800">{f.capacity}</strong></span>
-                      <span className="w-px h-3 bg-gray-300"></span>
-                      <span>현재 <strong className="text-indigo-600">{f.current}명</strong></span>
-                    </p>
+                  <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-gray-400 font-medium transform scale-90">외박</span>
+                    <strong className="text-xs text-red-500 leading-none">{g.overnight}</strong>
+                  </div>
+                  <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-gray-400 font-medium transform scale-90">현재</span>
+                    <strong className="text-xs text-blue-600 leading-none">{g.current}</strong>
                   </div>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-white group-hover:shadow-sm transition-all">
-                  <FaChevronDown className="-rotate-90 text-xs" />
+              </div>
+            ))}
+
+            {/* Divider (Thin vertical line) */}
+            <div className="w-px bg-gray-200 mx-0.5 my-2"></div>
+
+            {/* Floor Stats */}
+            {stats.studentsByFloor.map(f => (
+              <div key={`f-${f.floor}`} className="flex-1 bg-white py-2 rounded-[1rem] border border-gray-100 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between gap-1 hover:bg-gray-50 transition-colors cursor-pointer group min-w-0">
+                <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-[10px] font-bold text-indigo-500 border border-indigo-100">
+                  {f.floor}F
+                </div>
+                <div className="flex flex-col items-center gap-0.5 text-center w-full">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-gray-400 font-medium transform scale-90">정원</span>
+                    <strong className="text-xs text-gray-800 leading-none">{f.capacity}</strong>
+                  </div>
+                  <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-gray-400 font-medium transform scale-90">외박</span>
+                    <strong className="text-xs text-red-500 leading-none">{f.overnight}</strong>
+                  </div>
+                  <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+                  <div className="flex flex-col">
+                    <span className="text-[9px] text-gray-400 font-medium transform scale-90">현재</span>
+                    <strong className="text-xs text-indigo-600 leading-none">{f.current}</strong>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* 3. Violation Counter (Placeholder) */}
-          <div className="bg-red-50 p-4 rounded-2xl border border-red-100 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-red-500">
-                <FaBell />
+          {/* Violation Counter & List */}
+          <div className="bg-rose-50/60 p-5 rounded-[1.5rem] border border-rose-100 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center text-rose-500">
+                  <FaBell />
+                </div>
+                <span className="font-bold text-rose-900">일과시간 미준수자</span>
               </div>
-              <span className="font-bold text-red-900">일과시간 미준수자</span>
+              <span className="text-2xl font-bold text-rose-600">{stats.violationCount}명</span>
             </div>
-            <span className="text-2xl font-bold text-red-600">{stats.violationCount}명</span>
+
+            {/* Violation Class Grid */}
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-rose-100/50">
+              {[1, 2, 3].map(grade => (
+                [1, 2, 3].map(classNum => {
+                  const classViolations = stats.violationList.filter(v => v.student_id.startsWith(`${grade}${classNum}`));
+                  const hasViolations = classViolations.length > 0;
+
+                  return (
+                    <button
+                      key={`${grade}-${classNum}`}
+                      onClick={() => setViolationModal({ grade, classNum })}
+                      className={`
+                        py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border
+                        ${hasViolations
+                          ? 'bg-rose-100 text-rose-600 border-rose-200 shadow-sm'
+                          : 'bg-white text-gray-400 border-gray-100 hover:border-rose-200 hover:text-rose-400'}
+                      `}
+                    >
+                      <span>{grade}-{classNum}</span>
+                      {hasViolations && (
+                        <span className="bg-rose-200 text-rose-700 px-1.5 py-0.5 rounded text-[10px] leading-none">{classViolations.length}</span>
+                      )}
+                    </button>
+                  );
+                })
+              ))}
+            </div>
           </div>
+
+          {/* Violation List Modal */}
+          {violationModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => setViolationModal(null)}>
+              <div className="bg-white w-full max-w-[300px] rounded-[1.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                <div className="bg-rose-500 px-5 py-4 text-white flex justify-between items-center">
+                  <h3 className="font-bold text-base">{violationModal.grade}학년 {violationModal.classNum}반 ({stats.violationList.filter(v => v.student_id.startsWith(`${violationModal.grade}${violationModal.classNum}`)).length}명)</h3>
+                  <button onClick={() => setViolationModal(null)} className="opacity-80 hover:opacity-100 p-1">✕</button>
+                </div>
+                <div className="p-4 max-h-[50vh] overflow-y-auto">
+                  {stats.violationList.filter(v => v.student_id.startsWith(`${violationModal.grade}${violationModal.classNum}`)).length === 0 ? (
+                    <p className="text-gray-400 text-center text-xs py-4">미준수자가 없습니다.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {stats.violationList
+                        .filter(v => v.student_id.startsWith(`${violationModal.grade}${violationModal.classNum}`))
+                        .map(v => (
+                          <div key={v.id} className="flex items-center justify-between bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100">
+                            <span className="text-sm font-bold text-gray-800">{v.student_id}</span>
+                            <button
+                              onClick={async () => {
+                                if (!confirm('삭제하시겠습니까?')) return;
+                                setStats(prev => ({
+                                  ...prev,
+                                  violationCount: prev.violationCount - 1,
+                                  violationList: prev.violationList.filter(item => item.id !== v.id)
+                                }));
+                                await supabase.from('morning_checks').delete().eq('id', v.id);
+                                toast.success('삭제됨');
+                              }}
+                              className="w-7 h-7 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors"
+                            >
+                              <FaTrash size={10} />
+                            </button>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Violation Check Button */}
+          <button
+            onClick={() => setIsMorningModalOpen(true)}
+            className="w-full mt-3 py-3 rounded-xl text-sm font-bold transition-all text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 shadow-sm text-center flex items-center justify-center gap-2"
+          >
+            <span>🚨</span>
+            일과시간 미준수 학생 등록/관리
+          </button>
         </div>
 
         {/* Section 2: Tasks List */}
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <h2 className="text-lg font-bold text-gray-800">Tasks & Requests</h2>
+            <h2 className="text-lg font-bold text-gray-800">홍지관/양현재</h2>
             <span className="bg-white px-2 py-0.5 rounded-full text-xs font-bold text-gray-500 border border-gray-100 shadow-sm">
               {filteredFacility.length + filteredPatients.length}
             </span>
@@ -515,22 +737,58 @@ export default function AdminMainPage() {
                 </div>
               </div>
 
-              <div className="mb-4 flex gap-2">
+              <div className="mb-4 flex gap-2 items-start relative">
+                <div className="relative w-32">
+                  <input
+                    type="text"
+                    className="bg-gray-50 border-none rounded-xl px-4 py-3 text-sm w-full outline-none focus:bg-gray-100"
+                    placeholder="이름/학번"
+                    value={searchQuery}
+                    onFocus={() => setShowSearch(true)}
+                    onBlur={() => setTimeout(() => setShowSearch(false), 200)}
+                    onChange={e => {
+                      setSearchQuery(e.target.value);
+                      setShowSearch(true);
+                    }}
+                  />
+                  {/* Search Dropdown */}
+                  {showSearch && searchResults.length > 0 && (
+                    <div className="absolute top-full left-0 w-48 bg-white border border-gray-100 shadow-xl rounded-xl mt-2 z-50 overflow-hidden">
+                      {searchResults.map(s => (
+                        <div
+                          key={s.student_id}
+                          className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between group"
+                          onClick={() => {
+                            setNewPatient({ ...newPatient, studentId: s.student_id });
+                            setSearchQuery(s.name);
+                            setShowSearch(false);
+                            // Optional: Focus symptom input after selection
+                            document.getElementById('patient-symptom-input')?.focus();
+                          }}
+                        >
+                          <span className="text-sm font-bold text-gray-800">{s.name}</span>
+                          <span className="text-xs text-gray-400 group-hover:text-blue-500">{s.student_id}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <input
-                  type="text"
-                  className="bg-gray-50 border-none rounded-xl px-4 py-3 text-sm w-24 outline-none focus:bg-gray-100"
-                  placeholder="학번"
-                  value={newPatient.studentId}
-                  onChange={e => setNewPatient({ ...newPatient, studentId: e.target.value })}
-                />
-                <input
+                  id="patient-symptom-input"
                   type="text"
                   className="bg-gray-50 border-none rounded-xl px-4 py-3 text-sm flex-1 outline-none focus:bg-gray-100"
                   placeholder="증상"
                   value={newPatient.symptom}
                   onChange={e => setNewPatient({ ...newPatient, symptom: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreatePatient(searchResults.find(s => s.name === searchQuery || s.student_id === searchQuery));
+                  }}
                 />
-                <button onClick={handleCreatePatient} className="bg-red-500 text-white w-12 rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition">
+                <button
+                  onClick={() => handleCreatePatient(searchResults.find(s => s.name === searchQuery || s.student_id === searchQuery))}
+                  className="bg-red-500 text-white w-12 h-[44px] rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition flex-shrink-0"
+                >
                   <FaPlus />
                 </button>
               </div>
@@ -629,6 +887,14 @@ export default function AdminMainPage() {
           </div>
         )
       }
+
+      <MorningCheckoutModal
+        isOpen={isMorningModalOpen}
+        onClose={() => {
+          setIsMorningModalOpen(false);
+          fetchDashboardData(); // Refresh stats when modal closes
+        }}
+      />
     </div>
   );
 }

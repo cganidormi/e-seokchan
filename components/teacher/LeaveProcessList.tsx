@@ -88,20 +88,20 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                 </div>
             </div>
 
-            {/* Headcount Mapping Button */}
-            <button
-                onClick={() => window.location.href = '/teacher/headcount'}
-                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-indigo-100 bg-indigo-600 hover:bg-indigo-500 shadow-lg text-center"
-            >
-                취침지도 호실배치도 →
-            </button>
-
             {/* Seat Map Button */}
             <button
                 onClick={() => window.location.href = '/teacher/seats'}
                 className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
             >
                 학습감독 자리배치도 →
+            </button>
+
+            {/* Headcount Mapping Button */}
+            <button
+                onClick={() => window.location.href = '/teacher/headcount'}
+                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-indigo-100 bg-indigo-600 hover:bg-indigo-500 shadow-lg text-center"
+            >
+                취침지도 호실배치도 →
             </button>
 
             {/* Morning Checkout Button */}
