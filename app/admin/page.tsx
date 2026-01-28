@@ -461,14 +461,6 @@ export default function AdminMainPage() {
       <div className="px-6 pt-12 pb-6 flex items-center justify-between sticky top-0 bg-[#FDFDFD]/90 backdrop-blur-md z-10 transition-all">
         <div
           className="relative inline-block cursor-pointer"
-          onClick={() => {
-            const dateInput = document.getElementById('date-picker-input') as HTMLInputElement;
-            if (dateInput && 'showPicker' in dateInput) {
-              dateInput.showPicker();
-            } else {
-              dateInput?.click();
-            }
-          }}
         >
           <div className="flex items-center justify-center bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 transition pointer-events-none">
             <span className="font-bold text-base text-gray-800 tracking-tight">{dateString}</span>
@@ -477,8 +469,8 @@ export default function AdminMainPage() {
             id="date-picker-input"
             type="date"
             required
-            className="absolute inset-0 w-full h-full opacity-0 z-0 pointer-events-none"
-            style={{ display: 'block', visibility: 'hidden', position: 'absolute', top: 0, left: 0 }}
+            className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+            style={{ display: 'block', position: 'absolute', top: 0, left: 0 }}
             onChange={(e) => {
               if (e.target.value) setSelectedDate(new Date(e.target.value));
             }}
@@ -504,9 +496,8 @@ export default function AdminMainPage() {
           </div>
 
           {/* Total Summary */}
-          <div className="bg-gray-900 text-white p-4 rounded-2xl shadow-sm flex justify-between items-center px-8">
-            <div className="text-sm font-light">전체 현황</div>
-            <div className="flex gap-6 text-lg font-bold">
+          <div className="bg-gray-900 text-white p-4 rounded-2xl shadow-sm flex justify-center items-center px-8">
+            <div className="flex gap-6 text-sm font-bold">
               <span>정원 : {stats.totalStudents}명</span>
               <span>현재원 : {stats.studentsByGrade.reduce((acc, curr) => acc + curr.current, 0)}명</span>
             </div>
@@ -575,15 +566,15 @@ export default function AdminMainPage() {
           </div>
 
           {/* Violation Counter & List */}
-          <div className="bg-rose-50/60 p-5 rounded-[1.5rem] border border-rose-100 flex flex-col gap-4">
+          <div className="bg-rose-50/60 p-3 rounded-2xl border border-rose-100 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center text-rose-500">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-rose-100 rounded-full flex items-center justify-center text-rose-500 text-xs">
                   <FaBell />
                 </div>
-                <span className="font-bold text-rose-900">일과시간 미준수자</span>
+                <span className="font-bold text-rose-900 text-sm">일과시간 미준수자</span>
               </div>
-              <span className="text-2xl font-bold text-rose-600">{stats.violationCount}명</span>
+              <span className="text-sm font-bold text-rose-600">{stats.violationCount}명</span>
             </div>
 
             {/* Violation Class Grid */}

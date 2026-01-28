@@ -581,13 +581,16 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                 color: 'white',
                             },
                         }),
+                        singleValue: (base) => ({ ...base, color: '#111827' }),
+                        input: (base) => ({ ...base, color: '#111827' }),
+                        placeholder: (base) => ({ ...base, color: '#6b7280' }),
                     }}
                     placeholder="신청자 선택 (검색 가능)"
                     isDisabled={leaveType === '외출' || leaveType === '외박'} // Disable the input entirely based on requirement
                 />
             </div>
 
-            <div className="grid grid-cols-5 gap-2 mb-4">
+            <div className="grid grid-cols-5 gap-1 sm:gap-2 mb-4">
                 {[
                     { id: '컴이석', symbol: 'Com', number: '01', color: 'blue', numColor: 'text-blue-200' },
                     { id: '이석', symbol: 'Es', number: '02', color: 'orange', numColor: 'text-orange-200' },
@@ -664,19 +667,19 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 "grid transition-all duration-300 overflow-hidden",
                 (leaveType && leaveType !== '자리비움') ? "grid-rows-[1fr] opacity-100 mb-4" : "grid-rows-[0fr] opacity-0 mb-0"
             )}>
-                <div className="min-h-0 flex flex-col gap-4">
+                <div className="min-h-0 min-w-0 flex flex-col gap-4">
                     {/* Period selection for Leave/Computer Leave */}
                     {(leaveType === '컴이석' || leaveType === '이석') && (
-                        <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-4 min-w-0">
                             <DatePicker
                                 selected={targetDate}
                                 onChange={(date) => { if (date) { setTargetDate(date); setPeriods([]); } }}
                                 dateFormat="yyyy-MM-dd"
-                                className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full text-center shadow-sm cursor-pointer transition-all hover:border-yellow-400 font-bold"
+                                className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full text-center shadow-sm cursor-pointer transition-all hover:border-yellow-400 font-bold text-gray-900"
                             />
                             <div className={clsx(
-                                "bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden",
-                                isDateHoliday(targetDate) ? "flex items-center justify-between p-2" : "flex flex-col p-3 gap-1"
+                                "bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden max-w-full overflow-x-auto",
+                                isDateHoliday(targetDate) ? "flex items-center justify-between p-2 min-w-max" : "flex flex-col p-3 gap-1"
                             )}>
                                 {(isDateHoliday(targetDate)
                                     ? [
@@ -685,7 +688,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                         { key: '야간_공휴일', label: '야간', p: ['1', '2', '3'] }
                                     ]
                                     : [
-                                        { key: '주간', label: '주간', p: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] },
+                                        { key: '주간', label: '주간', p: ['6', '7', '8', '9'] },
                                         { key: '야간', label: '야간', p: ['1', '2', '3', '4'] }
                                     ]
                                 ).map((type) => {
@@ -703,7 +706,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                                                 key={p}
                                                                 onClick={() => togglePeriod(label)}
                                                                 className={clsx(
-                                                                    'w-9 h-9 rounded-lg text-sm font-bold flex items-center justify-center transition-colors duration-200 border', // Increased size: w-7/h-7 -> w-9/h-9, text-xs -> text-sm
+                                                                    'w-10 h-10 sm:w-12 sm:h-12 rounded-lg text-sm sm:text-base font-bold flex items-center justify-center transition-colors duration-200 border',
                                                                     isSelected
                                                                         ? 'bg-yellow-400 text-white shadow-[0_0_10px_rgba(250,204,21,0.6)] border-transparent'
                                                                         : 'bg-gray-50 text-gray-400 border border-gray-200 hover:bg-gray-100'
@@ -730,7 +733,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                                                 key={p}
                                                                 onClick={() => togglePeriod(label)}
                                                                 className={clsx(
-                                                                    'w-9 h-9 rounded-lg text-sm font-bold flex items-center justify-center transition-colors duration-200 border', // Increased size: w-7/h-7 -> w-9/h-9, text-xs -> text-sm
+                                                                    'w-10 h-10 sm:w-12 sm:h-12 rounded-lg text-sm sm:text-base font-bold flex items-center justify-center transition-colors duration-200 border',
                                                                     isSelected
                                                                         ? 'bg-yellow-400 text-white shadow-[0_0_10px_rgba(250,204,21,0.6)] border-transparent'
                                                                         : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
@@ -752,8 +755,8 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     {/* Date range for Outing/Overnight */}
                     {(leaveType === '외출' || leaveType === '외박') && (
                         <div className="flex flex-col md:flex-row justify-between gap-4">
-                            <DatePicker selected={startDate} onChange={setStartDate} showTimeSelect timeIntervals={10} dateFormat="yyyy-MM-dd HH:mm" className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer" />
-                            <DatePicker selected={endDate} onChange={setEndDate} showTimeSelect timeIntervals={10} dateFormat="yyyy-MM-dd HH:mm" className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer" />
+                            <DatePicker selected={startDate} onChange={setStartDate} showTimeSelect timeIntervals={10} dateFormat="yyyy-MM-dd HH:mm" className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer text-gray-900" />
+                            <DatePicker selected={endDate} onChange={setEndDate} showTimeSelect timeIntervals={10} dateFormat="yyyy-MM-dd HH:mm" className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer text-gray-900" />
                         </div>
                     )}
 
@@ -764,10 +767,10 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                 <select
                                     value={teacherId}
                                     onChange={e => setTeacherId(e.target.value)}
-                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full appearance-none pr-10"
+                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full appearance-none pr-10 text-gray-900"
                                 >
                                     <option value="">지도교사</option>
-                                    {teachers.map(t => t.id && <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    {teachers.map(t => t.id && <option key={t.id} value={t.id} className="text-gray-900">{t.name}</option>)}
                                 </select>
                                 <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
@@ -780,10 +783,10 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                 <select
                                     value={place}
                                     onChange={e => setPlace(e.target.value)}
-                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full appearance-none pr-10"
+                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full appearance-none pr-10 text-gray-900"
                                 >
                                     <option value="">이석 장소</option>
-                                    {leavePlaces.map(p => <option key={p}>{p}</option>)}
+                                    {leavePlaces.map(p => <option key={p} className="text-gray-900">{p}</option>)}
                                 </select>
                                 <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
@@ -791,7 +794,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                     </svg>
                                 </div>
                             </div>
-                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full" placeholder="이석 사유" />
+                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full text-gray-900" placeholder="이석 사유" />
                         </div>
                     )}
                 </div>
