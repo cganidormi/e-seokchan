@@ -91,7 +91,11 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Seat Map Button */}
             <button
                 onClick={() => window.location.href = '/teacher/seats'}
-                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
+                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-white shadow-sm text-right pr-6 bg-cover bg-no-repeat"
+                style={{
+                    backgroundImage: `linear-gradient(to right, rgba(250, 204, 21, 0) 30%, rgba(250, 204, 21, 1) 100%), url('/study_room.png')`,
+                    backgroundPosition: 'center 70%'
+                }}
             >
                 학습감독 자리배치도 →
             </button>
@@ -99,7 +103,11 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Headcount Mapping Button */}
             <button
                 onClick={() => window.location.href = '/teacher/headcount'}
-                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-indigo-100 bg-indigo-600 hover:bg-indigo-500 shadow-lg text-center"
+                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-indigo-100 shadow-lg text-right pr-6 bg-cover bg-no-repeat"
+                style={{
+                    backgroundImage: `linear-gradient(to right, rgba(79, 70, 229, 0) 30%, rgba(79, 70, 229, 1) 100%), url('/kshs_building.png')`,
+                    backgroundPosition: 'center 15%'
+                }}
             >
                 취침지도 호실배치도 →
             </button>

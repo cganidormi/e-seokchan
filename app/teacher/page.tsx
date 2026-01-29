@@ -81,7 +81,7 @@ export default function TeacherPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_requests' },
         (payload) => {
-          console.log('[Realtime] leave_requests changed:', payload);
+
           fetchLeaveRequests(teacherId, teacherName);
         }
       )
@@ -93,7 +93,7 @@ export default function TeacherPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_request_students' },
         (payload) => {
-          console.log('[Realtime] leave_request_students changed:', payload);
+
           fetchLeaveRequests(teacherId, teacherName);
         }
       )
@@ -128,7 +128,7 @@ export default function TeacherPage() {
           }, { onConflict: 'teacher_id, subscription_json' }); // 단순화를 위해. 스키마에 따라 다를 수 있음. 실제로는 insert하고 에러 무시가 나음.
         }
       } catch (e) {
-        console.log('Auto subscribe failed', e);
+
       }
     };
 
@@ -296,6 +296,18 @@ export default function TeacherPage() {
       {/* Admin Buttons & Refresh */}
       <div className="flex justify-end mb-4 gap-2">
 
+
+        <button
+          onClick={() => router.push('/today')}
+          className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1.5 px-4 rounded-xl shadow-sm transition-all flex items-center gap-2 text-sm"
+        >
+          <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500">
+            <div className="p-[1.5px] bg-white rounded-full">
+              <img src="/dorm.jpg" alt="Icon" className="w-5 h-5 rounded-full object-cover" />
+            </div>
+          </div>
+          <span>오늘의 홍지관</span>
+        </button>
 
         {teacherPosition === '관리자' && (
           <button

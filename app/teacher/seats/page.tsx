@@ -498,68 +498,79 @@ export default function SeatManagementPage() {
 
                 {/* Layout Settings (Only in Edit Mode) */}
                 {mode === 'edit' && (
-                    <div className="bg-white p-6 rounded-3xl shadow-sm mb-6 border border-gray-100 animate-in slide-in-from-top-2">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                                <span>⚙️ 구조 설정</span>
-                                <span className="text-xs font-normal text-gray-400">(열 개수와 총 좌석 수를 설정하세요)</span>
+                    <div className="bg-white p-4 rounded-2xl shadow-sm mb-4 border border-gray-100 animate-in slide-in-from-top-2">
+                        {/* Top Row: Title & Priority Action (Reset) */}
+                        <div className="flex items-center justify-between mb-3">
+                            <h2 className="font-bold text-gray-700 flex items-center gap-2 text-sm md:text-base">
+                                <span>⚙️ 배정 관리</span>
                             </h2>
-                            <div className="flex gap-2">
-                                {!isEditingLayout ? (
-                                    <button
-                                        onClick={() => setIsEditingLayout(true)}
-                                        className="px-4 py-2 bg-gray-100 rounded-xl text-gray-600 font-bold text-sm hover:bg-gray-200 transition-colors"
-                                    >
-                                        설정 수정
-                                    </button>
-                                ) : (
-                                    <>
-                                        <button
-                                            onClick={saveLayout}
-                                            className="px-4 py-2 bg-blue-500 rounded-xl text-white font-bold text-sm hover:bg-blue-600 transition-colors shadow-blue-200 shadow-lg"
-                                        >
-                                            저장
-                                        </button>
-                                        <button
-                                            onClick={() => { setIsEditingLayout(false); setTempLayout(layout); }}
-                                            className="px-4 py-2 bg-gray-100 rounded-xl text-gray-600 font-bold text-sm hover:bg-gray-200 transition-colors"
-                                        >
-                                            취소
-                                        </button>
-                                    </>
-                                )}
-                            </div>
+                            <button
+                                onClick={resetAllSeats}
+                                className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-100 hover:bg-red-100 transition-colors flex items-center gap-1"
+                            >
+                                ⚠️ 이 열람실 배정 초기화
+                            </button>
                         </div>
-                        <div className="flex gap-6">
-                            <div className="flex flex-col gap-1">
-                                <label className="text-xs font-bold text-gray-400">한 줄에 몇 명?</label>
-                                <input
-                                    type="number"
-                                    disabled={!isEditingLayout}
-                                    value={tempLayout.columns}
-                                    onChange={e => setTempLayout({ ...tempLayout, columns: parseInt(e.target.value) || 1 })}
-                                    className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 w-32 font-bold text-gray-700 focus:outline-none focus:border-yellow-400 transition-all disabled:opacity-50"
-                                />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <label className="text-xs font-bold text-gray-400">총 좌석 수</label>
-                                <input
-                                    type="number"
-                                    disabled={!isEditingLayout}
-                                    value={tempLayout.total_seats}
-                                    onChange={e => setTempLayout({ ...tempLayout, total_seats: parseInt(e.target.value) || 1 })}
-                                    className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 w-32 font-bold text-gray-700 focus:outline-none focus:border-yellow-400 transition-all disabled:opacity-50"
-                                />
-                            </div>
-                            <div className="ml-auto flex items-end">
+
+                        {/* Collapsible Structure Control Area */}
+                        {!isEditingLayout ? (
+                            // Collapsed View (Read-Only)
+                            <div className="bg-gray-50 p-3 rounded-xl flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    <span>현재 구조:</span>
+                                    <span className="bg-white border border-gray-200 px-2 py-0.5 rounded font-bold text-gray-700">가로 {layout.columns}줄</span>
+                                    <span className="bg-white border border-gray-200 px-2 py-0.5 rounded font-bold text-gray-700">총 {layout.total_seats}석</span>
+                                </div>
                                 <button
-                                    onClick={resetAllSeats}
-                                    className="text-red-400 font-bold text-xs underline hover:text-red-600 p-2"
+                                    onClick={() => setIsEditingLayout(true)}
+                                    className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
                                 >
-                                    ⚠️ 이 열람실 배정 초기화
+                                    구조 변경하기 &gt;
                                 </button>
                             </div>
-                        </div>
+                        ) : (
+                            // Expanded View (Editing)
+                            <div className="bg-gray-50 p-3 rounded-xl flex flex-col md:flex-row items-center justify-between gap-3 md:gap-0 animate-in fade-in zoom-in-95 duration-200">
+                                <div className="flex items-center gap-3 w-full md:w-auto">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-bold text-gray-500">가로</span>
+                                        <input
+                                            type="number"
+                                            value={tempLayout.columns}
+                                            onChange={e => setTempLayout({ ...tempLayout, columns: parseInt(e.target.value) || 1 })}
+                                            className="bg-white border border-gray-200 rounded-lg px-2 py-1 w-12 text-center font-bold text-sm text-gray-700 focus:outline-none focus:border-yellow-400"
+                                        />
+                                        <span className="text-[11px] font-bold text-gray-500">줄</span>
+                                    </div>
+                                    <div className="w-px h-4 bg-gray-300"></div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-bold text-gray-500">총</span>
+                                        <input
+                                            type="number"
+                                            value={tempLayout.total_seats}
+                                            onChange={e => setTempLayout({ ...tempLayout, total_seats: parseInt(e.target.value) || 1 })}
+                                            className="bg-white border border-gray-200 rounded-lg px-2 py-1 w-12 text-center font-bold text-sm text-gray-700 focus:outline-none focus:border-yellow-400"
+                                        />
+                                        <span className="text-[11px] font-bold text-gray-500">석</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-2 w-full md:w-auto justify-end">
+                                    <button
+                                        onClick={saveLayout}
+                                        className="px-3 py-1.5 bg-blue-500 rounded-lg text-white font-bold text-xs hover:bg-blue-600 transition-colors shadow-sm"
+                                    >
+                                        저장
+                                    </button>
+                                    <button
+                                        onClick={() => { setIsEditingLayout(false); setTempLayout(layout); }}
+                                        className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-500 font-bold text-xs hover:bg-gray-50 transition-colors"
+                                    >
+                                        취소
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 

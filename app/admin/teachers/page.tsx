@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
+import { FaTimes } from "react-icons/fa";
+
+// ... (imports done)
 
 interface Teacher {
   id: string;                // uuid PK
@@ -313,36 +316,92 @@ export default function TeachersPage() {
   };
 
   // ----------------------------------------
+  // 전체 계정 정보 다운로드
+  // ----------------------------------------
+  const handleDownloadCredentials = async () => {
+    // 이름이 있는 유효한 교사만 대상
+    const validTeachers = teachers.filter(t => t.name && t.name.trim().length > 0);
+
+    if (validTeachers.length === 0) {
+      toast.error("다운로드할 교사 데이터가 없습니다.");
+      return;
+    }
+
+    const teacherIds = validTeachers.map(t => t.teacher_id).filter(Boolean) as string[];
+
+    const { data: authData } = await supabase
+      .from("teachers_auth")
+      .select("teacher_id, temp_password")
+      .in("teacher_id", teacherIds);
+
+    const csvRows = [
+      ["이름", "직책", "아이디", "임시비밀번호", "권한"]
+    ];
+
+    validTeachers.forEach(t => {
+      const auth = authData?.find(a => a.teacher_id === t.teacher_id);
+
+      csvRows.push([
+        t.name,
+        t.position,
+        t.teacher_id || 'ID없음',
+        auth?.temp_password || '설정안됨',
+        t.can_approve ? '가능' : '불가능'
+      ]);
+    });
+
+    const csvContent = "\uFEFF" + csvRows.map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `교사_전체계정정보_${new Date().toLocaleDateString()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("교사 계정 정보가 다운로드되었습니다.");
+  };
+
+  // ----------------------------------------
   // UI
   // ----------------------------------------
   return (
     <div className="p-4 space-y-6 overflow-x-auto bg-white min-h-screen text-gray-900">
       <Toaster position="top-right" />
 
-      {/* 상단 버튼 */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <h2 className="font-bold text-xl text-gray-800 mr-auto">교사 관리</h2>
+      {/* 상단 타이틀 및 버튼 */}
+      <div className="mb-6 space-y-3">
+        <h2 className="font-bold text-xl text-gray-800">교사 관리</h2>
 
-        <button
-          onClick={handleAddTeacher}
-          className="px-3 py-1.5 bg-blue-200 rounded-xl shadow-inner hover:shadow-md hover:bg-blue-100 transition text-sm font-medium"
-        >
-          + 교사 추가
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleAddTeacher}
+            className="px-3 py-1.5 bg-blue-200 rounded-xl shadow-inner hover:shadow-md hover:bg-blue-100 transition text-sm font-medium"
+          >
+            + 교사 추가
+          </button>
 
-        <button
-          onClick={handleSave}
-          className="px-3 py-1.5 bg-gray-200 rounded-xl shadow-inner hover:shadow-md hover:bg-gray-100 transition text-sm font-medium"
-        >
-          저장
-        </button>
+          <button
+            onClick={handleSave}
+            className="px-3 py-1.5 bg-blue-100 rounded-xl shadow-inner hover:shadow-md hover:bg-blue-50 transition text-sm font-medium text-blue-900"
+          >
+            저장
+          </button>
 
-        <button
-          onClick={handleResetAll}
-          className="px-3 py-1.5 bg-red-200 rounded-xl shadow-inner hover:shadow-md hover:bg-red-100 transition text-sm font-medium"
-        >
-          전체 초기화
-        </button>
+          <button
+            onClick={handleDownloadCredentials}
+            className="px-3 py-1.5 bg-green-200 rounded-xl shadow-inner hover:shadow-md hover:bg-green-100 transition text-sm font-medium text-green-900"
+          >
+            계정 다운로드
+          </button>
+
+          <button
+            onClick={handleResetAll}
+            className="px-3 py-1.5 bg-red-200 rounded-xl shadow-inner hover:shadow-md hover:bg-red-100 transition text-sm font-medium"
+          >
+            전체 초기화
+          </button>
+        </div>
       </div>
 
       {/* 교사 목록 */}
@@ -356,36 +415,36 @@ export default function TeachersPage() {
           teachers.map((t) => (
             <div
               key={t.id}
-              className="flex items-center gap-2 bg-white p-3 rounded-xl shadow-sm border border-gray-100 overflow-x-auto"
+              className="flex items-center gap-1 bg-white p-2 rounded-xl shadow-sm border border-gray-100 overflow-x-hidden"
             >
-              {/* 이름 */}
+              {/* 이름 (4글자) */}
               <input
                 type="text"
                 value={t.name}
                 placeholder="이름"
                 onChange={(e) => handleFieldChange(t.id, "name", e.target.value)}
-                className="w-20 px-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-center bg-gray-50 focus:bg-white transition-colors"
+                className="w-[4.2rem] md:w-20 px-1 md:px-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-center bg-gray-50 focus:bg-white transition-colors"
                 title={generateTeacherID(t.name) ? `ID: ${generateTeacherID(t.name)}` : 'ID 생성 예정'}
               />
 
-              {/* 직책 */}
+              {/* 직책 (5글자) */}
               <input
                 type="text"
                 value={t.position}
                 placeholder="직책"
                 onChange={(e) => handleFieldChange(t.id, "position", e.target.value)}
-                className="w-20 px-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-center bg-gray-50 focus:bg-white transition-colors"
+                className="w-[5.2rem] md:w-20 px-1 md:px-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none text-center bg-gray-50 focus:bg-white transition-colors"
               />
 
               {/* 승인권한 */}
-              <label className="flex items-center justify-center cursor-pointer px-2 py-1.5 rounded-lg hover:bg-gray-50 transition border border-transparent hover:border-gray-100">
+              <label className="flex items-center justify-center cursor-pointer px-1 md:px-2 py-1.5 rounded-lg hover:bg-gray-50 transition border border-transparent hover:border-gray-100">
                 <input
                   type="checkbox"
                   checked={t.can_approve}
                   onChange={() => toggleApprove(t.id)}
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
                 />
-                <span className="text-xs text-gray-500 ml-1.5 whitespace-nowrap">승인권한</span>
+                <span className="text-[10px] md:text-xs text-gray-500 ml-1 whitespace-nowrap">권한</span>
               </label>
 
               <div className="flex-1"></div>
@@ -407,20 +466,21 @@ export default function TeachersPage() {
                         alert(`[비밀번호 초기화 완료]\n\n선생님: ${t.name}\n임시 비밀번호: ${newPw}\n\n이 정보를 선생님께 전달해주세요.`);
                       }
                     }}
-                    className="px-2.5 py-1.5 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 active:scale-95 transition text-xs font-bold whitespace-nowrap"
+                    className="h-8 md:h-auto px-2 md:px-2.5 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 active:scale-95 transition flex items-center justify-center whitespace-nowrap"
                     title="비밀번호 초기화"
                   >
-                    비번초기화
+                    <span className="text-[11px] md:text-xs font-bold">비번초기화</span>
                   </button>
                 )}
 
                 {/* 삭제 */}
                 <button
                   onClick={() => handleDeleteTeacher(t.id)}
-                  className="px-2.5 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-100 active:scale-95 transition text-xs font-bold whitespace-nowrap"
+                  className="w-8 h-8 md:w-auto md:h-auto md:px-2.5 md:py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-100 active:scale-95 transition flex items-center justify-center"
                   title="삭제"
                 >
-                  삭제
+                  <span className="hidden md:inline text-xs font-bold whitespace-nowrap">삭제</span>
+                  <FaTimes className="md:hidden text-sm" />
                 </button>
               </div>
             </div>

@@ -37,7 +37,7 @@ export default function TeacherLayout({
 
             // 1. Lazy Sync (매월 1일 이후 체크)
             if (day >= 1) {
-                console.log(`[Lazy Sync] Checking sync for ${year}-${month}...`);
+
                 try {
                     const { error } = await supabase.rpc('sync_weekly_returnees', {
                         t_year: year,
@@ -47,7 +47,7 @@ export default function TeacherLayout({
                     if (error) {
                         console.error('[Lazy Sync] Error:', error.message);
                     } else {
-                        console.log('[Lazy Sync] Check completed.');
+
                     }
                 } catch (e) {
                     console.error('[Lazy Sync] Exception:', e);
@@ -61,7 +61,7 @@ export default function TeacherLayout({
 
             if ((day === 10 && hour >= 12) || (day === 12 && hour >= 19)) {
                 const type = day === 10 ? 'period_start' : 'period_end';
-                console.log(`[Lazy Noti] Checking notification for ${todayString} (${type})...`);
+
 
                 try {
                     fetch('/api/notifications/trigger', {
@@ -70,7 +70,7 @@ export default function TeacherLayout({
                         body: JSON.stringify({ date: todayString, type })
                     })
                         .then(res => res.json())
-                        .then(data => console.log('[Lazy Noti] Result:', data))
+                        .then(data => { })
                         .catch(err => console.error('[Lazy Noti] API Error:', err));
                 } catch (e) {
                     console.error('[Lazy Noti] Exception:', e);

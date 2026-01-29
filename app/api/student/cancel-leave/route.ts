@@ -8,7 +8,7 @@ export async function POST(request: Request) {
         // Fallback to Anon Key if Service Role is missing (prevents crash, relies on RLS)
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
         const isServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-        console.log(`[API] Using key type: ${isServiceRole ? 'SERVICE_ROLE' : 'ANON'}`);
+
 
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -443,6 +443,42 @@ export default function StudentsPage() {
     fetchStudents();
   };
 
+  // -------------------------
+  // 비밀번호 초기화
+  // -------------------------
+  const handlePasswordReset = async (s: Student) => {
+    if (!s.name) return;
+
+    // 저장된 학생인지 확인
+    const original = originalStudents.find(
+      (os) => os.grade === s.grade && os.class === s.class && os.number === s.number
+    );
+
+    if (!original || original.name !== s.name) {
+      toast.error("먼저 변경사항을 저장해주세요.");
+      return;
+    }
+
+    if (!confirm(`'${s.name}' 학생의 비밀번호를 초기화하시겠습니까?`)) return;
+
+    const student_id = `${s.grade}${s.class}${String(s.number).padStart(2, "0")}${s.name}`;
+    const newPw = generateTempPassword();
+
+    const { error } = await supabase.from('students_auth').upsert({
+      student_id,
+      username: student_id,
+      temp_password: newPw,
+      must_change_password: true
+    }, { onConflict: 'student_id' });
+
+    if (error) {
+      console.error(error);
+      toast.error('초기화 실패');
+    } else {
+      alert(`[비밀번호 초기화 완료]\n\n학생: ${s.name}\n아이디: ${student_id}\n임시 비밀번호: ${newPw}`);
+    }
+  };
+
   const getStudentNumber = (g: number, c: number, n: number) =>
     g * 1000 + c * 100 + n;
 
@@ -498,6 +534,11 @@ export default function StudentsPage() {
 
                     if (!s) return null;
 
+                    // 저장된 학생 여부 확인 (비번 초기화 버튼 노출용)
+                    const isSaved = originalStudents.some(
+                      (os) => os.grade === s.grade && os.class === s.class && os.number === s.number && os.name === s.name
+                    );
+
                     return (
                       <div key={num} className="flex items-center gap-2">
                         <span className="w-12 text-right text-sm text-gray-900 font-medium">
@@ -513,6 +554,16 @@ export default function StudentsPage() {
                           onPaste={(e) => handlePaste(grade, cls, num, e)}
                           className="flex-1 max-w-[80px] px-2 py-1 rounded-lg border border-gray-300 text-sm shadow-inner text-gray-900 bg-white"
                         />
+
+                        {isSaved && s.name && (
+                          <button
+                            onClick={() => handlePasswordReset(s)}
+                            className="px-1.5 py-0.5 bg-yellow-50 text-yellow-700 rounded text-[10px] hover:bg-yellow-100 border border-yellow-200 whitespace-nowrap"
+                            title="비밀번호 초기화"
+                          >
+                            비번초기화
+                          </button>
+                        )}
 
                         <label className="flex items-center gap-1 cursor-pointer text-sm">
                           <input

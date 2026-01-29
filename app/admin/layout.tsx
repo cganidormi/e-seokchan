@@ -11,7 +11,7 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const menuItems = [
-    { name: "메인", path: "/admin" },
+    { name: "오늘의 홍지관", path: "/admin" },
     { name: "학생관리", path: "/admin/students" },
     { name: "교사관리", path: "/admin/teachers" },
     { name: "일과표관리", path: "/admin/timetable" },
