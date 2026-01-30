@@ -219,7 +219,9 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                                         </div>
                                     );
                                 } else {
-                                    const end = new Date(req.end_time);
+                                    const end = req.leave_type === '자리비움'
+                                        ? new Date(new Date(req.start_time).getTime() + 10 * 60000)
+                                        : new Date(req.end_time);
                                     const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                                     const formatDate = (d: Date) => d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
 

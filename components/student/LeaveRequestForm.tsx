@@ -131,6 +131,28 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             setIsSubmitting(true);
 
             const now = new Date();
+
+            // Weekly Home Time Validation
+            const validationStudent = students.find(s => s.student_id === studentId);
+            if (validationStudent?.weekend) {
+                const day = now.getDay();
+                const hour = now.getHours();
+                const minute = now.getMinutes();
+                let isRestricted = false;
+
+                if (day === 5 && hour >= 17) isRestricted = true; // Friday >= 17:00
+                if (day === 6) isRestricted = true; // Saturday All Day
+                if (day === 0) { // Sunday <= 18:50
+                    if (hour < 18) isRestricted = true;
+                    if (hour === 18 && minute <= 50) isRestricted = true;
+                }
+
+                if (isRestricted) {
+                    toast.error('매주 귀가 학생은 귀가 시간대(금요일 17:00 ~ 일요일 18:50)에 이석 신청을 할 수 없습니다.');
+                    return;
+                }
+            }
+
             const isToday = targetDate.toDateString() === now.toDateString();
 
             if (isToday && (leaveType === '이석' || leaveType === '컴이석') && periods.length > 0) {
@@ -379,7 +401,10 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             } else if (leaveType === '자리비움') {
                 const now = new Date();
                 finalStartTime = now.toISOString();
-                finalEndTime = new Date(now.getTime() + 10 * 60000).toISOString();
+                // Set end time to end of day so it persists until manually cancelled
+                const eod = new Date(now);
+                eod.setHours(23, 59, 59, 999);
+                finalEndTime = eod.toISOString();
                 finalStatus = '승인';
             }
 
@@ -679,7 +704,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                             />
                             <div className={clsx(
                                 "bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden max-w-full overflow-x-auto",
-                                isDateHoliday(targetDate) ? "flex items-center justify-between p-2 min-w-max" : "flex flex-col p-3 gap-1"
+                                "flex items-center gap-5 p-4 min-w-max"
                             )}>
                                 {(isDateHoliday(targetDate)
                                     ? [
@@ -722,7 +747,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                     } else {
                                         // Weekday Layout (Refactored to match Weekend Horizontal Style)
                                         return (
-                                            <div key={type.key} className="flex items-center gap-1 shrink-0 px-1 py-1 overflow-x-auto no-scrollbar">
+                                            <div key={type.key} className="flex items-center gap-2 shrink-0">
                                                 <span className="text-xs font-bold text-gray-700 mr-1 shrink-0">{type.label}</span>
                                                 <div className="flex gap-0.5">
                                                     {type.p.map(p => {

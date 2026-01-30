@@ -720,16 +720,6 @@ export default function SeatManagementPage() {
                                                     if (mode === 'edit') {
                                                         setSelectedSeat(seatNum);
                                                         setIsModalOpen(true);
-                                                    } else if (mode === 'monitor' && activeLeaveReq?.leave_type === '자리비움') {
-                                                        // Fallback click on card if button is missed
-                                                        try {
-                                                            const { error } = await supabase.from('leave_requests').update({ status: '취소' }).eq('id', activeLeaveReq.id);
-                                                            if (error) throw error;
-                                                            toast.success('자리비움이 해제되었습니다.');
-                                                            await fetchLiveStatus(selectedRoom);
-                                                        } catch (err) {
-                                                            toast.error('해제 도중 오류가 발생했습니다.');
-                                                        }
                                                     }
                                                 }}
                                                 className={clsx(
@@ -768,7 +758,7 @@ export default function SeatManagementPage() {
                                                         )}>
                                                             <span className={clsx("text-[11px] truncate font-medium flex-1", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
                                                                 {assignment.student?.student_id}
-                                                                {activeLeaveReq?.leave_type === '자리비움' && <span className="text-[10px] ml-1">🚨</span>}
+                                                                {activeLeaveReq?.leave_type === '자리비움' && <span className="text-[9px] ml-1 font-normal">자리비움</span>}
                                                                 {isWeeklyHome && <span className="text-[9px] ml-auto font-normal text-white/90">귀가</span>}
                                                             </span>
                                                         </div>
@@ -990,7 +980,7 @@ export default function SeatManagementPage() {
                                 <h3 className="text-3xl font-black text-gray-800 tracking-tight">{historyStudent.student_id}</h3>
 
                                 {/* Call Button Group */}
-                                <div className="flex flex-col items-center gap-1">
+                                <div className="flex items-center gap-1">
                                     <button
                                         onClick={async (e) => {
                                             e.stopPropagation();
@@ -1038,6 +1028,16 @@ export default function SeatManagementPage() {
                                         '학부모승인대기': 'bg-yellow-50 text-yellow-600',
                                     };
 
+                                    // Check for Away Cancellation Condition
+                                    let showAwayCancelParams = false;
+                                    if (rec.leave_type === '자리비움' && rec.status === '승인') {
+                                        const start = new Date(rec.start_time);
+                                        // Ensure we compare against current time (or updated time)
+                                        // `currentTime` is state, so it works.
+                                        const diffMins = (new Date().getTime() - start.getTime()) / 60000;
+                                        if (diffMins >= 10) showAwayCancelParams = true;
+                                    }
+
                                     return (
                                         <div key={rec.id} className="flex flex-col p-3 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors bg-white shadow-sm">
                                             <div className="flex justify-between items-start mb-2">
@@ -1047,7 +1047,30 @@ export default function SeatManagementPage() {
                                                     </span>
                                                     <span className="font-bold text-gray-700 text-sm">{rec.leave_type}</span>
                                                 </div>
-                                                <span className="text-[10px] text-gray-400">{new Date(rec.created_at).toLocaleDateString()}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] text-gray-400">{new Date(rec.created_at).toLocaleDateString()}</span>
+                                                    {showAwayCancelParams && (
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                if (!confirm(`자리비움 상태를 해제하시겠습니까?`)) return;
+                                                                try {
+                                                                    const { error } = await supabase.from('leave_requests').update({ status: '취소' }).eq('id', rec.id);
+                                                                    if (error) throw error;
+                                                                    toast.success('자리비움이 해제되었습니다.');
+                                                                    await fetchLiveStatus(selectedRoom);
+                                                                    setIsHistoryModalOpen(false);
+                                                                } catch (err) {
+                                                                    console.error(err);
+                                                                    toast.error('해제 실패');
+                                                                }
+                                                            }}
+                                                            className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-full font-bold hover:bg-red-200 transition-colors border border-red-200"
+                                                        >
+                                                            해제
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg mb-2">
@@ -1058,7 +1081,10 @@ export default function SeatManagementPage() {
                                                 ) : (
                                                     <div>
                                                         {new Date(rec.start_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
-                                                        {new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                        {rec.leave_type === '자리비움'
+                                                            ? new Date(new Date(rec.start_time).getTime() + 10 * 60000).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                            : new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                        }
                                                     </div>
                                                 )}
                                             </div>

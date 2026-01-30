@@ -147,6 +147,18 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
             </div>
 
             <div className="flex flex-col gap-3 pb-24">
+                {/* 학습감독 자리배치도 버튼 */}
+                <button
+                    onClick={() => window.location.href = '/student/seats'}
+                    className="w-full mb-1 py-3 rounded-xl text-sm font-bold transition-all text-black shadow-sm text-left pl-6 bg-cover bg-no-repeat"
+                    style={{
+                        backgroundImage: `linear-gradient(to right, rgba(250, 204, 21, 1) 30%, rgba(250, 204, 21, 0) 100%), url('/study_room.png')`,
+                        backgroundPosition: 'center 70%'
+                    }}
+                >
+                    양현재 자리배치도 →
+                </button>
+
                 {/* 3-Tab UI */}
                 <div className="flex p-1 bg-[#1a1a1a] rounded-xl w-full">
                     {[

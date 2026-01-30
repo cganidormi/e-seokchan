@@ -179,7 +179,9 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                                     </div>
                                 );
                             } else {
-                                const end = new Date(req.end_time);
+                                const end = req.leave_type === '자리비움'
+                                    ? new Date(new Date(req.start_time).getTime() + 10 * 60000)
+                                    : new Date(req.end_time);
                                 const fTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                                 const fDate = (d: Date) => d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
                                 return (
