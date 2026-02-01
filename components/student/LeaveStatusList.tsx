@@ -150,9 +150,9 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
                 {/* 학습감독 자리배치도 버튼 */}
                 <button
                     onClick={() => window.location.href = '/student/seats'}
-                    className="w-full mb-1 py-3 rounded-xl text-sm font-bold transition-all text-black shadow-sm text-left pl-6 bg-cover bg-no-repeat"
+                    className="w-full mb-1 py-3 rounded-xl text-sm font-bold transition-all text-black shadow-sm text-right pr-6 bg-cover bg-no-repeat"
                     style={{
-                        backgroundImage: `linear-gradient(to right, rgba(250, 204, 21, 1) 30%, rgba(250, 204, 21, 0) 100%), url('/study_room.png')`,
+                        backgroundImage: `linear-gradient(to left, rgba(250, 204, 21, 1) 30%, rgba(250, 204, 21, 0) 100%), url('/study_room.png')`,
                         backgroundPosition: 'center 70%'
                     }}
                 >

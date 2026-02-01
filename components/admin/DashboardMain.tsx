@@ -532,7 +532,7 @@ export default function DashboardMain() {
                         <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="bg-orange-50 p-2 rounded-xl text-orange-500"><FaHome /></div>
-                                <h3 className="font-bold text-gray-800 text-[12px]">이번달 귀가자 현황</h3>
+                                <h3 className="font-bold text-gray-800 text-[12px]">이번달 매주귀가자 현황</h3>
                             </div>
                         </div>
 

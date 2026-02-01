@@ -79,6 +79,7 @@ export default function SeatManagementPage() {
     const [activeLeaves, setActiveLeaves] = useState<any[]>([]);
     const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
     const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
+    const [weeklyReturnStudents, setWeeklyReturnStudents] = useState<Set<string>>(new Set());
     const [currentTime, setCurrentTime] = useState(new Date());
 
     // Edit Mode for Layout
@@ -96,6 +97,19 @@ export default function SeatManagementPage() {
 
     // Morning Checkout Modal State
     const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
+
+    // Roll Call Check State
+    const [checkedSeats, setCheckedSeats] = useState<Set<number>>(new Set());
+
+    const toggleSeatCheck = (seatNum: number) => {
+        const next = new Set(checkedSeats);
+        if (next.has(seatNum)) {
+            next.delete(seatNum);
+        } else {
+            next.add(seatNum);
+        }
+        setCheckedSeats(next);
+    };
 
     const fetchStudentHistory = async (studentId: string) => {
         try {
@@ -162,6 +176,22 @@ export default function SeatManagementPage() {
 
         const { data: holidayData } = await supabase.from('special_holidays').select('date');
         if (holidayData) setSpecialHolidays(holidayData.map(h => h.date));
+
+        // Fetch Weekly Return Students (Monthly Application)
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1; // 1-12
+
+        const { data: returnData } = await supabase
+            .from('monthly_return_applications')
+            .select('student_id')
+            .eq('target_year', currentYear)
+            .eq('target_month', currentMonth);
+
+        if (returnData) {
+            const ids = new Set(returnData.map(r => r.student_id));
+            setWeeklyReturnStudents(ids);
+        }
     };
 
     const fetchLiveStatus = async (roomNum: number) => {
@@ -657,7 +687,7 @@ export default function SeatManagementPage() {
                                     let studentIdTextColor = "text-gray-800";
 
                                     // --- Weekly Home Goer Check ---
-                                    const isWeeklyHome = assignment?.student?.weekend && isWeeklyHomeTime(currentTime);
+                                    const isWeeklyHome = (assignment?.student?.weekend || weeklyReturnStudents.has(assignment?.student_id || '')) && isWeeklyHomeTime(currentTime);
 
                                     // Monitor Logic
                                     if (assignment && mode === 'monitor' && activeLeaves.length > 0) {
@@ -699,6 +729,12 @@ export default function SeatManagementPage() {
                                         studentIdTextColor = "text-white";
                                     }
 
+                                    // Roll Call Highlight Override
+                                    if (checkedSeats.has(seatNum)) {
+                                        headerBgClass = "bg-yellow-400";
+                                        studentIdTextColor = "text-black";
+                                    }
+
 
                                     if (isDisabled && mode === 'monitor') {
                                         return (
@@ -720,6 +756,8 @@ export default function SeatManagementPage() {
                                                     if (mode === 'edit') {
                                                         setSelectedSeat(seatNum);
                                                         setIsModalOpen(true);
+                                                    } else if (mode === 'monitor') {
+                                                        toggleSeatCheck(seatNum);
                                                     }
                                                 }}
                                                 className={clsx(
@@ -732,7 +770,8 @@ export default function SeatManagementPage() {
                                                     activeLeaveReq?.leave_type === '자리비움' && !isAwayBlinking && "bg-red-50",
                                                     isAwayBlinking && "animate-[pulse_1s_infinite] bg-red-100 ring-2 ring-red-500 ring-inset",
                                                     isWeeklyHome && "bg-gray-400/20"
-                                                )}
+                                                )
+                                                }
                                             >
                                                 {/* Seat Number on Top-Right Inside */}
                                                 {!isDisabled && (

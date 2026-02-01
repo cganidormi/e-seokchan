@@ -703,8 +703,8 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                 className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full text-center shadow-sm cursor-pointer transition-all hover:border-yellow-400 font-bold text-gray-900"
                             />
                             <div className={clsx(
-                                "bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden max-w-full overflow-x-auto",
-                                "flex items-center gap-5 p-4 min-w-max"
+                                "bg-white rounded-3xl border border-gray-100 shadow-sm p-3 w-full",
+                                "flex flex-row items-center justify-between gap-0.5" // Removed overflow-x-auto, added w-full behavior implicitly
                             )}>
                                 {(isDateHoliday(targetDate)
                                     ? [
@@ -716,62 +716,45 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                         { key: '주간', label: '주간', p: ['6', '7', '8', '9'] },
                                         { key: '야간', label: '야간', p: ['1', '2', '3', '4'] }
                                     ]
-                                ).map((type) => {
-                                    if (isDateHoliday(targetDate)) {
-                                        // Weekend Layout: Strict Single Line (No Scroll, Compact, Yellow Square 3D)
-                                        return (
-                                            <div key={type.key} className="flex items-center gap-0.5 shrink-0">
-                                                <span className="text-xs font-bold text-gray-700 mr-0.5">{type.label}</span>
-                                                <div className="flex gap-0.5">
-                                                    {type.p.map(p => {
-                                                        const label = `${type.label === '야간' ? '야간' : type.label}${p}교시`;
-                                                        const isSelected = periods.includes(label);
-                                                        return (
-                                                            <button
-                                                                key={p}
-                                                                onClick={() => togglePeriod(label)}
-                                                                className={clsx(
-                                                                    'w-10 h-10 sm:w-12 sm:h-12 rounded-lg text-sm sm:text-base font-bold flex items-center justify-center transition-colors duration-200 border',
-                                                                    isSelected
-                                                                        ? 'bg-yellow-400 text-white shadow-[0_0_10px_rgba(250,204,21,0.6)] border-transparent'
-                                                                        : 'bg-gray-50 text-gray-400 border border-gray-200 hover:bg-gray-100'
-                                                                )}
-                                                            >
-                                                                {p}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
+                                ).map((type, index, array) => {
+                                    const isHoliday = isDateHoliday(targetDate);
+                                    return (
+                                        <div key={type.key} className="flex flex-row items-center gap-0.5 flex-1 justify-center">
+                                            {/* Label Removed as per request */}
+                                            {/* <span className="text-xs font-bold text-gray-500 whitespace-nowrap">{type.label}</span> */}
+
+                                            <div className="flex flex-row gap-0.5 flex-1">
+                                                {type.p.map(p => {
+                                                    const label = `${type.label === '야간' ? '야간' : (type.label === '주간' ? '주간' : type.label)}${p}교시`;
+                                                    const isSelected = periods.includes(label);
+                                                    return (
+                                                        <button
+                                                            key={p}
+                                                            onClick={() => togglePeriod(label)}
+                                                            className={clsx(
+                                                                'rounded-lg font-bold flex items-center justify-center transition-all duration-200 border flex-1',
+                                                                // Use h-10/h-12 but no fixed width, let flex-1 handle it. Added min-w-0 to prevent overflow.
+                                                                isHoliday
+                                                                    ? 'h-9 text-xs sm:h-10 sm:text-base min-w-0 px-0'
+                                                                    : 'h-10 text-sm sm:h-12 sm:text-lg min-w-0 px-0',
+                                                                isSelected
+                                                                    ? 'bg-yellow-400 text-white shadow-sm border-transparent transform scale-105'
+                                                                    : 'bg-gray-50 text-gray-400 border-gray-100 hover:bg-gray-100'
+                                                            )}
+                                                        >
+                                                            {p}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
-                                        );
-                                    } else {
-                                        // Weekday Layout (Refactored to match Weekend Horizontal Style)
-                                        return (
-                                            <div key={type.key} className="flex items-center gap-2 shrink-0">
-                                                <span className="text-xs font-bold text-gray-700 mr-1 shrink-0">{type.label}</span>
-                                                <div className="flex gap-0.5">
-                                                    {type.p.map(p => {
-                                                        const label = `${type.label}${p}교시`;
-                                                        const isSelected = periods.includes(label);
-                                                        return (
-                                                            <button
-                                                                key={p}
-                                                                onClick={() => togglePeriod(label)}
-                                                                className={clsx(
-                                                                    'w-10 h-10 sm:w-12 sm:h-12 rounded-lg text-sm sm:text-base font-bold flex items-center justify-center transition-colors duration-200 border',
-                                                                    isSelected
-                                                                        ? 'bg-yellow-400 text-white shadow-[0_0_10px_rgba(250,204,21,0.6)] border-transparent'
-                                                                        : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
-                                                                )}
-                                                            >
-                                                                {p}
-                                                            </button>
-                                                        );
-                                                    })}
+                                            {/* Visual Separator between groups */}
+                                            {index < array.length - 1 && (
+                                                <div className="flex items-center justify-center w-2 sm:w-4 shrink-0">
+                                                    <span className="text-gray-300 font-light text-xs">/</span>
                                                 </div>
-                                            </div>
-                                        );
-                                    }
+                                            )}
+                                        </div>
+                                    );
                                 })}
                             </div>
                         </div>
@@ -781,7 +764,22 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     {(leaveType === '외출' || leaveType === '외박') && (
                         <div className="flex flex-col md:flex-row justify-between gap-4">
                             <DatePicker selected={startDate} onChange={setStartDate} showTimeSelect timeIntervals={10} dateFormat="yyyy-MM-dd HH:mm" className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer text-gray-900" />
-                            <DatePicker selected={endDate} onChange={setEndDate} showTimeSelect timeIntervals={10} dateFormat="yyyy-MM-dd HH:mm" className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer text-gray-900" />
+                            <DatePicker
+                                selected={endDate}
+                                onChange={setEndDate}
+                                showTimeSelect
+                                timeIntervals={10}
+                                dateFormat="yyyy-MM-dd HH:mm"
+                                className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer text-gray-900"
+                                calendarContainer={({ className, children }) => (
+                                    <div className={clsx(className, "flex flex-col")}>
+                                        <div className="bg-yellow-50 text-red-500 text-xs font-bold p-2 text-center border-b border-yellow-100 rounded-t-md">
+                                            실제 학교에 돌아오는 시간을 설정하세요
+                                        </div>
+                                        <div className="relative">{children}</div>
+                                    </div>
+                                )}
+                            />
                         </div>
                     )}
 

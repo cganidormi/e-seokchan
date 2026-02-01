@@ -61,6 +61,19 @@ export default function StudentsPage() {
       .order("class")
       .order("number");
 
+    // [New] Fetch Monthly Return Applications for Current Month
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    const { data: monthlyData } = await supabase
+      .from('monthly_return_applications')
+      .select('student_id')
+      .eq('target_year', currentYear)
+      .eq('target_month', currentMonth);
+
+    const monthlySet = new Set(monthlyData?.map((d: any) => d.student_id));
+
     if (error) {
       toast.error("학생 데이터 로드 실패");
       return;
@@ -80,7 +93,7 @@ export default function StudentsPage() {
               class: c,
               number: n,
               name: found?.name || "",
-              weekend: found?.weekend || false,
+              weekend: found?.weekend || (found?.student_id && monthlySet.has(found.student_id)) || false,
               student_id: found?.student_id || null,
               parent_token: found?.parent_token || null,
             });
@@ -217,6 +230,34 @@ export default function StudentsPage() {
       console.error(studentsErr);
       toast.error(`${targetGrade}학년 정보 저장 실패`);
       return;
+    }
+
+    // [New] Sync with Monthly Return Applications
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    // Separate lists for Add/Remove
+    const toAdd = studentsUpserts.filter(s => s.weekend && s.student_id).map(s => ({
+      student_id: s.student_id,
+      target_year: currentYear,
+      target_month: currentMonth
+    }));
+
+    // For deletion, we need student_ids of those unchecked
+    const toRemoveIds = studentsUpserts.filter(s => !s.weekend && s.student_id).map(s => s.student_id);
+
+    if (toAdd.length > 0) {
+      await supabase.from('monthly_return_applications').upsert(toAdd, { onConflict: 'student_id, target_year, target_month' as any });
+    }
+
+    if (toRemoveIds.length > 0) {
+      // Use "in" filter for bulk delete
+      await supabase.from('monthly_return_applications')
+        .delete()
+        .in('student_id', toRemoveIds as any[])
+        .eq('target_year', currentYear)
+        .eq('target_month', currentMonth);
     }
 
     // -------------------------

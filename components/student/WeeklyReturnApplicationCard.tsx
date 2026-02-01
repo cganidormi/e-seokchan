@@ -139,7 +139,6 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
 
         // 1. 날짜 체크: 10일, 11일, 12일
         const checkPeriod = date >= 10 && date <= 12;
-        // const checkPeriod = true; // [테스트 모드: 사용자 요청으로 강제 활성화]
         setIsPeriod(checkPeriod);
 
         // 다음 달 계산 (신청 대상)

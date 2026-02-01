@@ -253,8 +253,8 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         )}
                     </div>
 
-                    {/* 5. 따라가기 버튼 (내가 아닌 경우) */}
-                    {req.student_id !== currentStudentId && onCopy && (
+                    {/* 5. 따라가기 버튼 (내가 아닌 경우, "이석" or "컴이석" 한정, 지난 내역 제외) */}
+                    {req.student_id !== currentStudentId && onCopy && !isPast && (req.leave_type === '이석' || req.leave_type === '컴이석') && (
                         <div className="flex items-center shrink-0 ml-2">
                             <button
                                 onClick={(e) => { e.stopPropagation(); onCopy(req); }}
