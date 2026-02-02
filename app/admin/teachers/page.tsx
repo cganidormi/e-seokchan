@@ -69,7 +69,8 @@ export default function TeachersPage() {
     return name.trim().replace(/\s+/g, "");
   };
 
-  // 랜덤 임시비번 생성 (4숫자 + 2영문)
+  /* 
+  // 랜덤 임시비번 생성 (4숫자 + 2영문) - Legacy
   const generateTempPassword = () => {
     const num = Math.floor(1000 + Math.random() * 9000).toString();
     const letters = Array.from({ length: 2 }, () =>
@@ -77,6 +78,9 @@ export default function TeachersPage() {
     ).join("");
     return num + letters;
   };
+  */
+  // 고정 임시비번 (배포 초기 편의성)
+  const generateTempPassword = () => "1234";
 
   // ----------------------------------------
   // UUID 생성 (브라우저 호환성용)
