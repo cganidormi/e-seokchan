@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
+import { QRCodeSVG } from 'qrcode.react';
+import { IoQrCode } from 'react-icons/io5';
 import { LeaveProcessList } from '@/components/teacher/LeaveProcessList';
 import { LeaveRequest } from '@/components/teacher/types';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
@@ -16,6 +18,7 @@ export default function TeacherPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [students, setStudents] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [showQR, setShowQR] = useState(false);
 
   const router = useRouter();
 
@@ -295,7 +298,13 @@ export default function TeacherPage() {
 
       {/* Admin Buttons & Refresh */}
       <div className="flex justify-end mb-4 gap-2">
-
+        <button
+          onClick={() => setShowQR(true)}
+          className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1.5 px-3 rounded-xl shadow-sm transition-all flex items-center justify-center text-sm"
+          title="학생용 QR코드"
+        >
+          <IoQrCode className="w-5 h-5 text-gray-700" />
+        </button>
 
         <button
           onClick={() => router.push('/today')}
@@ -329,6 +338,42 @@ export default function TeacherPage() {
           teacherId={teacherId}
         />
       </PullToRefresh>
+
+      {/* QR Code Modal */}
+      {showQR && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity"
+          onClick={() => setShowQR(false)}
+        >
+          <div
+            className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center space-y-6 transform transition-all scale-100"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-gray-900">이석찬 학생용</h3>
+              <p className="text-sm text-gray-500 mt-1">학생들에게 아래 QR코드를 보여주세요</p>
+            </div>
+
+            <div className="p-4 bg-white rounded-xl border-2 border-gray-100 shadow-sm">
+              <QRCodeSVG
+                value="https://eseokchan.vercel.app"
+                size={200}
+                level="H"
+                includeMargin={true}
+              />
+            </div>
+
+            <div className="w-full">
+              <button
+                onClick={() => setShowQR(false)}
+                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-2xl transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
