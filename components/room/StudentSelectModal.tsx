@@ -98,7 +98,7 @@ export const StudentSelectModal: React.FC<StudentSelectModalProps> = ({
                                             <div className="flex flex-col">
                                                 <span className="text-white font-medium">{student.student_id}</span>
                                             </div>
-                                            <span className="text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity">선택</span>
+                                            <span className="text-orange-500 transition-opacity">선택</span>
                                         </button>
                                     ))
                                 )}
