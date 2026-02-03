@@ -296,6 +296,11 @@ export default function TeacherPage() {
         <NotificationPermissionBanner userId={teacherId} userType="teacher" />
       )}
 
+      {/* DEPLOYMENT DEBUG INDICATOR */}
+      <div className="text-xs text-gray-400 text-center mb-2">
+        v1.1 (QR Update Check: {new Date().toLocaleTimeString()})
+      </div>
+
       {/* Admin Buttons & Refresh */}
       <div className="flex justify-end mb-4 gap-2">
         <button
