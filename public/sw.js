@@ -1,3 +1,13 @@
+// Install event - force new service worker to activate immediately causes the PWA to update
+self.addEventListener('install', function (event) {
+    self.skipWaiting();
+});
+
+// Activate event - take control of all open clients immediately
+self.addEventListener('activate', function (event) {
+    event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener('push', function (event) {
     if (event.data) {
         const data = event.data.json();
