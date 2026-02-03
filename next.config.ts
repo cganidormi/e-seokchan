@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Test: Auto-deployment verification
   /* config options here */
   /* config options here */
   generateBuildId: async () => {
