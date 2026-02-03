@@ -424,29 +424,21 @@ export default function DashboardMain() {
 
             {/* Header */}
             <div className="px-6 pt-12 pb-6 flex items-center justify-between sticky top-0 bg-[#FDFDFD]/90 backdrop-blur-md z-10 transition-all">
-                <div
-                    className="relative inline-block cursor-pointer"
-                    onClick={() => {
-                        const input = document.getElementById('date-picker-input') as HTMLInputElement;
-                        if (input && 'showPicker' in HTMLInputElement.prototype) {
-                            try { input.showPicker(); } catch (e) { input.click(); }
-                        } else {
-                            input?.click();
-                        }
-                    }}
-                >
-                    <div className="flex items-center justify-center bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 transition pointer-events-none">
-                        <span className="font-bold text-base text-gray-800 tracking-tight">{dateString}</span>
+                <div className="px-6 pt-12 pb-6 flex items-center justify-between sticky top-0 bg-[#FDFDFD]/90 backdrop-blur-md z-10 transition-all">
+                    <div className="relative inline-block cursor-pointer">
+                        <div className="flex items-center justify-center bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 transition pointer-events-none">
+                            <span className="font-bold text-base text-gray-800 tracking-tight">{dateString}</span>
+                        </div>
+                        <input
+                            id="date-picker-input"
+                            type="date"
+                            required
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                            onChange={(e) => {
+                                if (e.target.value) setSelectedDate(new Date(e.target.value));
+                            }}
+                        />
                     </div>
-                    <input
-                        id="date-picker-input"
-                        type="date"
-                        required
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer pointer-events-none"
-                        onChange={(e) => {
-                            if (e.target.value) setSelectedDate(new Date(e.target.value));
-                        }}
-                    />
                 </div>
             </div>
 
