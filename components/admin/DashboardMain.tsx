@@ -736,7 +736,7 @@ export default function DashboardMain() {
                                                 {req.room_number ? `${req.room_number}호` : '공용'} • {req.created_at.substring(5, 10)}
                                             </p>
                                         </div>
-                                        <button onClick={() => handleDeleteFacility(req.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 p-2 transition">
+                                        <button onClick={() => handleDeleteFacility(req.id)} className="text-gray-300 hover:text-red-500 p-2 transition">
                                             <FaTrash size={10} />
                                         </button>
                                     </div>
@@ -820,7 +820,7 @@ export default function DashboardMain() {
                                             <h4 className="font-bold text-gray-800 text-[12px]">{p.student_name} <span className="text-gray-400 font-normal">({p.student_id})</span></h4>
                                             <p className="text-[12px] text-red-400 font-bold">{p.symptom}</p>
                                         </div>
-                                        <button onClick={() => handleDeletePatient(p.id)} className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 p-2 transition">
+                                        <button onClick={() => handleDeletePatient(p.id)} className="text-gray-300 hover:text-red-500 p-2 transition">
                                             <FaTrash size={10} />
                                         </button>
                                     </div>
