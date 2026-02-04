@@ -12,7 +12,7 @@ export default function Home() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Session & Environment Check
+  // 1. Session & Environment Check (Webhook Test: 2026-02-03)
   useEffect(() => {
     // Check if running in standalone mode (PWA)
     const checkStandalone = () => {

@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { supabase } from '@/supabaseClient';
 import { LeaveRequest, Student } from './types';
+import { FaUserEdit } from 'react-icons/fa';
 
 interface LeaveStatusCardProps {
     req: LeaveRequest;
@@ -158,8 +159,8 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                                 </span>
                             ))}
                             {canEdit && (
-                                <div className="absolute -right-2 top-0 text-[8px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    ✏️
+                                <div className="absolute -right-3 top-0 text-blue-400 transition-opacity">
+                                    <FaUserEdit size={12} />
                                 </div>
                             )}
                         </div>
