@@ -160,7 +160,7 @@ export default function LoginPage() {
             fontWeight: "500",
           }}
         >
-          KSHS 통합 이석 관리 플랫폼 v2.1
+          KSHS 통합 이석 관리 플랫폼
         </p>
 
         <form onSubmit={handleLogin}>

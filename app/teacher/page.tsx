@@ -304,6 +304,7 @@ export default function TeacherPage() {
           title="학생용 QR코드"
         >
           <IoQrCode className="w-5 h-5 text-gray-700" />
+          <span className="ml-1 text-xs text-blue-500">v2.1</span>
         </button>
 
         <button
