@@ -7,10 +7,6 @@ const nextConfig: NextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
-  generateBuildId: async () => {
-    // This forces a new build ID every time, invalidating the cache
-    return `build-${Date.now()}`
-  },
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if

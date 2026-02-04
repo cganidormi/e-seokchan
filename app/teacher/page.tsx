@@ -287,30 +287,6 @@ export default function TeacherPage() {
     router.push('/login');
   };
 
-  const handleForceUpdate = async () => {
-    if (!confirm('새로운 버전을 강제로 받아옵니다. 진행할까요?')) return;
-
-    try {
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (const registration of registrations) {
-          await registration.unregister();
-        }
-      }
-      // 캐시 삭제 시도
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(
-          cacheNames.map(name => caches.delete(name))
-        );
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      window.location.reload();
-    }
-  };
-
   return (
     <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
       <Toaster />
@@ -319,17 +295,6 @@ export default function TeacherPage() {
       {teacherId && (
         <NotificationPermissionBanner userId={teacherId} userType="teacher" />
       )}
-
-      {/* DEPLOYMENT DEBUG INDICATOR */}
-      <div className="text-xs text-gray-400 text-center mb-2 flex items-center justify-center gap-2">
-        <span>v1.2 (QR added)</span>
-        <button
-          onClick={handleForceUpdate}
-          className="underline text-blue-500 hover:text-blue-700"
-        >
-          업데이트가 안 보이면 클릭
-        </button>
-      </div>
 
       {/* Admin Buttons & Refresh */}
       <div className="flex justify-end mb-4 gap-2">
