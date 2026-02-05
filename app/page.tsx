@@ -14,6 +14,20 @@ export default function Home() {
 
   // 1. Session & Environment Check (Webhook Test: 2026-02-03)
   useEffect(() => {
+    // EMERGENCY RESET: /?reset=true
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('reset') === 'true') {
+      localStorage.clear();
+      sessionStorage.clear();
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          registrations.forEach(registration => registration.unregister());
+        });
+      }
+      alert('모든 데이터가 초기화되었습니다. 앱을 종료하고 다시 실행해주세요.');
+      return;
+    }
+
     // Check if running in standalone mode (PWA)
     const checkStandalone = () => {
       return (
