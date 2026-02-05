@@ -290,174 +290,174 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                             )}
                     </div>
                 )}
-            </div>
 
-            {isExpanded && (
-                <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
-                    <div className="grid grid-cols-3 gap-4 text-xs">
-                        {req.leave_type !== '컴이석' ? (
-                            <>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-gray-500 font-bold">지도교사</span>
-                                    <span className="text-white">{req.teachers?.name || '-'}</span>
+
+                {isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="grid grid-cols-3 gap-4 text-xs">
+                            {req.leave_type !== '컴이석' ? (
+                                <>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-gray-500 font-bold">지도교사</span>
+                                        <span className="text-white">{req.teachers?.name || '-'}</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-gray-500 font-bold">장소</span>
+                                        <span className="text-white">{req.place || '-'}</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-gray-500 font-bold">사유</span>
+                                        <span className="text-white">{req.reason || '-'}</span>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col gap-1 col-span-3">
+                                    <span className="text-gray-500 font-bold italic text-[10px]">컴이석은 별도 장소/사유가 필요하지 않습니다.</span>
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-gray-500 font-bold">장소</span>
-                                    <span className="text-white">{req.place || '-'}</span>
+                            )}
+                        </div>
+
+                        {additionalIds.length > 0 && (
+                            <div className="flex flex-col gap-1">
+                                <span className="text-gray-500 font-bold">함께하는 학생들</span>
+                                <div className="flex flex-wrap gap-1.5 items-center">
+                                    {allStudents.map(id => {
+                                        const isMe = id === currentStudentId;
+                                        const isMain = id === req.student_id;
+                                        // Allow withdrawal if: I am this student, I am NOT the main applicant, and status is Approved/Pending/ParentPending
+                                        const canWithdraw = isMe && !isMain && (req.status === '승인' || req.status === '신청' || req.status === '학부모승인대기');
+
+                                        return (
+                                            <div key={id} className={clsx(
+                                                "px-2 py-1 rounded flex items-center gap-1 transition-colors",
+                                                isMe ? "bg-blue-900/40 text-blue-200 border border-blue-500/30 font-bold" : "bg-gray-800 text-gray-300"
+                                            )}>
+                                                <span>{id}</span>
+                                                {canWithdraw && (
+                                                    <button
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            if (!confirm('정말로 이석 명단에서 빠지시겠습니까?')) return;
+                                                            try {
+                                                                const { error } = await supabase
+                                                                    .from('leave_request_students')
+                                                                    .delete()
+                                                                    .eq('leave_request_id', req.id)
+                                                                    .eq('student_id', currentStudentId);
+
+                                                                if (error) throw error;
+                                                                toast.success('명단에서 제외되었습니다.');
+                                                                // Realtime subscription will refresh the list, or we could optimistic update
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                                toast.error('오류가 발생했습니다.');
+                                                            }
+                                                        }}
+                                                        className="ml-1 text-blue-400 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors"
+                                                        title="명단에서 빠지기"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                        </svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-gray-500 font-bold">사유</span>
-                                    <span className="text-white">{req.reason || '-'}</span>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="flex flex-col gap-1 col-span-3">
-                                <span className="text-gray-500 font-bold italic text-[10px]">컴이석은 별도 장소/사유가 필요하지 않습니다.</span>
                             </div>
                         )}
-                    </div>
 
-                    {additionalIds.length > 0 && (
                         <div className="flex flex-col gap-1">
-                            <span className="text-gray-500 font-bold">함께하는 학생들</span>
-                            <div className="flex flex-wrap gap-1.5 items-center">
-                                {allStudents.map(id => {
-                                    const isMe = id === currentStudentId;
-                                    const isMain = id === req.student_id;
-                                    // Allow withdrawal if: I am this student, I am NOT the main applicant, and status is Approved/Pending/ParentPending
-                                    const canWithdraw = isMe && !isMain && (req.status === '승인' || req.status === '신청' || req.status === '학부모승인대기');
+                            <span className="text-gray-500 font-bold">신청 일시</span>
+                            <span className="text-gray-400 text-xs">
+                                {new Date(req.created_at).toLocaleString()}
+                            </span>
+                        </div>
+                    </div>
+                )}
 
-                                    return (
-                                        <div key={id} className={clsx(
-                                            "px-2 py-1 rounded flex items-center gap-1 transition-colors",
-                                            isMe ? "bg-blue-900/40 text-blue-200 border border-blue-500/30 font-bold" : "bg-gray-800 text-gray-300"
-                                        )}>
-                                            <span>{id}</span>
-                                            {canWithdraw && (
+                {/* --- Manage Modal --- */}
+                {isManageModalOpen && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+                        onClick={(e) => { e.stopPropagation(); setIsManageModalOpen(false); }}
+                    >
+                        <div
+                            className="bg-[#1f1f1f] w-full max-w-sm rounded-2xl shadow-2xl p-6 border border-white/10 relative"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <h3 className="text-lg font-bold text-white mb-4">함께하는 학생 수정</h3>
+
+                            <div className="space-y-4">
+                                {/* Current List */}
+                                <div className="flex flex-wrap gap-2">
+                                    <div className="bg-blue-900/40 text-blue-200 px-3 py-1.5 rounded-lg text-sm border border-blue-500/30 flex items-center gap-2">
+                                        <span>{req.student_id} (대표)</span>
+                                    </div>
+                                    {selectedStudents.map(sid => (
+                                        <div key={sid} className="bg-gray-800 text-gray-200 px-3 py-1.5 rounded-lg text-sm border border-white/10 flex items-center gap-2 group">
+                                            <span>{sid}</span>
+                                            <button
+                                                onClick={() => handleRemoveStudent(sid)}
+                                                className="text-gray-500 hover:text-red-400"
+                                            >
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Add Input */}
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="이름 또는 학번 검색..."
+                                        className="w-full bg-[#111] text-white border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+
+                                    {/* Create a portal-like dropdown or just absolute */}
+                                    {searchQuery.length > 0 && (
+                                        <div className="absolute top-full left-0 right-0 mt-1 bg-[#2a2a2a] border border-white/10 rounded-xl shadow-xl z-10 max-h-48 overflow-y-auto">
+                                            {filteredStudents.length > 0 ? filteredStudents.map(student => (
                                                 <button
-                                                    onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        if (!confirm('정말로 이석 명단에서 빠지시겠습니까?')) return;
-                                                        try {
-                                                            const { error } = await supabase
-                                                                .from('leave_request_students')
-                                                                .delete()
-                                                                .eq('leave_request_id', req.id)
-                                                                .eq('student_id', currentStudentId);
-
-                                                            if (error) throw error;
-                                                            toast.success('명단에서 제외되었습니다.');
-                                                            // Realtime subscription will refresh the list, or we could optimistic update
-                                                        } catch (err) {
-                                                            console.error(err);
-                                                            toast.error('오류가 발생했습니다.');
-                                                        }
-                                                    }}
-                                                    className="ml-1 text-blue-400 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors"
-                                                    title="명단에서 빠지기"
+                                                    key={student.student_id}
+                                                    className="w-full text-left px-4 py-2.5 hover:bg-white/5 text-sm text-gray-200 border-b border-white/5 last:border-0"
+                                                    onClick={() => handleAddStudent(student.student_id)}
                                                 >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                                    </svg>
+                                                    <span className="font-bold text-white">{student.name}</span>
+                                                    <span className="text-gray-500 text-xs ml-2">{student.student_id}</span>
                                                 </button>
+                                            )) : (
+                                                <div className="p-4 text-center text-gray-500 text-xs">검색 결과가 없습니다.</div>
                                             )}
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex flex-col gap-1">
-                        <span className="text-gray-500 font-bold">신청 일시</span>
-                        <span className="text-gray-400 text-xs">
-                            {new Date(req.created_at).toLocaleString()}
-                        </span>
-                    </div>
-                </div>
-            )}
-
-            {/* --- Manage Modal --- */}
-            {isManageModalOpen && (
-                <div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-                    onClick={(e) => { e.stopPropagation(); setIsManageModalOpen(false); }}
-                >
-                    <div
-                        className="bg-[#1f1f1f] w-full max-w-sm rounded-2xl shadow-2xl p-6 border border-white/10 relative"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <h3 className="text-lg font-bold text-white mb-4">함께하는 학생 수정</h3>
-
-                        <div className="space-y-4">
-                            {/* Current List */}
-                            <div className="flex flex-wrap gap-2">
-                                <div className="bg-blue-900/40 text-blue-200 px-3 py-1.5 rounded-lg text-sm border border-blue-500/30 flex items-center gap-2">
-                                    <span>{req.student_id} (대표)</span>
+                                    )}
                                 </div>
-                                {selectedStudents.map(sid => (
-                                    <div key={sid} className="bg-gray-800 text-gray-200 px-3 py-1.5 rounded-lg text-sm border border-white/10 flex items-center gap-2 group">
-                                        <span>{sid}</span>
-                                        <button
-                                            onClick={() => handleRemoveStudent(sid)}
-                                            className="text-gray-500 hover:text-red-400"
-                                        >
-                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
 
-                            {/* Add Input */}
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    placeholder="이름 또는 학번 검색..."
-                                    className="w-full bg-[#111] text-white border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-
-                                {/* Create a portal-like dropdown or just absolute */}
-                                {searchQuery.length > 0 && (
-                                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#2a2a2a] border border-white/10 rounded-xl shadow-xl z-10 max-h-48 overflow-y-auto">
-                                        {filteredStudents.length > 0 ? filteredStudents.map(student => (
-                                            <button
-                                                key={student.student_id}
-                                                className="w-full text-left px-4 py-2.5 hover:bg-white/5 text-sm text-gray-200 border-b border-white/5 last:border-0"
-                                                onClick={() => handleAddStudent(student.student_id)}
-                                            >
-                                                <span className="font-bold text-white">{student.name}</span>
-                                                <span className="text-gray-500 text-xs ml-2">{student.student_id}</span>
-                                            </button>
-                                        )) : (
-                                            <div className="p-4 text-center text-gray-500 text-xs">검색 결과가 없습니다.</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex gap-2 pt-2">
-                                <button
-                                    onClick={() => setIsManageModalOpen(false)}
-                                    className="flex-1 py-3 bg-gray-700 text-gray-300 rounded-xl font-bold text-sm hover:bg-gray-600 transition-colors"
-                                >
-                                    취소
-                                </button>
-                                <button
-                                    onClick={handleSaveStudents}
-                                    className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-500 shadow-lg shadow-blue-900/30 transition-all"
-                                >
-                                    저장하기
-                                </button>
+                                <div className="flex gap-2 pt-2">
+                                    <button
+                                        onClick={() => setIsManageModalOpen(false)}
+                                        className="flex-1 py-3 bg-gray-700 text-gray-300 rounded-xl font-bold text-sm hover:bg-gray-600 transition-colors"
+                                    >
+                                        취소
+                                    </button>
+                                    <button
+                                        onClick={handleSaveStudents}
+                                        className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-500 shadow-lg shadow-blue-900/30 transition-all"
+                                    >
+                                        저장하기
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div >
+                )}
+            </div>
         </>
     );
 };
