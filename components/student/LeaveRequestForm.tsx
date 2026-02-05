@@ -792,7 +792,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                     onChange={e => setTeacherId(e.target.value)}
                                     className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full appearance-none pr-10 text-gray-900"
                                 >
-                                    <option value="">지도교사</option>
+                                    <option value="" className="text-gray-500">지도교사 선택</option>
                                     {teachers.map(t => t.id && <option key={t.id} value={t.id} className="text-gray-900">{t.name}</option>)}
                                 </select>
                                 <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
@@ -808,7 +808,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                     onChange={e => setPlace(e.target.value)}
                                     className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full appearance-none pr-10 text-gray-900"
                                 >
-                                    <option value="">이석 장소</option>
+                                    <option value="" className="text-gray-500">이석 장소 선택</option>
                                     {leavePlaces.map(p => <option key={p} className="text-gray-900">{p}</option>)}
                                 </select>
                                 <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
