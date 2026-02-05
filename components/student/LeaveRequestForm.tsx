@@ -609,6 +609,15 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         singleValue: (base) => ({ ...base, color: '#111827' }),
                         input: (base) => ({ ...base, color: '#111827' }),
                         placeholder: (base) => ({ ...base, color: '#6b7280' }),
+                        option: (base, { isFocused, isSelected }) => ({
+                            ...base,
+                            backgroundColor: isSelected ? '#fbbf24' : (isFocused ? '#fef3c7' : 'white'),
+                            color: isSelected ? 'white' : '#111827', // Dark text for visibility
+                            cursor: 'pointer',
+                            ':active': {
+                                backgroundColor: '#fbbf24',
+                            },
+                        }),
                     }}
                     placeholder="신청자 선택 (검색 가능)"
                     isDisabled={leaveType === '외출' || leaveType === '외박'} // Disable the input entirely based on requirement
