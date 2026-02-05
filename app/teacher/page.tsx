@@ -356,7 +356,7 @@ export default function TeacherPage() {
 
             <div className="p-4 bg-white rounded-xl border-2 border-gray-100 shadow-sm">
               <QRCodeSVG
-                value="https://eseokchan.vercel.app"
+                value="https://e-seokchan.vercel.app"
                 size={200}
                 level="H"
                 includeMargin={true}

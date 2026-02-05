@@ -12,8 +12,16 @@ export default function Home() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Session & Environment Check (Webhook Test: 2026-02-03)
+  // 1. Session & Environment Check
   useEffect(() => {
+    // 0. Extract & Persist Parent Token (CRITICAL for PWA)
+    // iPhone PWA strips the token from URL, so we MUST save it here first.
+    const searchParams = new URLSearchParams(window.location.search);
+    const token = searchParams.get('token');
+    if (token) {
+      localStorage.setItem('dormichan_parent_token', token);
+    }
+
     // Check if running in standalone mode (PWA)
     const checkStandalone = () => {
       return (
