@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Toaster, toast } from 'react-hot-toast';
 import InstallGuide from './components/InstallGuide';
+import { IoShareOutline, IoAddOutline } from "react-icons/io5";
 
 export default function Home() {
   const router = useRouter();
@@ -146,20 +147,43 @@ export default function Home() {
             </div>
           ) : (
             // iOS Guide Box
-            <div className="bg-black/30 p-4 rounded-2xl text-left border border-white/10 backdrop-blur-sm">
-              <p className="font-bold text-white mb-3 text-center">📱 아이폰/아이패드 설치 방법</p>
-              <div className="space-y-3 text-sm text-gray-200">
-                <div className="flex items-center gap-3">
-                  <span className="bg-white/20 p-2 rounded-lg shadow-sm shrink-0 font-bold">1</span>
-                  <span>브라우저 상단 또는 하단 <strong className="text-white">공유 버튼</strong><img src="/ios-share.svg" className="inline w-4 h-4 mx-1 brightness-200" alt="share" />터치</span>
+            <div className="bg-white/10 p-5 rounded-2xl text-left border border-white/20 backdrop-blur-md shadow-lg">
+              <h3 className="font-bold text-white mb-4 text-center text-lg">
+                📱 아이폰 앱 설치 방법
+              </h3>
+
+              <div className="space-y-4 text-sm text-gray-100">
+                {/* Step 1 */}
+                <div className="flex items-start gap-4 p-3 bg-black/20 rounded-xl border border-white/5 hover:bg-black/30 transition-colors">
+                  <div className="bg-blue-500/20 p-2.5 rounded-lg shrink-0">
+                    <IoShareOutline className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-white mb-1">1. 공유 버튼 누르기</p>
+                    <p className="text-xs text-gray-300">
+                      사파리 화면 하단(또는 상단)의 <br />
+                      <span className="text-blue-300 font-bold">공유 아이콘</span>을 찾아주세요.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="bg-white/20 p-2 rounded-lg shadow-sm shrink-0 font-bold">2</span>
-                  <span>메뉴에서 <strong className="text-white">'홈 화면에 추가'</strong> 선택</span>
+
+                {/* Step 2 */}
+                <div className="flex items-start gap-4 p-3 bg-black/20 rounded-xl border border-white/5 hover:bg-black/30 transition-colors">
+                  <div className="bg-gray-500/20 p-2.5 rounded-lg shrink-0">
+                    <IoAddOutline className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-white mb-1">2. 홈 화면에 추가</p>
+                    <p className="text-xs text-gray-300">
+                      메뉴를 아래로 내려서 <br />
+                      <span className="text-white font-bold">"홈 화면에 추가"</span>를 선택하세요.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="bg-white/20 p-2 rounded-lg shadow-sm shrink-0 font-bold">3</span>
-                  <span>상단 <strong className="text-white">'추가'</strong> 버튼 누르면 완료!</span>
+
+                {/* Step 3 */}
+                <div className="flex items-center gap-3 p-2 justify-center text-xs text-gray-400 mt-2">
+                  <span>마지막으로 우측 상단 <strong>[추가]</strong> 버튼 터치!</span>
                 </div>
               </div>
             </div>
