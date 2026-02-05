@@ -32,7 +32,26 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    if (!parentToken.trim()) {
+    let tokenToUse = parentToken.trim();
+
+    // 혹시라도 "링크 전체"를 붙여넣었을 경우를 대비해 토큰만 추출
+    // 예: https://.../?token=abc -> abc 추출
+    if (tokenToUse.includes('token=')) {
+      try {
+        // URL 객체로 만들어서 파싱 시도 (완전한 URL인 경우)
+        const url = new URL(tokenToUse);
+        const extracted = url.searchParams.get('token');
+        if (extracted) tokenToUse = extracted;
+      } catch (e) {
+        // URL 형식이 아닐 수도 있으니 단순 문자열 파싱 시도
+        const match = tokenToUse.match(/token=([^&]*)/);
+        if (match && match[1]) {
+          tokenToUse = match[1];
+        }
+      }
+    }
+
+    if (!tokenToUse) {
       setError("토큰을 입력해주세요.");
       return;
     }
@@ -41,7 +60,7 @@ export default function LoginPage() {
     const { data: student, error } = await supabase
       .from('students')
       .select('name, grade, class')
-      .eq('parent_token', parentToken.trim())
+      .eq('parent_token', tokenToUse)
       .single();
 
     if (error || !student) {
@@ -50,7 +69,7 @@ export default function LoginPage() {
     }
 
     // 토큰 저장 및 이동
-    localStorage.setItem('dormichan_parent_token', parentToken.trim());
+    localStorage.setItem('dormichan_parent_token', tokenToUse);
 
     // 기존 로그인 정보 삭제 (충돌 방지)
     localStorage.removeItem('dormichan_login_id');
@@ -61,7 +80,7 @@ export default function LoginPage() {
 
     // 성공 메시지 및 이동
     alert(`${student.grade}학년 ${student.class}반 ${student.name} 학생의 학부모님, 환영합니다!`);
-    router.replace(`/parent?token=${parentToken.trim()}`);
+    router.replace(`/parent?token=${tokenToUse}`);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
