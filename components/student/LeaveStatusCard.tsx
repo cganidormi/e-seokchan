@@ -151,9 +151,6 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         {allStudents.map((id, idx) => (
                             <span key={idx} className="text-gray-200 text-xs leading-tight whitespace-nowrap flex items-center gap-1">
                                 {id}
-                                {idx === 0 && allStudents.length > 1 && (
-                                    <span className="text-[9px] text-gray-500">외 {allStudents.length - 1}명</span>
-                                )}
                             </span>
                         ))}
                         {canEdit && (
