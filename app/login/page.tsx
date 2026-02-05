@@ -11,7 +11,8 @@ export default function LoginPage() {
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+  const [isParentMode, setIsParentMode] = useState(false);
+  const [parentToken, setParentToken] = useState("");
   const [dbStatus, setDbStatus] = useState("시스템 점검 중...");
 
   // DB 연결 상태 확인
@@ -26,6 +27,42 @@ export default function LoginPage() {
     };
     checkDb();
   }, []);
+
+  const handleParentLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!parentToken.trim()) {
+      setError("토큰을 입력해주세요.");
+      return;
+    }
+
+    // 토큰 유효성 검사 (students 테이블 조회)
+    const { data: student, error } = await supabase
+      .from('students')
+      .select('name, grade, class')
+      .eq('parent_token', parentToken.trim())
+      .single();
+
+    if (error || !student) {
+      setError("유효하지 않은 토큰입니다. 다시 확인해주세요.");
+      return;
+    }
+
+    // 토큰 저장 및 이동
+    localStorage.setItem('dormichan_parent_token', parentToken.trim());
+
+    // 기존 로그인 정보 삭제 (충돌 방지)
+    localStorage.removeItem('dormichan_login_id');
+    localStorage.removeItem('dormichan_role');
+    localStorage.removeItem('dormichan_keepLoggedIn');
+    sessionStorage.removeItem('dormichan_login_id');
+    sessionStorage.removeItem('dormichan_role');
+
+    // 성공 메시지 및 이동
+    alert(`${student.grade}학년 ${student.class}반 ${student.name} 학생의 학부모님, 환영합니다!`);
+    router.replace(`/parent?token=${parentToken.trim()}`);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,7 +183,9 @@ export default function LoginPage() {
             background: "linear-gradient(180deg, #333, #111)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
+            cursor: "pointer"
           }}
+          onClick={() => setIsParentMode(false)} // 로고 누르면 기본 모드로
         >
           이석찬
         </h1>
@@ -155,86 +194,170 @@ export default function LoginPage() {
           style={{
             textAlign: "center",
             color: "#fff",
-            marginBottom: "40px",
+            marginBottom: "20px",
             fontSize: "14px",
             fontWeight: "500",
           }}
         >
-          KSHS 통합 이석 관리 플랫폼
+          {isParentMode ? "학부모 전용 로그인" : "KSHS 통합 이석 관리 플랫폼"}
         </p>
 
-        <form onSubmit={handleLogin}>
-          <input
-            type="text"
-            placeholder="아이디 (학번+이름 / 교사이름)"
-            value={loginId}
-            onChange={(e) => setLoginId(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginBottom: "14px",
-              borderRadius: "22px",
-              border: "1px solid rgba(255,255,255,0.45)",
-              background: "rgba(255,255,255,0.16)",
-              color: "#fff",
-            }}
-          />
+        {/* --- Toggle Buttons --- */}
+        <div className="flex gap-2 mb-6 p-1 bg-white/20 rounded-xl">
+          <button
+            onClick={() => { setIsParentMode(false); setError(""); }}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${!isParentMode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-200 hover:text-white'}`}
+          >
+            학생/교사
+          </button>
+          <button
+            onClick={() => { setIsParentMode(true); setError(""); }}
+            className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${isParentMode ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-200 hover:text-white'}`}
+          >
+            학부모
+          </button>
+        </div>
+        {/* ---------------------- */}
 
-          <input
-            type="password"
-            placeholder="비밀번호"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px",
-              marginBottom: "14px",
-              borderRadius: "22px",
-              border: "1px solid rgba(255,255,255,0.45)",
-              background: "rgba(255,255,255,0.16)",
-              color: "#fff",
-            }}
-          />
-
-          {error && (
-            <p
+        {isParentMode ? (
+          // --- Parent Login Form ---
+          <form onSubmit={handleParentLogin}>
+            <input
+              type="text"
+              placeholder="전달받은 토큰을 입력하세요"
+              value={parentToken}
+              onChange={(e) => setParentToken(e.target.value)}
               style={{
-                color: "#ff6b6b",
-                marginBottom: "10px",
-                fontSize: "14px",
+                width: "100%",
+                padding: "12px",
+                marginBottom: "14px",
+                borderRadius: "22px",
+                border: "1px solid rgba(255,255,255,0.45)",
+                background: "rgba(255,255,255,0.16)",
+                color: "#fff",
                 textAlign: "center",
-                fontWeight: "700",
-                backgroundColor: "rgba(0,0,0,0.5)",
-                padding: "8px",
-                borderRadius: "10px"
+                fontWeight: "bold",
+                letterSpacing: "1px"
+              }}
+            />
+            {error && (
+              <p
+                style={{
+                  color: "#ff6b6b",
+                  marginBottom: "10px",
+                  fontSize: "14px",
+                  textAlign: "center",
+                  fontWeight: "700",
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  padding: "8px",
+                  borderRadius: "10px"
+                }}
+              >
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              className="bg-gradient-to-r from-orange-500 to-pink-500 hover:scale-105 active:scale-95"
+              style={{
+                width: "100%",
+                padding: "15px",
+                color: "#fff",
+                border: "none",
+                borderRadius: "14px",
+                cursor: "pointer",
+                fontSize: "17px",
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+                transition: "all 0.2s"
               }}
             >
-              {error}
+              <FiLogIn size={20} />
+              학부모 입장하기
+            </button>
+            <p className="text-gray-300 text-xs text-center mt-4 leading-relaxed">
+              * 링크가 작동하지 않거나 앱 설치 후<br />
+              로그인이 필요한 경우 이용해주세요.
             </p>
-          )}
+          </form>
+        ) : (
+          // --- Student/Teacher Login Form (Existing) ---
+          <form onSubmit={handleLogin}>
+            <input
+              type="text"
+              placeholder="아이디 (학번+이름 / 교사이름)"
+              value={loginId}
+              onChange={(e) => setLoginId(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                marginBottom: "14px",
+                borderRadius: "22px",
+                border: "1px solid rgba(255,255,255,0.45)",
+                background: "rgba(255,255,255,0.16)",
+                color: "#fff",
+              }}
+            />
 
-          <button
-            type="submit"
-            style={{
-              width: "100%",
-              padding: "15px",
-              background: "#141414",
-              color: "#fff",
-              border: "none",
-              borderRadius: "14px",
-              cursor: "pointer",
-              fontSize: "17px",
-              fontWeight: "600",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "10px",
-            }}
-          >
-            <FiLogIn size={20} />
-            로그인
-          </button>
-        </form>
+            <input
+              type="password"
+              placeholder="비밀번호"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                marginBottom: "14px",
+                borderRadius: "22px",
+                border: "1px solid rgba(255,255,255,0.45)",
+                background: "rgba(255,255,255,0.16)",
+                color: "#fff",
+              }}
+            />
+
+            {error && (
+              <p
+                style={{
+                  color: "#ff6b6b",
+                  marginBottom: "10px",
+                  fontSize: "14px",
+                  textAlign: "center",
+                  fontWeight: "700",
+                  backgroundColor: "rgba(0,0,0,0.5)",
+                  padding: "8px",
+                  borderRadius: "10px"
+                }}
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              style={{
+                width: "100%",
+                padding: "15px",
+                background: "#141414",
+                color: "#fff",
+                border: "none",
+                borderRadius: "14px",
+                cursor: "pointer",
+                fontSize: "17px",
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px",
+              }}
+            >
+              <FiLogIn size={20} />
+              로그인
+            </button>
+          </form>
+        )}
 
         <div style={{
           marginTop: '20px',
