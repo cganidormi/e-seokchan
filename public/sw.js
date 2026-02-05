@@ -1,5 +1,7 @@
 // Install event - force new service worker to activate immediately causes the PWA to update
+// VERSION: 2026-02-05-v3 (Force Update for Icon Fix)
 self.addEventListener('install', function (event) {
+    console.log('[SW] Installing new version...');
     self.skipWaiting();
 });
 
