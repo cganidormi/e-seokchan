@@ -593,8 +593,8 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                             borderColor: '#e5e7eb',
                             boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
                             ':hover': { borderColor: '#fbbf24' },
-                            backgroundColor: (leaveType === '외출' || leaveType === '외박') ? '#f3f4f6' : 'white', // Visual cue
-                            cursor: (leaveType === '외출' || leaveType === '외박') ? 'not-allowed' : 'default',
+                            backgroundColor: (leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움') ? '#f3f4f6' : 'white', // Visual cue
+                            cursor: (leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움') ? 'not-allowed' : 'default',
                         }),
                         multiValue: (base) => ({ ...base, backgroundColor: '#fefce8', border: '1px solid #fde68a', borderRadius: '0.5rem', margin: '2px' }),
                         multiValueLabel: (base) => ({ ...base, color: '#854d0e', fontWeight: '600', padding: '2px 8px', fontSize: '0.875rem' }),
@@ -620,7 +620,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         }),
                     }}
                     placeholder="신청자 선택 (검색 가능)"
-                    isDisabled={leaveType === '외출' || leaveType === '외박'} // Disable the input entirely based on requirement
+                    isDisabled={leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움'} // Disable the input entirely based on requirement
                 />
             </div>
 

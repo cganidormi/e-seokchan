@@ -66,13 +66,13 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
             onClick={onToggleExpand}
             className={clsx(
                 "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
-                isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-5 py-3 min-h-[60px]",
+                isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-4 h-[60px]", // Reduced px-5->px-4, fixed height
                 viewMode === 'past' && "opacity-60"
             )}
         >
-            <div className="flex items-center w-full gap-3">
+            <div className="flex items-center w-full gap-2"> {/* Gap-3 -> Gap-2 */}
                 {/* 1. 이석 종류 & 상태 아이콘 */}
-                <div className="flex items-center gap-2 shrink-0 w-[85px]">
+                <div className="flex items-center gap-2 shrink-0"> {/* Removed w-[85px] */}
                     <div className={clsx(
                         "w-2 h-2 rounded-full",
                         statusConfig.dot,
@@ -122,13 +122,18 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                     )}
                 </div>
 
-                <div className="flex flex-1 items-center gap-2 min-w-0">
+                <div className="flex flex-1 items-center gap-2 min-w-0"> {/* Gap-2 standard */}
                     <div className="flex flex-col gap-1 shrink-0 justify-center min-w-[3rem]">
-                        {allStudents.map((id, idx) => (
-                            <span key={idx} className="text-gray-200 text-xs leading-tight font-medium whitespace-nowrap">
-                                {id}
+                        <div className="flex flex-col items-center justify-center">
+                            <span className="text-gray-200 text-xs leading-tight whitespace-nowrap flex items-center gap-1 font-bold">
+                                {req.student_id}
                             </span>
-                        ))}
+                            {allStudents.length > 1 && (
+                                <span className="text-gray-300 text-[10px] leading-tight whitespace-nowrap font-medium">
+                                    외 {allStudents.length - 1}명
+                                </span>
+                            )}
+                        </div>
                     </div>
                     {/* 3. 시간 (Time - 학생 페이지와 동일한 램프 스타일) */}
                     <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center">
@@ -147,8 +152,8 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                                 const activePeriods = req.period.split(',').map(p => p.trim());
 
                                 return (
-                                    <div className="flex flex-col gap-1.5">
-                                        <div className="flex flex-col gap-1">
+                                    <div className="flex flex-col gap-1.5 justify-center">
+                                        <div className="flex flex-col gap-1 justify-center">
                                             {groups.map((group, gIdx) => (
                                                 <div key={gIdx} className="flex gap-1 items-center">
                                                     <span className="text-[11px] text-gray-400 font-medium w-7 text-left">
@@ -185,13 +190,13 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                                 const fTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                                 const fDate = (d: Date) => d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
                                 return (
-                                    <div className="flex flex-col gap-0.5 leading-tight">
-                                        <div className="flex flex-col gap-0.5">
-                                            <div className="flex items-center gap-1">
+                                    <div className="flex flex-col gap-0.5 leading-tight justify-center">
+                                        <div className="flex flex-col gap-0.5 justify-center">
+                                            <div className="flex items-center gap-[3px]"> {/* Gap-1.5 -> Gap-[3px] */}
                                                 <span className="text-gray-400 text-[11px] w-7 text-left">{fDate(start)}</span>
                                                 <span className="text-yellow-400 text-[11px] font-bold">{fTime(start)}</span>
                                             </div>
-                                            <div className="flex items-center gap-1">
+                                            <div className="flex items-center gap-[3px]"> {/* Gap-1.5 -> Gap-[3px] */}
                                                 <span className="text-gray-400 text-[11px] w-7 text-left">{fDate(end)}</span>
                                                 <span className="text-orange-400 text-[11px] font-bold">{fTime(end)}</span>
                                             </div>
@@ -204,9 +209,9 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
 
                     {/* 4. 사유 (Reason) */}
                     {req.reason && (
-                        <div className="flex items-center shrink-0">
-                            <span className="text-gray-400 text-xs font-medium" title={req.reason}>
-                                {req.reason.length > 6 ? req.reason.slice(0, 6) + '...' : req.reason}
+                        <div className="flex items-center shrink-1 min-w-0"> {/* Enforced shrinking */}
+                            <span className="text-gray-400 text-xs font-medium truncate max-w-[60px] sm:max-w-[80px]" title={req.reason}> {/* Truncate added */}
+                                {req.reason}
                             </span>
                         </div>
                     )}

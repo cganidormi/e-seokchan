@@ -106,7 +106,8 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
     const additionalIds = req.leave_request_students?.map(lrs => lrs.student_id).filter(Boolean) || [];
     const allStudents = [req.student_id, ...additionalIds].filter(Boolean);
     const isPast = viewMode === 'past';
-    const canEdit = !isPast && req.status === '신청' && req.student_id === currentStudentId;
+    const canEdit = !isPast && req.status === '신청' && req.student_id === currentStudentId &&
+        (['이석', '교실이동', '특별실'].includes(req.leave_type)); // 외출, 외박, 컴이석, 자리비움 등은 인원 수정 불가
 
     // Filter for Autocomplete
     const filteredStudents = allStudentsList.filter(s =>
@@ -123,10 +124,9 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                     isPast && "opacity-60"
                 )}
             >
-                {/* 상단 한 줄 요약 (Collapsed & Expanded Header) */}
-                <div className="flex items-center w-full gap-3">
+                <div className="flex items-center w-full gap-2"> {/* Increased from 5px to 8px */}
                     {/* 1. 상태 아이콘 & 이석 종류 */}
-                    <div className="flex items-center gap-2 shrink-0 w-[85px]">
+                    <div className="flex items-center gap-2 shrink-0">
                         <div className={clsx(
                             "w-2 h-2 rounded-full",
                             statusConfig.dot,
@@ -140,160 +140,163 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         )}
                     </div>
 
-                    <div
-                        className={clsx(
-                            "flex flex-col gap-1 shrink-0 justify-center min-w-[3rem]",
-                            canEdit && "cursor-pointer p-1 -m-1 rounded hover:bg-white/5 group relative"
-                        )}
-                        onClick={canEdit ? openManageModal : undefined}
-                        title={canEdit ? "클릭하여 인원 수정" : ""}
-                    >
-                        {allStudents.map((id, idx) => (
-                            <span key={idx} className="text-gray-200 text-xs leading-tight whitespace-nowrap flex items-center gap-1">
-                                {id}
-                            </span>
-                        ))}
-                        {canEdit && (
-                            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 flex items-center gap-1.5 bg-gray-800/95 rounded-full px-2 py-0.5 border border-white/20 shadow-md z-10">
-                                <span className="text-[10px] text-blue-400 font-black">+</span>
-                                <span className="text-[10px] text-red-400 font-black">-</span>
+                    {/* Middle Content Wrapper (Name, Time, Reason) - Matches Teacher Card Structure */}
+                    <div className="flex flex-1 items-center gap-2 min-w-0">
+                        <div
+                            className={clsx(
+                                "flex flex-col gap-1 shrink-0 justify-center min-w-[3rem]",
+                                canEdit && "cursor-pointer p-1 -m-1 rounded hover:bg-white/5 group relative"
+                            )}
+                            onClick={canEdit ? openManageModal : undefined}
+                            title={canEdit ? "클릭하여 인원 수정" : ""}
+                        >
+                            {/* Compact View: Name + N others */}
+                            <div className="flex flex-col items-center justify-center">
+                                <span className="text-gray-200 text-xs leading-tight whitespace-nowrap flex items-center gap-1 font-bold">
+                                    {req.student_id}
+                                </span>
+                                {allStudents.length > 1 && (
+                                    <span className="text-gray-300 text-[10px] leading-tight whitespace-nowrap font-medium"> {/* Brightened text */}
+                                        외 {allStudents.length - 1}명
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 3. 시간 (Time) */}
+                        <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center">
+                            {(() => {
+                                const start = new Date(req.start_time);
+                                const day = start.getDay();
+                                const isWeekend = day === 0 || day === 6;
+
+                                if (req.period) {
+                                    const groups = isWeekend
+                                        ? [
+                                            { label: '오전', periods: ['1', '2', '3'] },
+                                            { label: '오후', periods: ['4', '5', '6'] },
+                                            { label: '야간', periods: ['1', '2', '3'] }
+                                        ]
+                                        : [
+                                            { label: '주간', periods: ['6', '7', '8', '9'] },
+                                            { label: '야간', periods: ['1', '2', '3', '4'] }
+                                        ];
+
+                                    const activePeriods = req.period.split(',').map(p => p.trim());
+
+                                    return (
+                                        <div className="flex flex-col gap-1.5 justify-center">
+                                            <div className="flex flex-col gap-1 justify-center">
+                                                {groups.map((group, gIdx) => (
+                                                    <div key={gIdx} className="flex gap-1 items-center">
+                                                        <span className="text-[11px] text-gray-400 font-medium w-7 text-left">
+                                                            {gIdx === 0 ? start.toLocaleDateString([], { month: 'numeric', day: 'numeric' }) : ""}
+                                                        </span>
+                                                        <div className="flex gap-1 items-center">
+                                                            {group.periods.map(p => {
+                                                                const periodLabel = `${group.label}${p}교시`;
+                                                                const isActive = activePeriods.includes(periodLabel);
+
+                                                                return (
+                                                                    <div
+                                                                        key={p}
+                                                                        className={clsx(
+                                                                            "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all",
+                                                                            isActive
+                                                                                ? "bg-yellow-400 text-black shadow-[0_0_8px_rgba(250,204,21,0.6)]"
+                                                                                : "bg-white/5 text-white/20 border border-white/5"
+                                                                        )}
+                                                                    >
+                                                                        {p}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                } else {
+                                    const end = req.leave_type === '자리비움'
+                                        ? new Date(new Date(req.start_time).getTime() + 10 * 60000)
+                                        : new Date(req.end_time);
+                                    const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                                    const formatDate = (d: Date) => d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+
+                                    return (
+                                        <div className="flex flex-col gap-0.5 leading-tight justify-center">
+                                            <div className="flex flex-col gap-0.5 justify-center">
+                                                <div className="flex items-center gap-[3px]">
+                                                    <span className="text-gray-400 text-[11px] w-7 text-left">{formatDate(start)}</span>
+                                                    <span className="text-yellow-400 text-[11px] font-bold">{formatTime(start)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-[3px]">
+                                                    <span className="text-gray-400 text-[11px] w-7 text-left">{formatDate(end)}</span>
+                                                    <span className="text-orange-400 text-[11px] font-bold">{formatTime(end)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                            })()}
+                        </div>
+
+                        {/* 4. 사유 (Reason) */}
+                        {req.reason && (
+                            <div className="flex items-center shrink-1 min-w-0"> {/* Allow shrinking */}
+                                <span className="text-gray-400 text-xs font-medium truncate max-w-[60px] sm:max-w-[80px]" title={req.reason}>
+                                    {req.reason}
+                                </span>
                             </div>
                         )}
                     </div>
 
-                    {/* 3. 시간 (Time - 교시 램프 스타일 & 날짜 조건부 표시) */}
-                    <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center">
-                        {(() => {
-                            const start = new Date(req.start_time);
-                            const day = start.getDay();
-                            const isWeekend = day === 0 || day === 6;
+                    {/* 5. 따라가기 버튼 (내가 아닌 경우, "이석" or "컴이석" 한정, 지난 내역 제외) */}
+                    {req.student_id !== currentStudentId && onCopy && !isPast && (req.leave_type === '이석' || req.leave_type === '컴이석') && (
+                        <div className="flex items-center shrink-0 ml-2 self-center">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onCopy(req); }}
+                                className="text-[10px] bg-blue-600/30 hover:bg-blue-600 text-blue-200 hover:text-white px-2 py-1 rounded-full transition-all border border-blue-500/30 flex items-center gap-1"
+                                title="이 내용으로 신청하기"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                                </svg>
+                                <span className="hidden sm:inline">따라가기</span>
+                            </button>
+                        </div>
+                    )}
 
-                            if (req.period) {
-                                const groups = isWeekend
-                                    ? [
-                                        { label: '오전', periods: ['1', '2', '3'] },
-                                        { label: '오후', periods: ['4', '5', '6'] },
-                                        { label: '야간', periods: ['1', '2', '3'] }
-                                    ]
-                                    : [
-                                        { label: '주간', periods: ['6', '7', '8', '9'] },
-                                        { label: '야간', periods: ['1', '2', '3', '4'] }
-                                    ];
-
-                                const activePeriods = req.period.split(',').map(p => p.trim());
-
-                                return (
-                                    <div className="flex flex-col gap-1.5">
-                                        <div className="flex flex-col gap-1">
-                                            {groups.map((group, gIdx) => (
-                                                <div key={gIdx} className="flex gap-1 items-center">
-                                                    <span className="text-[11px] text-gray-400 font-medium w-7 text-left">
-                                                        {gIdx === 0 ? start.toLocaleDateString([], { month: 'numeric', day: 'numeric' }) : ""}
-                                                    </span>
-                                                    <div className="flex gap-1 items-center">
-                                                        {group.periods.map(p => {
-                                                            const periodLabel = `${group.label}${p}교시`;
-                                                            const isActive = activePeriods.includes(periodLabel);
-
-                                                            return (
-                                                                <div
-                                                                    key={p}
-                                                                    className={clsx(
-                                                                        "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all",
-                                                                        isActive
-                                                                            ? "bg-yellow-400 text-black shadow-[0_0_8px_rgba(250,204,21,0.6)]"
-                                                                            : "bg-white/5 text-white/20 border border-white/5"
-                                                                    )}
-                                                                >
-                                                                    {p}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            } else {
-                                const end = req.leave_type === '자리비움'
-                                    ? new Date(new Date(req.start_time).getTime() + 10 * 60000)
-                                    : new Date(req.end_time);
-                                const formatTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                                const formatDate = (d: Date) => d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
-
-                                return (
-                                    <div className="flex flex-col gap-0.5 leading-tight">
-                                        <div className="flex flex-col gap-0.5">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-gray-400 text-[11px] w-7 text-left">{formatDate(start)}</span>
-                                                <span className="text-yellow-400 text-[11px] font-bold">{formatTime(start)}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-gray-400 text-[11px] w-7 text-left">{formatDate(end)}</span>
-                                                <span className="text-orange-400 text-[11px] font-bold">{formatTime(end)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            }
-                        })()}
-                    </div>
-
-                    {/* 4. 사유 (Reason) */}
-                    {req.reason && (
-                        <div className="flex items-center shrink-0">
-                            <span className="text-gray-400 text-xs font-medium" title={req.reason}>
-                                {req.reason.length > 6 ? req.reason.slice(0, 6) + '...' : req.reason}
-                            </span>
+                    {/* 6. 취소 버튼 (우측 끝) */}
+                    {!isPast && (
+                        <div className="ml-auto flex items-center shrink-0 self-center">
+                            {req.student_id === currentStudentId && (
+                                req.status === '신청' ||
+                                req.status === '학부모승인' ||
+                                req.status === '학부모승인대기' ||
+                                req.status === '승인' ||
+                                req.status === '승인전' ||
+                                req.leave_type === '컴이석'
+                            ) && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
+                                        className="text-gray-500 hover:text-red-500 transition-colors p-1"
+                                        title="취소"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                )}
                         </div>
                     )}
                 </div>
 
-                {/* 5. 따라가기 버튼 (내가 아닌 경우, "이석" or "컴이석" 한정, 지난 내역 제외) */}
-                {req.student_id !== currentStudentId && onCopy && !isPast && (req.leave_type === '이석' || req.leave_type === '컴이석') && (
-                    <div className="flex items-center shrink-0 ml-2">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onCopy(req); }}
-                            className="text-[10px] bg-blue-600/30 hover:bg-blue-600 text-blue-200 hover:text-white px-2 py-1 rounded-full transition-all border border-blue-500/30 flex items-center gap-1"
-                            title="이 내용으로 신청하기"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-                            </svg>
-                            <span className="hidden sm:inline">따라가기</span>
-                        </button>
-                    </div>
-                )}
-
-                {/* 6. 취소 버튼 (우측 끝) */}
-                {!isPast && (
-                    <div className="ml-auto flex items-center shrink-0">
-                        {req.student_id === currentStudentId && (
-                            req.status === '신청' ||
-                            req.status === '학부모승인' ||
-                            req.status === '학부모승인대기' ||
-                            req.status === '승인' ||
-                            req.status === '승인전' ||
-                            req.leave_type === '컴이석'
-                        ) && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
-                                    className="text-gray-500 hover:text-red-500 transition-colors p-1"
-                                    title="취소"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            )}
-                    </div>
-                )}
-
 
                 {isExpanded && (
                     <div className="mt-4 pt-4 border-t border-white/10 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
-                        <div className="grid grid-cols-3 gap-4 text-xs">
+                        <div className="grid grid-cols-3 gap-4 text-[11px]"> {/* Reduced base font size */}
                             {req.leave_type !== '컴이석' ? (
                                 <>
                                     <div className="flex flex-col gap-1">
@@ -318,7 +321,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
 
                         {additionalIds.length > 0 && (
                             <div className="flex flex-col gap-1">
-                                <span className="text-gray-500 font-bold">함께하는 학생들</span>
+                                <span className="text-gray-500 font-bold text-[11px]">함께하는 학생들</span>
                                 <div className="flex flex-wrap gap-1.5 items-center">
                                     {allStudents.map(id => {
                                         const isMe = id === currentStudentId;
@@ -328,7 +331,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
 
                                         return (
                                             <div key={id} className={clsx(
-                                                "px-2 py-1 rounded flex items-center gap-1 transition-colors",
+                                                "px-2 py-1 rounded flex items-center gap-1 transition-colors text-[10px]", // Reduced font size here
                                                 isMe ? "bg-blue-900/40 text-blue-200 border border-blue-500/30 font-bold" : "bg-gray-800 text-gray-300"
                                             )}>
                                                 <span>{id}</span>
@@ -355,7 +358,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                                                         className="ml-1 text-blue-400 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors"
                                                         title="명단에서 빠지기"
                                                     >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5" viewBox="0 0 20 20" fill="currentColor">
                                                             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                                                         </svg>
                                                     </button>
@@ -368,8 +371,8 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         )}
 
                         <div className="flex flex-col gap-1">
-                            <span className="text-gray-500 font-bold">신청 일시</span>
-                            <span className="text-gray-400 text-xs">
+                            <span className="text-gray-500 font-bold text-[11px]">신청 일시</span>
+                            <span className="text-gray-400 text-[10px]">
                                 {new Date(req.created_at).toLocaleString()}
                             </span>
                         </div>
