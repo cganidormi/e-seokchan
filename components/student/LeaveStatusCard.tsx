@@ -154,10 +154,9 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                             </span>
                         ))}
                         {canEdit && (
-                            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 flex items-center gap-0.5 bg-gray-800/90 rounded-full px-1.5 py-0.5 border border-white/10 shadow-sm z-10">
-                                <span className="text-[8px] text-blue-400 font-bold">+</span>
-                                <FaUser size={8} className="text-gray-300" />
-                                <span className="text-[8px] text-red-400 font-bold">-</span>
+                            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 flex items-center gap-1.5 bg-gray-800/95 rounded-full px-2 py-0.5 border border-white/20 shadow-md z-10">
+                                <span className="text-[10px] text-blue-400 font-black">+</span>
+                                <span className="text-[10px] text-red-400 font-black">-</span>
                             </div>
                         )}
                     </div>
