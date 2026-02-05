@@ -157,10 +157,28 @@ export default function TeacherPage() {
         throw error;
       }
 
-      const requestsWithDetails = (data || []).map((req) => ({
-        ...req,
-        teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' },
-      }));
+      const requestsWithDetails = (data || [])
+        .filter((req) => {
+          // 만료된 요청 필터링 (승인되지 않은 상태에서 시간이 지난 경우 숨김)
+          // 단, '승인', '반려', '취소', '복귀' 등 완료된 상태는 기록을 위해 보여줄 수도 있지만, 
+          // 선생님 요청사항은 "만료된 요청은 깔끔하게 삭제"이므로 
+          // "처리되지 않은(Pending) 상태인데 이미 시간이 지난 것"만 안 보이게 처리함.
+          // 완료된 건(승인/반려 등)은 히스토리로 남겨둠.
+
+          const now = new Date();
+          const endTime = new Date(req.end_time);
+          const isExpired = now > endTime;
+          const isPending = req.status === '학부모승인대기' || req.status === '학부모승인' || req.status === '승인대기';
+
+          // 만료되었고 아직 처리중(Pending)이면 숨김
+          if (isExpired && isPending) return false;
+
+          return true;
+        })
+        .map((req) => ({
+          ...req,
+          teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' },
+        }));
 
       setLeaveRequests(requestsWithDetails as LeaveRequest[]);
     } catch (err) {
