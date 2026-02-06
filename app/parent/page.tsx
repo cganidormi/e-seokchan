@@ -429,8 +429,8 @@ function ParentContent() {
             {/* Header */}
             <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-10">
                 <div>
-                    <h1 className="text-xl font-bold text-gray-800">이석찬 ✅</h1>
-                    <p className="text-xs text-gray-500">학부모 전용</p>
+                    <h1 className="text-xl font-bold text-gray-800">강원과학고등학교</h1>
+                    <p className="text-xs text-gray-500">KSHS 통합 이석 관리 플랫폼 학부모 페이지</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-bold">
@@ -475,7 +475,9 @@ function ParentContent() {
                             {currentStatus.text}
                         </h2>
                         <p className="text-gray-500 text-sm">
-                            {currentStatus.type === 'school' ? '특이사항 없음' : '귀가 예정: 확인 필요'}
+                            {currentStatus.type === 'school'
+                                ? `${new Date().getMonth() + 1}월의 매주귀가 상태 : ${student?.weekend ? '매주귀가' : '격주귀가'}`
+                                : '귀가 예정: 확인 필요'}
                         </p>
                     </div>
                 </section>
