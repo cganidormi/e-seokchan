@@ -118,3 +118,20 @@ body {
   box-shadow: none !important;
   outline: none !important;
 }
+
+/* 🚨 Urgent Notification Animation */
+@keyframes fast-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.animate-fast-pulse {
+  animation: fast-pulse 0.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

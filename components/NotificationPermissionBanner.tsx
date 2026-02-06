@@ -85,7 +85,7 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
     return (
         <div
             onClick={handleRequestPermission}
-            className="w-full p-4 mb-4 rounded-xl cursor-pointer transition-all shadow-md animate-pulse flex items-center justify-between border bg-red-50 border-red-200"
+            className="w-full p-4 mb-4 rounded-xl cursor-pointer transition-all shadow-md animate-fast-pulse flex items-center justify-between border bg-red-50 border-red-200"
         >
             <div className="flex items-center gap-3">
                 <span className="text-2xl">🚨</span>
