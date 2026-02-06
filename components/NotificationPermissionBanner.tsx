@@ -100,7 +100,7 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
                     </p>
                 </div>
             </div>
-            <div className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-red-100 text-red-600 border border-red-200">
+            <div className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-green-100 text-green-700 border border-green-200 shadow-sm">
                 {permission === 'denied' ? '설정 확인' : '지금 허용'}
             </div>
         </div>
