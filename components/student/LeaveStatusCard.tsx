@@ -134,7 +134,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         <div className={clsx(
                             "w-2 h-2 rounded-full",
                             statusConfig.dot,
-                            req.status === '신청' || req.status === '학부모승인' && "animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"
+                            (req.status === '신청' || req.status === '학부모승인' || req.status === '승인대기' || req.status === '학부모승인대기') && "animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"
                         )}></div>
 
                         <div className={clsx(
