@@ -91,7 +91,8 @@ export default function StudentPage() {
         .select('*, leave_request_students(student_id)')
         .neq('leave_type', '외출')
         .neq('leave_type', '외박')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(200);
 
       if (publicError) {
         throw publicError;
@@ -104,7 +105,8 @@ export default function StudentPage() {
         .select('*, leave_request_students(student_id)')
         .eq('student_id', id)
         .in('leave_type', ['외출', '외박'])
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(200);
 
       if (myMainError) {
         console.error('[DEBUG] My Main Private Fetch Error:', JSON.stringify(myMainError));
@@ -115,7 +117,9 @@ export default function StudentPage() {
       const { data: coLinkData } = await supabase
         .from('leave_request_students')
         .select('leave_request_id')
-        .eq('student_id', id);
+        .eq('student_id', id)
+        .order('created_at', { ascending: false })
+        .limit(200);
 
       const coRequestIds = coLinkData?.map(c => c.leave_request_id) || [];
 

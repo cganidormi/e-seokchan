@@ -150,7 +150,8 @@ export default function TeacherPage() {
       const { data, error } = await supabase
         .from('leave_requests')
         .select('*, leave_request_students(student_id)')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(200);
 
       if (error) {
         console.error('Supabase query error:', error.message, error.details);
