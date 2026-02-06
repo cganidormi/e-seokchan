@@ -78,48 +78,54 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                         statusConfig.dot,
                         req.status === '신청' || req.status === '학부모승인' && "animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"
                     )}></div>
-                    <span className="text-white font-bold text-xs">{req.leave_type}</span>
 
-                    {req.leave_type !== '컴이석' && req.leave_type !== '자리비움' && (
-                        <div className="relative shrink-0">
-                            {/* Status Change Button - Only if canEdit */}
-                            <button
-                                onClick={canEdit ? onToggleMenu : (e) => e.stopPropagation()}
-                                className={clsx(
-                                    "flex items-center px-1.5 py-0.5 rounded border border-opacity-30 transition-all duration-200 text-[10px] font-bold border-current",
-                                    statusConfig.text,
-                                    canEdit && (req.status === '신청' || req.status === '학부모승인') ? "bg-blue-500/10" : "bg-white/5",
-                                    !canEdit && "opacity-50 cursor-default"
+                    <div className={clsx(
+                        "flex items-center gap-2",
+                        ['이석', '컴이석', '자리비움'].includes(req.leave_type!) ? "w-[65px]" : "w-auto"
+                    )}>
+                        <span className="text-white font-bold text-xs text-left whitespace-nowrap">{req.leave_type}</span>
+
+                        {req.leave_type !== '컴이석' && req.leave_type !== '자리비움' && (
+                            <div className="relative shrink-0">
+                                {/* Status Change Button - Only if canEdit */}
+                                <button
+                                    onClick={canEdit ? onToggleMenu : (e) => e.stopPropagation()}
+                                    className={clsx(
+                                        "flex items-center px-1.5 py-0.5 rounded border border-opacity-30 transition-all duration-200 text-[10px] font-bold border-current",
+                                        statusConfig.text,
+                                        canEdit && (req.status === '신청' || req.status === '학부모승인') ? "bg-blue-500/10" : "bg-white/5",
+                                        !canEdit && "opacity-50 cursor-default"
+                                    )}
+                                    disabled={!canEdit}
+                                >
+                                    {statusConfig.label}
+                                </button>
+
+                                {isMenuOpen && canEdit && (
+                                    <div className="absolute top-full left-0 mt-2 bg-[#2a2a2a] border border-white/10 rounded-2xl shadow-2xl z-50 py-2 w-24 animate-in fade-in slide-in-from-top-1">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '신청'); }}
+                                            className="w-full px-4 py-2 text-left text-xs text-blue-400 hover:bg-white/5 font-bold"
+                                        >
+                                            대기
+                                        </button>
+                                        <button
+                                            onClick={handleApprove}
+                                            className="w-full px-4 py-2 text-left text-xs text-green-400 hover:bg-white/5 font-bold"
+                                        >
+                                            승인
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '반려'); }}
+                                            className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-white/5 font-bold"
+                                        >
+                                            반려
+                                        </button>
+                                    </div>
                                 )}
-                                disabled={!canEdit}
-                            >
-                                {statusConfig.label}
-                            </button>
-
-                            {isMenuOpen && canEdit && (
-                                <div className="absolute top-full left-0 mt-2 bg-[#2a2a2a] border border-white/10 rounded-2xl shadow-2xl z-50 py-2 w-24 animate-in fade-in slide-in-from-top-1">
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '신청'); }}
-                                        className="w-full px-4 py-2 text-left text-xs text-blue-400 hover:bg-white/5 font-bold"
-                                    >
-                                        대기
-                                    </button>
-                                    <button
-                                        onClick={handleApprove}
-                                        className="w-full px-4 py-2 text-left text-xs text-green-400 hover:bg-white/5 font-bold"
-                                    >
-                                        승인
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '반려'); }}
-                                        className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-white/5 font-bold"
-                                    >
-                                        반려
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex flex-1 items-center gap-2 min-w-0"> {/* Gap-2 standard */}

@@ -35,7 +35,8 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
     // Initial Setting for Edit Mode
     const openManageModal = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (req.status !== '신청') return;
+        const leaveType = req.leave_type ? req.leave_type.trim() : '';
+        if (req.status !== '신청' && !(leaveType === '컴이석' && req.status === '승인')) return;
         if (req.student_id !== currentStudentId) return;
 
         const currentAdditional = req.leave_request_students?.map(lrs => lrs.student_id).filter(Boolean) || [];
@@ -106,8 +107,11 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
     const additionalIds = req.leave_request_students?.map(lrs => lrs.student_id).filter(Boolean) || [];
     const allStudents = [req.student_id, ...additionalIds].filter(Boolean);
     const isPast = viewMode === 'past';
-    const canEdit = !isPast && req.status === '신청' && req.student_id === currentStudentId &&
-        (['이석', '교실이동', '특별실'].includes(req.leave_type)); // 외출, 외박, 컴이석, 자리비움 등은 인원 수정 불가
+    const leaveType = req.leave_type ? req.leave_type.trim() : '';
+    const canEdit = !isPast &&
+        req.student_id === currentStudentId &&
+        (req.status === '신청' || (leaveType === '컴이석' && req.status === '승인')) &&
+        (['이석', '교실이동', '특별실', '컴이석'].includes(leaveType));
 
     // Filter for Autocomplete
     const filteredStudents = allStudentsList.filter(s =>
@@ -120,11 +124,11 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                 onClick={onToggleExpand}
                 className={clsx(
                     "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
-                    isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-5 py-3 min-h-[60px]",
+                    isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-4 h-[60px]",
                     isPast && "opacity-60"
                 )}
             >
-                <div className="flex items-center w-full gap-2"> {/* Increased from 5px to 8px */}
+                <div className="flex items-center w-full gap-2">
                     {/* 1. 상태 아이콘 & 이석 종류 */}
                     <div className="flex items-center gap-2 shrink-0">
                         <div className={clsx(
@@ -132,16 +136,22 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                             statusConfig.dot,
                             req.status === '신청' || req.status === '학부모승인' && "animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"
                         )}></div>
-                        <span className="text-white font-bold text-xs">{req.leave_type}</span>
-                        {(req.leave_type !== '컴이석' && req.leave_type !== '자리비움') && (
-                            <span className={clsx("text-[10px] px-1.5 py-0.5 rounded border border-opacity-30 whitespace-nowrap", statusConfig.text, "border-current")}>
-                                {statusConfig.label}
-                            </span>
-                        )}
+
+                        <div className={clsx(
+                            "flex items-center gap-2",
+                            ['이석', '컴이석', '자리비움'].includes(leaveType) ? "w-[65px]" : "w-auto"
+                        )}>
+                            <span className="text-white font-bold text-xs text-left whitespace-nowrap">{req.leave_type}</span>
+                            {(req.leave_type !== '컴이석' && req.leave_type !== '자리비움') && (
+                                <span className={clsx("text-[10px] px-1.5 py-0.5 rounded border border-opacity-30 whitespace-nowrap", statusConfig.text, "border-current")}>
+                                    {statusConfig.label}
+                                </span>
+                            )}
+                        </div>
                     </div>
 
                     {/* Middle Content Wrapper (Name, Time, Reason) - Matches Teacher Card Structure */}
-                    <div className="flex flex-1 items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
                         <div
                             className={clsx(
                                 "flex flex-col gap-1 shrink-0 justify-center min-w-[3rem]",
@@ -243,10 +253,17 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         </div>
 
                         {/* 4. 사유 (Reason) */}
-                        {req.reason && (
+                        {req.reason ? (
                             <div className="flex items-center shrink-1 min-w-0"> {/* Allow shrinking */}
                                 <span className="text-gray-400 text-xs font-medium truncate max-w-[60px] sm:max-w-[80px]" title={req.reason}>
                                     {req.reason}
+                                </span>
+                            </div>
+                        ) : (
+                            /* Spacer for missing reason (e.g. Computer Leave) */
+                            <div className="flex items-center shrink-1 min-w-0 invisible">
+                                <span className="text-xs font-medium truncate w-[60px] sm:w-[80px]">
+                                    Spacer
                                 </span>
                             </div>
                         )}
