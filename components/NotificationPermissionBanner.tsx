@@ -85,30 +85,23 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
     return (
         <div
             onClick={handleRequestPermission}
-            className={`
-        w-full p-4 mb-4 rounded-xl cursor-pointer transition-all shadow-md animate-pulse
-        flex items-center justify-between border
-        ${permission === 'denied' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}
-      `}
+            className="w-full p-4 mb-4 rounded-xl cursor-pointer transition-all shadow-md animate-pulse flex items-center justify-between border bg-red-50 border-red-200"
         >
             <div className="flex items-center gap-3">
-                <span className="text-2xl">{permission === 'denied' ? '🚫' : '🔔'}</span>
+                <span className="text-2xl">🚨</span>
                 <div className="text-left">
-                    <p className={`font-bold text-sm ${permission === 'denied' ? 'text-red-700' : 'text-blue-700'}`}>
-                        {permission === 'denied' ? '알림이 꺼져 있습니다!' : '실시간 알림 켜기'}
+                    <p className="font-bold text-sm text-red-700">
+                        {permission === 'denied' ? '알림이 차단되어 있습니다!' : '실시간 알림을 반드시 켜주세요'}
                     </p>
-                    <p className={`text-xs mt-0.5 ${permission === 'denied' ? 'text-red-500' : 'text-blue-500'}`}>
+                    <p className="text-xs mt-0.5 text-red-600 font-bold">
                         {permission === 'denied'
-                            ? (isIOS ? '폰 설정 > Safari > 알림 허용 필요' : '브라우저 설정에서 알림을 허용해주세요')
-                            : '터치해서 알림을 켜면 승인 결과를 바로 받습니다.'}
+                            ? (isIOS ? '폰 설정 > Safari > 알림 허용 필수' : '설정에서 알림을 허용해야 앱 사용 가능')
+                            : '알림을 허용하지 않으면 앱 사용이 불가합니다.'}
                     </p>
                 </div>
             </div>
-            <div className={`
-        px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap
-        ${permission === 'denied' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}
-      `}>
-                {permission === 'denied' ? '설정 확인' : '켜기'}
+            <div className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-red-100 text-red-600 border border-red-200">
+                {permission === 'denied' ? '설정 확인' : '지금 허용'}
             </div>
         </div>
     );
