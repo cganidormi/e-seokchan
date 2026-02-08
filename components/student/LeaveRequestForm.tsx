@@ -438,7 +438,8 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     .from('leave_requests')
                     .select('id', { count: 'exact', head: true })
                     .eq('teacher_id', teacherId)
-                    .eq('status', '신청');
+                    .eq('status', '신청')
+                    .gt('end_time', new Date().toISOString());
 
                 const { data: teacherSubs } = await supabase
                     .from('push_subscriptions')

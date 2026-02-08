@@ -140,15 +140,19 @@ export default function TeacherPage() {
 
   // Update App Icon Badge (Real-time while app is open)
   useEffect(() => {
-    if ('setAppBadge' in navigator && 'clearAppBadge' in navigator) {
-      const pendingCount = leaveRequests.filter(req => req.status === '신청').length;
+    if ('setAppBadge' in navigator && 'clearAppBadge' in navigator && teacherId) {
+      // Only count '신청' (Pending) status items ASSIGNED to this teacher
+      const pendingCount = leaveRequests.filter(req =>
+        req.status === '신청' && req.teacher_id === teacherId
+      ).length;
+
       if (pendingCount > 0) {
         (navigator as any).setAppBadge(pendingCount).catch((e: any) => console.error('Badge error:', e));
       } else {
         (navigator as any).clearAppBadge().catch((e: any) => console.error('Badge clear error:', e));
       }
     }
-  }, [leaveRequests]);
+  }, [leaveRequests, teacherId]);
 
   const fetchLeaveRequests = async (id: string, name: string) => {
     try {
@@ -181,9 +185,9 @@ export default function TeacherPage() {
           const now = new Date();
           const endTime = new Date(req.end_time);
           const isExpired = now > endTime;
-          const isPending = req.status === '학부모승인대기' || req.status === '학부모승인' || req.status === '승인대기';
+          const isPending = req.status === '신청' || req.status === '학부모승인대기' || req.status === '학부모승인' || req.status === '승인대기';
 
-          // 만료되었고 아직 처리중(Pending)이면 숨김
+          // 만료되었고 아직 처리중(Pending)이면 숨김 (뱃지 카운트에서도 제외됨)
           if (isExpired && isPending) return false;
 
           return true;
