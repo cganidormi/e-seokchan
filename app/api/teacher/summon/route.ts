@@ -5,11 +5,13 @@ import { createClient } from '@supabase/supabase-js';
 // Since web-push might not be globally available, ensuring clean import.
 
 export async function POST(request: Request) {
+    // --- Improved Error Handling & Logging ---
     try {
         const { studentId, teacherName } = await request.json();
 
         if (!studentId) {
-            return NextResponse.json({ error: 'Student ID required' }, { status: 400 });
+            console.error('[API/Summon] Missing studentId');
+            return NextResponse.json({ error: '학생 ID가 필요합니다.' }, { status: 400 });
         }
 
         const supabase = createClient(
@@ -18,25 +20,34 @@ export async function POST(request: Request) {
         );
 
         // 1. Get Student's Push Subscription
-        // The table is 'push_subscriptions', column 'student_id'
         const { data: subs, error } = await supabase
             .from('push_subscriptions')
             .select('subscription_json')
             .eq('student_id', studentId);
 
-        if (error) throw error;
-
-        if (!subs || subs.length === 0) {
-            return NextResponse.json({ message: 'No metrics found for this student', status: 'no_subscription' }, { status: 200 });
+        if (error) {
+            console.error('[API/Summon] DB Error:', error);
+            return NextResponse.json({ error: '데이터베이스 오류' }, { status: 500 });
         }
 
-        // 2. Send Push
+        if (!subs || subs.length === 0) {
+            console.warn(`[API/Summon] No subscription found for student: ${studentId}`);
+            return NextResponse.json({ error: '학생이 알림 권한을 허용하지 않았습니다.\n(앱 미설치 또는 알림 차단)' }, { status: 404 });
+        }
+
+        // 2. Check VAPID Keys
+        if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+            console.error('[API/Summon] Missing VAPID Keys');
+            return NextResponse.json({ error: '서버 알림 설정 오류 (VAPID Key Missing)' }, { status: 500 });
+        }
+
+        // 3. Send Push
         const webpush = (await import('web-push')).default;
 
         webpush.setVapidDetails(
             process.env.VAPID_SUBJECT || 'mailto:admin@dormichan.com',
-            process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-            process.env.VAPID_PRIVATE_KEY!
+            process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+            process.env.VAPID_PRIVATE_KEY
         );
 
         const payload = JSON.stringify({
@@ -50,11 +61,17 @@ export async function POST(request: Request) {
         );
 
         const successCount = results.filter(r => r.status === 'fulfilled').length;
+        const failedCount = results.length - successCount;
 
-        return NextResponse.json({ success: true, count: successCount });
+        if (successCount === 0) {
+            console.error('[API/Summon] All push attempts failed:', results);
+            return NextResponse.json({ error: '알림 전송 실패 (유효한 토큰이 없습니다.)' }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true, count: successCount, failed: failedCount });
 
     } catch (error: any) {
-        console.error('Summon Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('[API/Summon] Critical Error:', error);
+        return NextResponse.json({ error: `서버 오류: ${error.message}` }, { status: 500 });
     }
 }

@@ -392,6 +392,12 @@ export default function SeatManagementPage() {
     const isHoliday = (day === 0 || day === 6) || specialHolidays.includes(dateStr);
     const currentHHmm = currentTime.getHours().toString().padStart(2, '0') + ':' + currentTime.getMinutes().toString().padStart(2, '0');
 
+    // [DEBUG] TEMPORARY: Force Weekday Afternoon (Monday 14:00) for UI Verification
+    // const day = 1; // Monday
+    // const dateStr = '2024-05-20'; // Random weekday
+    // const isHoliday = false;
+    // const currentHHmm = '14:00';
+
     let activePeriods: { p: string, id: number }[] = [];
     let activePeriodLabel = "";
 
@@ -417,13 +423,20 @@ export default function SeatManagementPage() {
             else if (currentHHmm < '18:30') { activePeriods = dayPeriods; activePeriodLabel = '오후'; }
             else { activePeriods = nightPeriods; activePeriodLabel = '야간'; }
         } else {
-            if (currentHHmm < '19:00') { activePeriods = dayPeriods; activePeriodLabel = '주간'; }
+            if (currentHHmm < '19:00') {
+                // Filter 6~9 Period only for Weekday Daytime
+                activePeriods = dayPeriods.filter(p => ['6', '7', '8', '9'].includes(p.p));
+                activePeriodLabel = '주간';
+            }
             else { activePeriods = nightPeriods; activePeriodLabel = '야간'; }
         }
 
         // Fallback
         if (activePeriods.length === 0) {
-            if (dayPeriods.length > 0) { activePeriods = dayPeriods; activePeriodLabel = isHoliday ? '오후' : '주간'; }
+            if (dayPeriods.length > 0) {
+                activePeriods = isHoliday ? dayPeriods : dayPeriods.filter(p => ['6', '7', '8', '9'].includes(p.p));
+                activePeriodLabel = isHoliday ? '오후' : '주간';
+            }
         }
     }
 
@@ -761,14 +774,15 @@ export default function SeatManagementPage() {
                                                     }
                                                 }}
                                                 className={clsx(
-                                                    "relative flex flex-col border-r border-b border-gray-200 overflow-hidden transition-all",
+                                                    "relative flex flex-col border-r border-b border-gray-200 overflow-hidden transition-all select-none",
                                                     isDisabled ? "bg-gray-300" : "bg-white",
                                                     !assignment && !isDisabled && "bg-gray-50/50",
                                                     "w-full h-[54px]",
-                                                    mode === 'edit' && !isDisabled && "cursor-pointer hover:bg-yellow-50/50 hover:border-yellow-400 group/card z-10",
-                                                    mode === 'edit' && isDisabled && "cursor-pointer z-10", // Allow selection but no hover effect
+                                                    !isDisabled && "cursor-pointer", // Always show pointer if not disabled (Monitor: Double Click / Edit: Select)
+                                                    mode === 'edit' && !isDisabled && "hover:bg-yellow-50/50 hover:border-yellow-400 group/card z-10",
+                                                    mode === 'edit' && isDisabled && "z-10", // Allow selection but no hover effect
                                                     activeLeaveReq?.leave_type === '자리비움' && !isAwayBlinking && "bg-red-50",
-                                                    isAwayBlinking && "animate-[pulse_1s_infinite] bg-red-100 ring-2 ring-red-500 ring-inset",
+                                                    isAwayBlinking && "animate-[pulse_1s_infinite] bg-red-100",
                                                     isWeeklyHome && "bg-gray-400/20"
                                                 )
                                                 }
@@ -803,7 +817,7 @@ export default function SeatManagementPage() {
                                                         </div>
 
                                                         {/* Bottom Section: Period Blocks */}
-                                                        <div className="h-5 flex divide-x divide-gray-100 bg-gray-50/30">
+                                                        <div className="h-5 flex bg-gray-50/30">
                                                             {mode === 'monitor' && activePeriods.map((periodObj) => {
                                                                 const { status, type } = getPeriodStatus(periodObj.id, assignment, activeLeaves);
 
@@ -845,7 +859,12 @@ export default function SeatManagementPage() {
                                                                 }
 
                                                                 return (
-                                                                    <div key={periodObj.id} className={clsx("flex-1 flex items-center justify-center text-[10px]", blockClass)}>
+                                                                    <div key={periodObj.id} className={clsx(
+                                                                        "flex-1 flex items-center justify-center text-[10px] border-r border-gray-100 last:border-r-0",
+                                                                        blockClass,
+                                                                        // Change: Use white border for active blocks to cleanly separate from adjacent cells without color bleed
+                                                                        status === 'active' && "border-r-white"
+                                                                    )}>
                                                                         <span className={textClass}>{content}</span>
                                                                     </div>
                                                                 );
@@ -1033,10 +1052,17 @@ export default function SeatManagementPage() {
                                                         teacherName: '담당 교사'
                                                     })
                                                 });
-                                                if (res.ok) toast.success('호출 알림을 보냈습니다.');
-                                                else toast.error('호출 실패');
+                                                const data = await res.json();
+
+                                                if (res.ok) {
+                                                    toast.success('호출 알림을 보냈습니다.');
+                                                } else {
+                                                    // Display specific error message from server
+                                                    toast.error(data.error || '호출 실패');
+                                                }
                                             } catch (err) {
-                                                toast.error('오류 발생');
+                                                console.error('Call failed:', err);
+                                                toast.error('호출 중 네트워크 오류가 발생했습니다.');
                                             }
                                         }}
                                         className="p-3 rounded-xl bg-red-500 border-b-4 border-red-700 text-white hover:bg-red-400 hover:border-red-600 transition-all active:border-b-0 active:translate-y-1 shadow-lg flex items-center justify-center group"

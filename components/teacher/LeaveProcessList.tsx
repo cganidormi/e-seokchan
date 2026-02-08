@@ -75,6 +75,12 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
         if (filterType !== '전체' && req.leave_type !== filterType) return false;
 
         return true;
+    }).sort((a, b) => {
+        const timeA = new Date(a.start_time).getTime();
+        const timeB = new Date(b.start_time).getTime();
+        // 'past_all' -> Descending (Recent first)
+        // Others -> Ascending (Imminent first)
+        return unifiedViewMode === 'past_all' ? timeB - timeA : timeA - timeB;
     });
 
     return (

@@ -193,6 +193,11 @@ export default function StudentSeatPage() {
     };
 
     // --- Period Logic ---
+    // [DEBUG] TEMPORARY: Force Weekday Afternoon (Monday 14:00) for UI Verification
+    // const day = 1; // Monday
+    // const dateStr = '2024-05-20'; // Random weekday
+    // const isHoliday = false;
+    // const currentHHmm = '14:00';
     const day = currentTime.getDay();
     const dateStr = currentTime.toLocaleDateString('en-CA');
     const isHoliday = (day === 0 || day === 6) || specialHolidays.includes(dateStr);
@@ -222,12 +227,17 @@ export default function StudentSeatPage() {
             else if (currentHHmm < '18:30') { activePeriods = dayPeriods; }
             else { activePeriods = nightPeriods; }
         } else {
-            if (currentHHmm < '19:00') { activePeriods = dayPeriods; }
+            if (currentHHmm < '19:00') {
+                // Filter 6~9 Period only for Weekday Daytime
+                activePeriods = dayPeriods.filter(p => ['6', '7', '8', '9'].includes(p.p));
+            }
             else { activePeriods = nightPeriods; }
         }
 
         if (activePeriods.length === 0) {
-            if (dayPeriods.length > 0) { activePeriods = dayPeriods; }
+            if (dayPeriods.length > 0) {
+                activePeriods = isHoliday ? dayPeriods : dayPeriods.filter(p => ['6', '7', '8', '9'].includes(p.p));
+            }
         }
     }
 
@@ -418,7 +428,7 @@ export default function StudentSeatPage() {
                                                     !assignment && !isDisabled && "bg-gray-50/50",
                                                     "w-full h-[54px]",
                                                     activeLeaveReq?.leave_type === '자리비움' && !isAwayBlinking && "bg-red-50",
-                                                    isAwayBlinking && "animate-[pulse_1s_infinite] bg-red-100 ring-2 ring-red-500 ring-inset",
+                                                    isAwayBlinking && "animate-[pulse_1s_infinite] bg-red-100",
                                                     isWeeklyHome && "bg-gray-400/20"
                                                 )}
                                             >
@@ -446,7 +456,7 @@ export default function StudentSeatPage() {
                                                             </span>
                                                         </div>
 
-                                                        <div className="h-5 flex divide-x divide-gray-100 bg-gray-50/30">
+                                                        <div className="h-5 flex bg-gray-50/30">
                                                             {activePeriods.map((periodObj) => {
                                                                 const { status, type } = getPeriodStatus(periodObj.id, assignment, activeLeaves);
 
@@ -488,7 +498,7 @@ export default function StudentSeatPage() {
                                                                 }
 
                                                                 return (
-                                                                    <div key={periodObj.id} className={clsx("flex-1 flex items-center justify-center text-[10px]", blockClass)}>
+                                                                    <div key={periodObj.id} className={clsx("flex-1 flex items-center justify-center text-[10px] border-r border-gray-100 last:border-r-0", blockClass, status === 'active' && "border-r-white")}>
                                                                         <span className={textClass}>{content}</span>
                                                                     </div>
                                                                 );
