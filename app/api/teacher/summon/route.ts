@@ -14,10 +14,17 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: '학생 ID가 필요합니다.' }, { status: 400 });
         }
 
-        const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+        if (!supabaseUrl || !supabaseServiceKey) {
+            console.error('[API/Summon] Missing Supabase Env Vars');
+            return NextResponse.json({
+                error: '서버 설정 오류: Supabase 키가 없습니다. (Vercel 환경변수 확인 필요)'
+            }, { status: 500 });
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
         // 1. Get Student's Push Subscription
         const { data: subs, error } = await supabase
