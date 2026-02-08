@@ -59,7 +59,7 @@ export async function POST(request: Request) {
 
         const payload = JSON.stringify({
             title: '📢 선생님 호출',
-            body: `${teacherName} 선생님: "이석을 신청하세요"`,
+            body: `${teacherName} 선생님: "이석을 신청하거나 학습실로 돌아오세요."`,
             url: `/?summon=true&teacherName=${encodeURIComponent(teacherName)}&action=submit_leave`
         });
 

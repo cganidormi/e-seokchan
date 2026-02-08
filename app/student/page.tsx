@@ -96,7 +96,7 @@ export default function StudentPage() {
             {decodeURIComponent(teacherName)} 선생님
           </div>
           <div className="text-gray-600">
-            "이석을 신청하세요"
+            "이석을 신청하거나 학습실로 돌아오세요."
           </div>
           <button
             onClick={() => toast.dismiss(t.id)}
