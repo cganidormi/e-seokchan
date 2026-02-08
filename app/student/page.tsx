@@ -82,6 +82,7 @@ export default function StudentPage() {
   useEffect(() => {
     const isSummon = searchParams.get('summon');
     const teacherName = searchParams.get('teacherName');
+    const message = searchParams.get('message') || "이석을 신청하거나 학습실로 돌아오세요.";
 
     if (isSummon === 'true' && teacherName) {
       // Show prominent alert/modal
@@ -95,8 +96,8 @@ export default function StudentPage() {
           <div className="font-bold text-gray-800 text-base">
             {decodeURIComponent(teacherName)} 선생님
           </div>
-          <div className="text-gray-600">
-            "이석을 신청하거나 학습실로 돌아오세요."
+          <div className="text-gray-600 break-keep">
+            "{decodeURIComponent(message)}"
           </div>
           <button
             onClick={() => toast.dismiss(t.id)}

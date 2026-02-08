@@ -48,6 +48,56 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: '서버 알림 설정 오류 (VAPID Key Missing)' }, { status: 500 });
         }
 
+        // 2.5 Retrieve Timetable & Holidays for Current Period Calculation
+        const { data: timetable } = await supabase.from('timetable_entries').select('*');
+        const { data: holidays } = await supabase.from('special_holidays').select('date');
+
+        // Calculate Current Time (KST)
+        const now = new Date();
+        const kstOffset = 9 * 60; // KST +9
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const kstDate = new Date(utc + (3600000 * 9));
+
+        const month = kstDate.getMonth() + 1;
+        const date = kstDate.getDate();
+        const day = kstDate.getDay(); // 0=Sun, 6=Sat
+        const dateStr = kstDate.toISOString().split('T')[0];
+        const hhmm = kstDate.getHours().toString().padStart(2, '0') + ':' + kstDate.getMinutes().toString().padStart(2, '0');
+
+        let periodName = "";
+
+        if (timetable) {
+            const isWeekend = day === 0 || day === 6;
+            const isHoliday = isWeekend || (holidays || []).some(h => h.date === dateStr);
+
+            let typeFilter = 'weekday';
+            if (isHoliday) {
+                // Simple mapping for ease
+                typeFilter = 'weekend';
+            }
+
+            // Find matching period
+            const currentPeriod = timetable.find(t => {
+                if (!t.day_type.includes(typeFilter)) return false;
+                // Use simple string comparison for "HH:mm"
+                return hhmm >= t.start_time.substring(0, 5) && hhmm <= t.end_time.substring(0, 5);
+            });
+
+            if (currentPeriod) {
+                // Extract logic (Night 1 -> 야간 1교시, Day 8 -> 8교시)
+                if (currentPeriod.day_type.includes('night')) {
+                    const num = currentPeriod.description.replace(/[^0-9]/g, '');
+                    periodName = `야간 ${num}교시`;
+                } else {
+                    const num = currentPeriod.description.replace(/[^0-9]/g, '');
+                    periodName = `${num}교시`;
+                }
+            }
+        }
+
+        const timeString = `${month}월 ${date}일 ${periodName ? periodName : hhmm}`;
+        const message = `현재시간은 ${timeString} 입니다. 이석을 신청하거나 학습실로 돌아오세요.`;
+
         // 3. Send Push
         const webpush = (await import('web-push')).default;
 
@@ -59,8 +109,8 @@ export async function POST(request: Request) {
 
         const payload = JSON.stringify({
             title: '📢 선생님 호출',
-            body: `${teacherName} 선생님: "이석을 신청하거나 학습실로 돌아오세요."`,
-            url: `/?summon=true&teacherName=${encodeURIComponent(teacherName)}&action=submit_leave`
+            body: `${teacherName} 선생님: "${message}"`,
+            url: `/?summon=true&teacherName=${encodeURIComponent(teacherName)}&action=submit_leave&message=${encodeURIComponent(message)}`
         });
 
         const results = await Promise.allSettled(
