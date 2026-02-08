@@ -106,7 +106,7 @@ export default function StudentPage() {
           </button>
         </div>
       ), {
-        duration: 10000, // Show for 10 seconds
+        duration: Infinity, // Show for 10 seconds
         position: 'top-center',
         style: {
           border: '2px solid #ef4444',
