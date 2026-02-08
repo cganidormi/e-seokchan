@@ -81,6 +81,7 @@ export default function SeatManagementPage() {
     const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
     const [weeklyReturnStudents, setWeeklyReturnStudents] = useState<Set<string>>(new Set());
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [teacherName, setTeacherName] = useState<string>('담당 교사');
 
     // Edit Mode for Layout
     const [isEditingLayout, setIsEditingLayout] = useState(false);
@@ -132,42 +133,49 @@ export default function SeatManagementPage() {
         }
     };
 
+
     useEffect(() => {
         fetchCommonData();
-        // Clock for Monitor Mode - 1 second precision for "Real-time" feel
-        // [DEBUG] TEMPORARY: Force Weekday Day (Monday 10:00 AM)
-        // const mockTime = new Date('2024-05-20T10:00:00'); // Monday
-        // setCurrentTime(mockTime);
 
-        // Disable timer for testing
+        // Fetch Teacher Name from Session
+        const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
+        if (loginId) {
+            supabase.from('teachers').select('name').eq('teacher_id', loginId).single()
+                .then(({ data }) => {
+                    if (data) setTeacherName(data.name);
+                });
+        }
+
+        // Clock for Monitor Mode - 1 second precision for "Real-time" feel
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
     useEffect(() => {
-        fetchRoomData(selectedRoom);
-        if (mode === 'monitor') {
-            fetchLiveStatus(selectedRoom);
 
-            // Subscribe to real-time changes
-            const channel = supabase
-                .channel('monitor_leave_changes')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, () => {
-                    fetchLiveStatus(selectedRoom);
-                })
-                .subscribe();
+        if (selectedRoom) {
+            fetchRoomData(selectedRoom);
+            if (mode === 'monitor') {
+                fetchLiveStatus(selectedRoom);
 
-            // Auto-refresh every 30 seconds as a fallback
-            const refreshTimer = setInterval(() => fetchLiveStatus(selectedRoom), 30000);
+                const channel = supabase
+                    .channel('monitor_leave_changes')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, () => {
+                        fetchLiveStatus(selectedRoom);
+                    })
+                    .subscribe();
 
-            return () => {
-                supabase.removeChannel(channel);
-                clearInterval(refreshTimer);
-            };
+                const refreshTimer = setInterval(() => fetchLiveStatus(selectedRoom), 30000);
+
+                return () => {
+                    supabase.removeChannel(channel);
+                    clearInterval(refreshTimer);
+                };
+            }
         }
     }, [selectedRoom, mode]);
 
-    const fetchCommonData = async () => {
+    async function fetchCommonData() {
         const { data: studentsData } = await supabase.from('students').select('*').order('student_id');
         if (studentsData) setStudents(studentsData);
 
@@ -192,9 +200,9 @@ export default function SeatManagementPage() {
             const ids = new Set(returnData.map(r => r.student_id));
             setWeeklyReturnStudents(ids);
         }
-    };
+    }
 
-    const fetchLiveStatus = async (roomNum: number) => {
+    async function fetchLiveStatus(roomNum: number) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -216,7 +224,7 @@ export default function SeatManagementPage() {
         }
     };
 
-    const fetchRoomData = async (roomNum: number) => {
+    async function fetchRoomData(roomNum: number) {
         setIsLoading(true);
         try {
             // Fetch Layout
@@ -1049,7 +1057,7 @@ export default function SeatManagementPage() {
                                                     headers: { 'Content-Type': 'application/json' },
                                                     body: JSON.stringify({
                                                         studentId: historyStudent.student_id,
-                                                        teacherName: '담당 교사'
+                                                        teacherName: teacherName
                                                     })
                                                 });
                                                 const data = await res.json();
