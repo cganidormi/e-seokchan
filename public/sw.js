@@ -1,7 +1,7 @@
 // Install event - force new service worker to activate immediately causes the PWA to update
-// VERSION: 2026-02-08-v4 (Robust Notification Click)
+// VERSION: 2026-02-08-v5 (App Badge Support)
 self.addEventListener('install', function (event) {
-    console.log('[SW] Installing new version...');
+    console.log('[SW] Installing new version (v5)...');
     self.skipWaiting();
 });
 
@@ -13,10 +13,16 @@ self.addEventListener('activate', function (event) {
 self.addEventListener('push', function (event) {
     if (event.data) {
         const data = event.data.json();
+
+        // Update App Icon Badge if supported
+        if (data.badge !== undefined && self.navigator && self.navigator.setAppBadge) {
+            self.navigator.setAppBadge(data.badge).catch(err => console.error('SW Badge Error:', err));
+        }
+
         const options = {
             body: data.body,
             icon: '/icon-v3-192.png', // Use updated icon
-            badge: '/icon-v3-192.png',
+            badge: '/icon-v3-192.png', // Android status bar badge icon
             vibrate: [100, 50, 100],
             data: {
                 dateOfArrival: Date.now(),

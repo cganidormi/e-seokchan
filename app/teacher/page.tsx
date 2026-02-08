@@ -138,6 +138,18 @@ export default function TeacherPage() {
     autoSubscribe();
   }, [teacherId]);
 
+  // Update App Icon Badge (Real-time while app is open)
+  useEffect(() => {
+    if ('setAppBadge' in navigator && 'clearAppBadge' in navigator) {
+      const pendingCount = leaveRequests.filter(req => req.status === '신청').length;
+      if (pendingCount > 0) {
+        (navigator as any).setAppBadge(pendingCount).catch((e: any) => console.error('Badge error:', e));
+      } else {
+        (navigator as any).clearAppBadge().catch((e: any) => console.error('Badge clear error:', e));
+      }
+    }
+  }, [leaveRequests]);
+
   const fetchLeaveRequests = async (id: string, name: string) => {
     try {
 

@@ -13,7 +13,7 @@ const initWebPush = () => {
 export async function POST(request: Request) {
     try {
         initWebPush();
-        const { subscription, message, title } = await request.json();
+        const { subscription, message, title, badge } = await request.json();
 
         // 1. 구독 저장 요청인 경우 (message가 없음)
         if (!message) {
@@ -26,7 +26,8 @@ export async function POST(request: Request) {
         const payload = JSON.stringify({
             title: title || '알림',
             body: message,
-            url: '/' // 클릭 시 이동할 URL
+            url: '/', // 클릭 시 이동할 URL
+            badge: badge // 앱 아이콘 숫자 표시
         });
 
         await webpush.sendNotification(subscription, payload);

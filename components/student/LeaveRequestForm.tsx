@@ -430,9 +430,16 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             }
 
             // ---------------------------------------------------------
-            // Push Notification to Teacher (New Request)
+            // Push Notification to Teacher (New Request with Badge Support)
             // ---------------------------------------------------------
             if (teacherId) {
+                // Get updated count of ALL pending requests for this teacher
+                const { count: pendingCount } = await supabase
+                    .from('leave_requests')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('teacher_id', teacherId)
+                    .eq('status', '신청');
+
                 const { data: teacherSubs } = await supabase
                     .from('push_subscriptions')
                     .select('subscription_json')
@@ -447,7 +454,8 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                             body: JSON.stringify({
                                 subscription: sub.subscription_json,
                                 title: '새로운 이석 신청',
-                                message: `[${leaveType}] ${studentName} 학생이 신청했습니다.`
+                                message: `[${leaveType}] ${studentName} 학생이 신청했습니다.`,
+                                badge: pendingCount || 1 // 앱 아이콘 숫자로 표시될 대기 건수
                             })
                         }).catch(e => console.error('Teacher Push Error:', e))
                     ));
