@@ -1,5 +1,5 @@
 // Install event - force new service worker to activate immediately causes the PWA to update
-// VERSION: 2026-02-05-v3 (Force Update for Icon Fix)
+// VERSION: 2026-02-08-v4 (Robust Notification Click)
 self.addEventListener('install', function (event) {
     console.log('[SW] Installing new version...');
     self.skipWaiting();
@@ -15,8 +15,8 @@ self.addEventListener('push', function (event) {
         const data = event.data.json();
         const options = {
             body: data.body,
-            icon: '/icon-192x192.png',
-            badge: '/icon-192x192.png',
+            icon: '/icon-v3-192.png', // Use updated icon
+            badge: '/icon-v3-192.png',
             vibrate: [100, 50, 100],
             data: {
                 dateOfArrival: Date.now(),
@@ -33,7 +33,29 @@ self.addEventListener('push', function (event) {
 self.addEventListener('notificationclick', function (event) {
     event.notification.close();
     event.waitUntil(
-        clients.openWindow(event.notification.data.url)
+        clients.matchAll({
+            type: 'window',
+            includeUncontrolled: true
+        }).then(function (clientList) {
+            const url = event.notification.data.url;
+
+            // Check if there's already a tab open with this URL
+            // Or just any tab of our app
+            for (let i = 0; i < clientList.length; i++) {
+                const client = clientList[i];
+                // Check if client url matches our app origin
+                if (client.url.includes(self.registration.scope) && 'focus' in client) {
+                    if ('navigate' in client) {
+                        client.navigate(url);
+                    }
+                    return client.focus();
+                }
+            }
+            // If not open, open new window
+            if (clients.openWindow) {
+                return clients.openWindow(url);
+            }
+        })
     );
 });
 

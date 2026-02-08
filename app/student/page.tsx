@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
@@ -76,15 +76,16 @@ export default function StudentPage() {
     };
   }, [studentId]);
 
-  // Handle Summon Notification Click
+  const searchParams = useSearchParams();
+
+  // Handle Summon Notification Click (Reactive to URL changes)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const isSummon = params.get('summon');
-    const teacherName = params.get('teacherName');
+    const isSummon = searchParams.get('summon');
+    const teacherName = searchParams.get('teacherName');
 
     if (isSummon === 'true' && teacherName) {
       // Show prominent alert/modal
-      // Using a custom toast for now as it's least intrusive to DOM structure but highly visible
+      // Custom toast for visibility
       toast((t) => (
         <div className="flex flex-col gap-2 min-w-[300px]">
           <div className="flex items-center gap-2">
@@ -113,11 +114,11 @@ export default function StudentPage() {
         },
       });
 
-      // Clean up URL
+      // Clean up URL without reload
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
-  }, []);
+  }, [searchParams]);
 
   const fetchLeaveRequests = async (id: string) => {
     try {
