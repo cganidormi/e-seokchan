@@ -76,6 +76,49 @@ export default function StudentPage() {
     };
   }, [studentId]);
 
+  // Handle Summon Notification Click
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isSummon = params.get('summon');
+    const teacherName = params.get('teacherName');
+
+    if (isSummon === 'true' && teacherName) {
+      // Show prominent alert/modal
+      // Using a custom toast for now as it's least intrusive to DOM structure but highly visible
+      toast((t) => (
+        <div className="flex flex-col gap-2 min-w-[300px]">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">📢</span>
+            <span className="font-bold text-lg text-red-600">선생님 호출</span>
+          </div>
+          <div className="font-bold text-gray-800 text-base">
+            {decodeURIComponent(teacherName)} 선생님
+          </div>
+          <div className="text-gray-600">
+            "이석을 신청하세요"
+          </div>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="mt-2 bg-red-100 text-red-600 py-1 px-3 rounded font-bold text-sm hover:bg-red-200"
+          >
+            확인
+          </button>
+        </div>
+      ), {
+        duration: 10000, // Show for 10 seconds
+        position: 'top-center',
+        style: {
+          border: '2px solid #ef4444',
+          padding: '16px',
+        },
+      });
+
+      // Clean up URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
+
   const fetchLeaveRequests = async (id: string) => {
     try {
       // 0. Fetch Teachers Map manually (since FK join failed)

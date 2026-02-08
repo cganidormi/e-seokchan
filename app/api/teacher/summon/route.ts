@@ -59,8 +59,8 @@ export async function POST(request: Request) {
 
         const payload = JSON.stringify({
             title: '📢 선생님 호출',
-            message: `${teacherName} 선생님께서 호출하셨습니다.\n즉시 이석증을 작성하거나 선생님께 찾아가세요.`,
-            url: '/' // Open app home
+            message: `${teacherName} 선생님: "이석을 신청하세요"`,
+            url: `/?summon=true&teacherName=${encodeURIComponent(teacherName)}&action=submit_leave`
         });
 
         const results = await Promise.allSettled(
