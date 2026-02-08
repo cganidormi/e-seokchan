@@ -67,12 +67,22 @@ export default function Home() {
     const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
     const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
     const parentToken = localStorage.getItem('dormichan_parent_token');
+    const search = window.location.search; // Preserve query params
 
     if (loginId && role) {
-      if (role === 'student') window.location.replace('/student');
-      else if (role === 'teacher') window.location.replace('/teacher');
+      if (role === 'student') window.location.replace(`/student${search}`);
+      else if (role === 'teacher') window.location.replace(`/teacher${search}`);
       else window.location.replace('/login');
     } else if (parentToken) {
+      // Parent token logic handles its own Token via search param in useEffect but redirect needs it?
+      // Actually parentToken logic above sets it from search.get('token').
+      // If we redirect to /parent?token=..., we might duplicate if search has it.
+      // But for summons, we need `search`.
+      // Let's just append search. 
+      // Note: existing logic: window.location.replace(`/parent?token=${parentToken}`);
+      // If search has token, it's fine. If search has summon, we want that too.
+      // But /parent page might not handle summon. The summon is for student.
+      // The issue is mostly for student role.
       window.location.replace(`/parent?token=${parentToken}`);
     } else {
       window.location.replace('/login');
