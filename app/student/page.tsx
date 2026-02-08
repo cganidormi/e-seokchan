@@ -78,47 +78,84 @@ export default function StudentPage() {
 
   const searchParams = useSearchParams();
 
-  // Handle Summon Notification Click (Reactive to URL changes)
+  // Load and display unread summons on mount and when URL params change
   useEffect(() => {
+    // 1. Check for NEW summon from URL
     const isSummon = searchParams.get('summon');
     const teacherName = searchParams.get('teacherName');
-    const message = searchParams.get('message') || "이석을 신청하거나 학습실로 돌아오세요.";
+    const message = searchParams.get('message');
+
+    let currentSummons = JSON.parse(localStorage.getItem('dormichan_unread_summons') || '[]');
 
     if (isSummon === 'true' && teacherName) {
-      // Show prominent alert/modal
-      // Custom toast for visibility
+      const newSummon = {
+        id: Date.now(), // Unique ID based on timestamp
+        teacherName: decodeURIComponent(teacherName),
+        message: message ? decodeURIComponent(message) : "이석을 신청하거나 학습실로 돌아오세요.",
+        timestamp: new Date().toISOString()
+      };
+
+      // Add to local storage (avoid exact duplicates within 5 seconds if multiple effects fire)
+      const isDuplicate = currentSummons.some((s: any) =>
+        s.teacherName === newSummon.teacherName &&
+        Math.abs(new Date(s.timestamp).getTime() - newSummon.id) < 5000
+      );
+
+      if (!isDuplicate) {
+        currentSummons.push(newSummon);
+        localStorage.setItem('dormichan_unread_summons', JSON.stringify(currentSummons));
+
+        // Clean URL immediately to prevent re-adding on soft refresh
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+
+    // 2. Clear existing toasts to prevent duplicates when re-rendering
+    // (Optional: react-hot-toast manages this, but we want to ensure we show ALL from storage)
+    toast.dismiss();
+
+    // 3. Display ALL unread summons from LocalStorage
+    currentSummons.forEach((summon: any) => {
       toast((t) => (
         <div className="flex flex-col gap-2 min-w-[300px]">
           <div className="flex items-center gap-2">
             <span className="text-2xl">📢</span>
             <span className="font-bold text-lg text-red-600">선생님 호출</span>
+            <span className="text-xs text-gray-400 font-normal ml-auto">
+              {new Date(summon.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
           </div>
           <div className="font-bold text-gray-800 text-base">
-            {decodeURIComponent(teacherName)} 선생님
+            {summon.teacherName} 선생님
           </div>
           <div className="text-gray-600 break-keep">
-            "{decodeURIComponent(message)}"
+            "{summon.message}"
           </div>
           <button
-            onClick={() => toast.dismiss(t.id)}
+            onClick={() => {
+              toast.dismiss(t.id);
+              // Remove from LocalStorage
+              const remaining = JSON.parse(localStorage.getItem('dormichan_unread_summons') || '[]')
+                .filter((s: any) => s.id !== summon.id);
+              localStorage.setItem('dormichan_unread_summons', JSON.stringify(remaining));
+            }}
             className="mt-2 bg-red-100 text-red-600 py-1 px-3 rounded font-bold text-sm hover:bg-red-200"
           >
             확인
           </button>
         </div>
       ), {
-        duration: Infinity, // Show for 10 seconds
+        duration: Infinity,
         position: 'top-center',
+        id: `summon-${summon.id}`, // specific ID to prevent duplicates
         style: {
           border: '2px solid #ef4444',
           padding: '16px',
         },
       });
+    });
 
-      // Clean up URL without reload
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-    }
   }, [searchParams]);
 
   const fetchLeaveRequests = async (id: string) => {
