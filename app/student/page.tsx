@@ -19,6 +19,7 @@ export default function StudentPage() {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [initialFormData, setInitialFormData] = useState<any>(null); // State for Copy functionality
+  const [unreadSummonCount, setUnreadSummonCount] = useState(0); // App Badge state
   const router = useRouter(); // Initialized useRouter
 
   useEffect(() => {
@@ -104,6 +105,7 @@ export default function StudentPage() {
       if (!isDuplicate) {
         currentSummons.push(newSummon);
         localStorage.setItem('dormichan_unread_summons', JSON.stringify(currentSummons));
+        setUnreadSummonCount(currentSummons.length);
 
         // Clean URL immediately to prevent re-adding on soft refresh
         const newUrl = window.location.pathname;
@@ -139,6 +141,7 @@ export default function StudentPage() {
               const remaining = JSON.parse(localStorage.getItem('dormichan_unread_summons') || '[]')
                 .filter((s: any) => s.id !== summon.id);
               localStorage.setItem('dormichan_unread_summons', JSON.stringify(remaining));
+              setUnreadSummonCount(remaining.length);
             }}
             className="mt-2 bg-red-100 text-red-600 py-1 px-3 rounded font-bold text-sm hover:bg-red-200"
           >

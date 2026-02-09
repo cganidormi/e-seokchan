@@ -193,6 +193,21 @@ function ParentContent() {
         }
     };
 
+    // Update App Icon Badge (Real-time pending count for Parents)
+    useEffect(() => {
+        if ('setAppBadge' in navigator && 'clearAppBadge' in navigator) {
+            const pendingCount = leaveHistory.filter((req: any) =>
+                req.status === '학부모승인대기'
+            ).length;
+
+            if (pendingCount > 0) {
+                (navigator as any).setAppBadge(pendingCount).catch((e: any) => console.error('Parent Badge error:', e));
+            } else {
+                (navigator as any).clearAppBadge().catch((e: any) => console.error('Parent Badge clear error:', e));
+            }
+        }
+    }, [leaveHistory]);
+
     const handleInstallClick = async () => {
         if (!deferredPrompt) return;
         deferredPrompt.prompt();
