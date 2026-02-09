@@ -247,7 +247,7 @@ function ParentContent() {
     };
 
     const handleParentAction = async (requestId: number, action: 'approve' | 'reject') => {
-        if (!confirm(action === 'approve' ? '최종 승인하시겠습니까?' : '반려하시겠습니까?')) return;
+        if (!confirm(action === 'approve' ? '1차 승인하시겠습니까?' : '반려하시겠습니까?')) return;
 
         setLoading(true);
         try {
@@ -286,7 +286,7 @@ function ParentContent() {
             }
             // ---------------------------------------------------------
 
-            toast.success(action === 'approve' ? '승인되었습니다.' : '반려되었습니다.');
+            toast.success(action === 'approve' ? '1차 승인이 완료되었습니다.' : '반려되었습니다.');
 
             // Refresh Data
             const t = localStorage.getItem('dormichan_parent_token');
@@ -516,7 +516,9 @@ function ParentContent() {
                                                     req.status === '학부모승인대기' ? 'bg-orange-100 text-orange-700 animate-pulse' :
                                                         'bg-yellow-100 text-yellow-700'
                                                 }`}>
-                                                {req.status === '학부모승인대기' ? '학부모 승인필요' : req.status}
+                                                {req.status === '학부모승인대기' ? '1차 승인 대기중' :
+                                                    req.status === '학부모승인' ? '2차 승인 대기중' :
+                                                        req.status}
                                             </span>
                                         </div>
                                     </div>
@@ -545,7 +547,7 @@ function ParentContent() {
                                                         onClick={() => handleParentAction(req.id, 'approve')}
                                                         className="flex-1 bg-green-500 text-white text-xs font-bold py-2 rounded-lg hover:bg-green-600 active:scale-95 transition-all"
                                                     >
-                                                        승인
+                                                        1차 승인
                                                     </button>
                                                     <button
                                                         onClick={() => handleParentAction(req.id, 'reject')}
