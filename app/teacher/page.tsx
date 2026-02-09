@@ -143,7 +143,7 @@ export default function TeacherPage() {
     if ('setAppBadge' in navigator && 'clearAppBadge' in navigator && teacherId) {
       // Only count '신청' (Pending) status items ASSIGNED to this teacher
       const pendingCount = leaveRequests.filter(req =>
-        req.status === '신청' && req.teacher_id === teacherId
+        (req.status === '신청' || req.status === '학부모승인') && req.teacher_id === teacherId
       ).length;
 
       if (pendingCount > 0) {
