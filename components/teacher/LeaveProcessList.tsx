@@ -37,6 +37,25 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
         return () => clearInterval(timer);
     }, []);
 
+    // Close status menu when clicking outside
+    React.useEffect(() => {
+        if (statusMenuId === null) return;
+
+        const handleGlobalClick = () => {
+            setStatusMenuId(null);
+        };
+
+        // Use a small timeout to avoid immediate closure from the click that opened it
+        const timeoutId = setTimeout(() => {
+            window.addEventListener('click', handleGlobalClick);
+        }, 0);
+
+        return () => {
+            clearTimeout(timeoutId);
+            window.removeEventListener('click', handleGlobalClick);
+        };
+    }, [statusMenuId]);
+
     // ... (rest of logic unchanged)
 
     const isRequestActive = (req: any) => {
