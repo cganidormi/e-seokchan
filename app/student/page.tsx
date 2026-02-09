@@ -158,8 +158,19 @@ export default function StudentPage() {
         },
       });
     });
-
+    setUnreadSummonCount(currentSummons.length);
   }, [searchParams]);
+
+  // Update App Icon Badge (Real-time summon count for Students)
+  useEffect(() => {
+    if ('setAppBadge' in navigator && 'clearAppBadge' in navigator) {
+      if (unreadSummonCount > 0) {
+        (navigator as any).setAppBadge(unreadSummonCount).catch((e: any) => console.error('Student Badge error:', e));
+      } else {
+        (navigator as any).clearAppBadge().catch((e: any) => console.error('Student Badge clear error:', e));
+      }
+    }
+  }, [unreadSummonCount]);
 
   const fetchLeaveRequests = async (id: string) => {
     try {
