@@ -31,7 +31,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     const statusConfig = ({
         '신청': { dot: 'bg-blue-500', text: 'text-blue-500', label: '대기' },
         '승인': { dot: 'bg-green-500', text: 'text-green-500', label: '승인' },
-        '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
+        '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '2차 반려' },
         '학부모승인대기': { dot: 'bg-orange-500', text: 'text-orange-500', label: '학부모대기' },
         '학부모승인': { dot: 'bg-blue-600', text: 'text-blue-600', label: '2차대기' },
         '복귀': { dot: 'bg-gray-400', text: 'text-gray-400', label: '복귀' },

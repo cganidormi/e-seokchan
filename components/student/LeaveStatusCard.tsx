@@ -97,7 +97,8 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
     const statusConfig = ({
         '신청': { dot: 'bg-blue-500', text: 'text-blue-500', label: '대기' },
         '승인': { dot: 'bg-green-500', text: 'text-green-500', label: '승인' },
-        '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
+        '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '2차 반려' },
+        '거절': { dot: 'bg-red-500', text: 'text-red-500', label: '1차 반려' },
         '취소': { dot: 'bg-gray-500', text: 'text-gray-500', label: '취소' },
         '학부모승인대기': { dot: 'bg-orange-500', text: 'text-orange-500', label: '학부모대기' },
         '학부모승인': { dot: 'bg-blue-500', text: 'text-blue-500', label: '2차 승인 대기중' },

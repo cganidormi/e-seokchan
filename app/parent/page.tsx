@@ -29,7 +29,7 @@ function ParentContent() {
     const [loading, setLoading] = useState(true);
     const [student, setStudent] = useState<any>(null);
     const [leaveHistory, setLeaveHistory] = useState<any[]>([]);
-    const [currentStatus, setCurrentStatus] = useState<{ type: string, text: string }>({ type: 'school', text: '학교에 있습니다' });
+    const [currentStatus, setCurrentStatus] = useState<{ type: string, text: string }>({ type: 'school', text: '교내 학습 중입니다.' });
     const [isSubscribed, setIsSubscribed] = useState(false);
 
     // PWA State
@@ -180,7 +180,7 @@ function ParentContent() {
                             text: `${activeLeave.leave_type} 중입니다`
                         });
                     } else {
-                        setCurrentStatus({ type: 'school', text: '학교에 있습니다' });
+                        setCurrentStatus({ type: 'school', text: '교내 학습 중입니다.' });
                     }
                 }
             }
@@ -512,13 +512,15 @@ function ParentContent() {
                                         </div>
                                         <div>
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${req.status === '승인' ? 'bg-green-100 text-green-700' :
-                                                req.status === '거절' ? 'bg-red-100 text-red-700' :
+                                                (req.status === '거절' || req.status === '반려') ? 'bg-red-100 text-red-700' :
                                                     req.status === '학부모승인대기' ? 'bg-orange-100 text-orange-700 animate-pulse' :
                                                         'bg-yellow-100 text-yellow-700'
                                                 }`}>
                                                 {req.status === '학부모승인대기' ? '1차 승인 대기중' :
                                                     req.status === '학부모승인' ? '2차 승인 대기중' :
-                                                        req.status}
+                                                        req.status === '거절' ? '1차 반려' :
+                                                            req.status === '반려' ? '2차 반려' :
+                                                                req.status}
                                             </span>
                                         </div>
                                     </div>
