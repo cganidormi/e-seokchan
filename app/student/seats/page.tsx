@@ -83,6 +83,7 @@ export default function StudentSeatPage() {
         const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
 
         if (!loginId || (role !== 'student' && role !== 'monitor')) {
+            window.alert("접근 거부 (로그인 페이지로 이동): ID=" + loginId + ", Role=" + role);
             router.replace('/login');
             return;
         }
@@ -98,9 +99,10 @@ export default function StudentSeatPage() {
                     .maybeSingle();
 
                 if (data?.room_name) {
-                    if (data.room_name.includes('3') || data.room_name.includes('양현재')) setSelectedRoom(3);
-                    else if (data.room_name.includes('2') || data.room_name.includes('면학실')) setSelectedRoom(2);
-                    else if (data.room_name.includes('1') || data.room_name.includes('자습실')) setSelectedRoom(1);
+                    const rn = data.room_name;
+                    if (rn.includes('3') || rn.includes('양현재') || rn.includes('제3') || rn.includes('3실')) setSelectedRoom(3);
+                    else if (rn.includes('2') || rn.includes('면학실') || rn.includes('2실')) setSelectedRoom(2);
+                    else if (rn.includes('1') || rn.includes('자습실') || rn.includes('1실')) setSelectedRoom(1);
                 }
             };
             fetchMonitorRoom();

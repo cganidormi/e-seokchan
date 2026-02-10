@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [isParentMode, setIsParentMode] = useState(false);
   const [parentToken, setParentToken] = useState("");
   const [dbStatus, setDbStatus] = useState("시스템 점검 중...");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // DB 연결 상태 확인
   useEffect(() => {
@@ -103,43 +104,56 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoggingIn) return;
+
     setError("");
+    setIsLoggingIn(true);
 
     try {
+      window.alert("로그인 버튼 클릭됨: ID=" + loginId);
       const rawId = loginId || "";
       const id = rawId.trim().normalize('NFC').replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
       const pw = password.trim();
 
       if (!id) {
         setError("아이디를 입력해주세요.");
+        setIsLoggingIn(false);
         return;
       }
 
-      // 1. Check Student
+      // Check Student
       const { data: student } = await supabase.from("students_auth").select("*").eq("student_id", id).maybeSingle();
       if (student && String(student.temp_password || student.password) === pw) {
         completeLogin(id, "student");
         return;
       }
 
-      // 2. Check Teacher
+      // Check Teacher
       const { data: teacher } = await supabase.from("teachers_auth").select("*").eq("teacher_id", id).maybeSingle();
       if (teacher && String(teacher.temp_password || teacher.password) === pw) {
         completeLogin(id, "teacher");
         return;
       }
 
-      // 3. Check Monitor
+      // Check Monitor
       const { data: monitor } = await supabase.from("monitors_auth").select("*").eq("monitor_id", id).maybeSingle();
-      if (monitor && String(monitor.password || monitor.temp_password) === pw) {
-        completeLogin(id, "monitor");
-        return;
+      if (monitor) {
+        if (String(monitor.password || monitor.temp_password) === pw) {
+          completeLogin(id, "monitor");
+          return;
+        } else {
+          window.alert("모니터 계정은 맞으나 비밀번호가 틀렸습니다.");
+        }
+      } else {
+        console.log("No monitor found with ID:", id);
       }
 
       setError("아이디 또는 비밀번호가 틀렸습니다.");
     } catch (err: any) {
       console.error("Login fatal error:", err);
-      setError("로그인 처리 중 오류가 발생했습니다.");
+      setError("로그인 중 오류가 발생했습니다. (" + (err.message || 'unknown') + ")");
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -331,24 +345,30 @@ export default function LoginPage() {
 
             <button
               type="submit"
+              disabled={isLoggingIn}
               style={{
                 width: "100%",
                 padding: "15px",
-                background: "#141414",
+                background: isLoggingIn ? "#333" : "#141414",
                 color: "#fff",
                 border: "none",
                 borderRadius: "14px",
-                cursor: "pointer",
+                cursor: isLoggingIn ? "wait" : "pointer",
                 fontSize: "17px",
                 fontWeight: "600",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "10px",
+                opacity: isLoggingIn ? 0.7 : 1
               }}
             >
-              <FiLogIn size={20} />
-              로그인
+              {isLoggingIn ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <FiLogIn size={20} />
+              )}
+              {isLoggingIn ? "로그인 중..." : "로그인"}
             </button>
           </form>
         )}
