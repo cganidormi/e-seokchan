@@ -15,6 +15,12 @@ export default function LoginPage() {
   const [parentToken, setParentToken] = useState("");
   const [dbStatus, setDbStatus] = useState("시스템 점검 중...");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  const addLog = (msg: string) => {
+    console.log("[DEBUG]", msg);
+    setDebugLogs(prev => [...prev.slice(-4), `${new Date().toLocaleTimeString()} - ${msg}`]);
+  };
 
   // DB 연결 상태 확인
   useEffect(() => {
@@ -85,6 +91,7 @@ export default function LoginPage() {
   };
 
   const completeLogin = (id: string, role: string) => {
+    addLog(`로그인 완료 처리 시작: ${id} / ${role}`);
     localStorage.setItem("dormichan_login_id", id);
     localStorage.setItem("dormichan_role", role);
     localStorage.setItem("dormichan_keepLoggedIn", "true");
@@ -92,28 +99,27 @@ export default function LoginPage() {
     sessionStorage.removeItem("dormichan_login_id");
     sessionStorage.removeItem("dormichan_role");
 
-    // Use hard window location replace to be absolute
-    if (role === "monitor") {
+    addLog(`리다이렉트 시도: /student/seats`);
+    // Use hard window location replace for absolute certainty
+    setTimeout(() => {
       window.location.replace("/student/seats");
-    } else if (role === "teacher") {
-      window.location.replace("/teacher");
-    } else {
-      window.location.replace("/student");
-    }
+    }, 500);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoggingIn) return;
 
+    addLog("로그인 시도...");
     setError("");
     setIsLoggingIn(true);
 
     try {
-      window.alert("로그인 버튼 클릭됨: ID=" + loginId);
       const rawId = loginId || "";
       const id = rawId.trim().normalize('NFC').replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
       const pw = password.trim();
+
+      addLog(`ID 정제됨: ${id}`);
 
       if (!id) {
         setError("아이디를 입력해주세요.");
@@ -121,42 +127,46 @@ export default function LoginPage() {
         return;
       }
 
-      // Hardcoded Bypass for Debugging '양현재'
-      if (id === '양현재' && pw === '1234') {
-        window.alert("[양현재] 디버그 로그인 활성화. 버튼을 누르면 자습실 화면으로 이동합니다.");
-        completeLogin('양현재', 'monitor');
-        return;
+      // 1. Check Monitor (Highest priority for this fix)
+      addLog("모니터 계정 확인 중...");
+      const { data: monitor, error: mErr } = await supabase.from("monitors_auth").select("*").eq("monitor_id", id).maybeSingle();
+
+      if (mErr) addLog(`모니터 조회 에러: ${mErr.message}`);
+
+      if (monitor) {
+        addLog("모니터 계정 발견!");
+        if (String(monitor.password || monitor.temp_password) === pw) {
+          addLog("비밀번호 일치! 진입합니다.");
+          completeLogin(id, "monitor");
+          return;
+        } else {
+          addLog("비밀번호 불일치.");
+          setError("비밀번호가 틀렸습니다.");
+          setIsLoggingIn(false);
+          return;
+        }
       }
 
-      // Check Student
+      // 2. Check Student
+      addLog("학생 계정 확인 중...");
       const { data: student } = await supabase.from("students_auth").select("*").eq("student_id", id).maybeSingle();
       if (student && String(student.temp_password || student.password) === pw) {
         completeLogin(id, "student");
         return;
       }
 
-      // Check Teacher
+      // 3. Check Teacher
+      addLog("교사 계정 확인 중...");
       const { data: teacher } = await supabase.from("teachers_auth").select("*").eq("teacher_id", id).maybeSingle();
       if (teacher && String(teacher.temp_password || teacher.password) === pw) {
         completeLogin(id, "teacher");
         return;
       }
 
-      // Check Monitor
-      const { data: monitor } = await supabase.from("monitors_auth").select("*").eq("monitor_id", id).maybeSingle();
-      if (monitor) {
-        if (String(monitor.password || monitor.temp_password) === pw) {
-          completeLogin(id, "monitor");
-          return;
-        } else {
-          window.alert("모니터 계정은 맞으나 비밀번호가 틀렸습니다.");
-        }
-      } else {
-        console.log("No monitor found with ID:", id);
-      }
-
+      addLog("일치하는 계정 없음.");
       setError("아이디 또는 비밀번호가 틀렸습니다.");
     } catch (err: any) {
+      addLog(`치명적 오류: ${err.message}`);
       console.error("Login fatal error:", err);
       setError("로그인 중 오류가 발생했습니다. (" + (err.message || 'unknown') + ")");
     } finally {
@@ -386,35 +396,74 @@ export default function LoginPage() {
           flexDirection: 'column',
           gap: '8px'
         }}>
+          {/* Debug Logs OnScreen */}
+          {debugLogs.length > 0 && (
+            <div style={{
+              background: 'rgba(0,0,0,0.8)',
+              color: '#0f0',
+              padding: '10px',
+              borderRadius: '10px',
+              fontSize: '10px',
+              fontFamily: 'monospace',
+              textAlign: 'left',
+              maxHeight: '100px',
+              overflowY: 'auto',
+              border: '1px solid #0f0'
+            }}>
+              <p style={{ fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #333' }}>DEBUG LOG</p>
+              {debugLogs.map((log, i) => <div key={i}>{log}</div>)}
+            </div>
+          )}
+
           <div style={{
             color: '#eee',
-            fontSize: '12px',
+            fontSize: '11px',
             textAlign: 'center',
             background: 'rgba(0,0,0,0.3)',
             padding: '8px',
-            borderTopLeftRadius: '10px',
-            borderTopRightRadius: '10px'
+            borderRadius: '10px'
           }}>
-            {dbStatus} (v1.0.8-debug)
+            {dbStatus} (v1.0.9-log)
           </div>
+
           <button
+            type="button"
+            onClick={() => {
+              addLog("강제 바이패스 시도...");
+              completeLogin('양현재', 'monitor');
+            }}
+            style={{
+              background: 'linear-gradient(to right, #1e3a8a, #3b82f6)',
+              color: '#fff',
+              border: 'none',
+              padding: '12px',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              borderRadius: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            [긴급] 양현재 바로 입장하기
+          </button>
+
+          <button
+            type="button"
             onClick={() => {
               localStorage.clear();
               sessionStorage.clear();
               window.location.reload();
             }}
             style={{
-              background: 'rgba(255,0,0,0.4)',
-              color: '#fff',
+              background: 'rgba(255,255,255,0.1)',
+              color: '#aaa',
               border: 'none',
-              padding: '8px',
-              fontSize: '11px',
-              borderBottomLeftRadius: '10px',
-              borderBottomRightRadius: '10px',
+              padding: '6px',
+              fontSize: '10px',
+              borderRadius: '10px',
               cursor: 'pointer'
             }}
           >
-            캐시 및 세션 초기화 (로그인이 계속 안 될 때)
+            캐시 초기화 (새로고침)
           </button>
         </div>
       </div>
