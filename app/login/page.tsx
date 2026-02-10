@@ -88,7 +88,12 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const cleanId = loginId.trim().replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+      const rawId = loginId || "";
+      const normalizedId = rawId.trim().normalize('NFC');
+      const cleanId = normalizedId.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+
+      console.log("[LOGIN] Attempting login for:", cleanId);
+
       if (!cleanId) {
         setError("아이디를 입력해주세요.");
         return;
@@ -98,53 +103,48 @@ export default function LoginPage() {
       let foundRole: "student" | "teacher" | "monitor" | null = null;
 
       // 1️⃣ 학생 체크
-      const { data: student } = await supabase
-        .from("students_auth")
-        .select("*")
-        .eq("student_id", cleanId)
-        .maybeSingle();
-
-      if (student) {
-        foundUser = student;
+      const studentRes = await supabase.from("students_auth").select("*").eq("student_id", cleanId).maybeSingle();
+      if (studentRes.error) console.error("[LOGIN] Student check error:", studentRes.error);
+      if (studentRes.data) {
+        console.log("[LOGIN] Found in students_auth");
+        foundUser = studentRes.data;
         foundRole = "student";
       }
 
       // 2️⃣ 교사 체크
       if (!foundUser) {
-        const { data: teacher } = await supabase
-          .from("teachers_auth")
-          .select("*")
-          .eq("teacher_id", cleanId)
-          .maybeSingle();
-
-        if (teacher) {
-          foundUser = teacher;
+        const teacherRes = await supabase.from("teachers_auth").select("*").eq("teacher_id", cleanId).maybeSingle();
+        if (teacherRes.error) console.error("[LOGIN] Teacher check error:", teacherRes.error);
+        if (teacherRes.data) {
+          console.log("[LOGIN] Found in teachers_auth");
+          foundUser = teacherRes.data;
           foundRole = "teacher";
         }
       }
 
       // 3️⃣ 모니터 체크
       if (!foundUser) {
-        const { data: monitor } = await supabase
-          .from("monitors_auth")
-          .select("*")
-          .eq("monitor_id", cleanId)
-          .maybeSingle();
-
-        if (monitor) {
-          foundUser = monitor;
+        const monitorRes = await supabase.from("monitors_auth").select("*").eq("monitor_id", cleanId).maybeSingle();
+        if (monitorRes.error) console.error("[LOGIN] Monitor check error:", monitorRes.error);
+        if (monitorRes.data) {
+          console.log("[LOGIN] Found in monitors_auth");
+          foundUser = monitorRes.data;
           foundRole = "monitor";
         }
       }
 
       if (!foundUser || !foundRole) {
+        console.warn("[LOGIN] Account not found for ID:", cleanId);
         setError(`계정을 찾을 수 없습니다. (ID: ${cleanId})`);
         return;
       }
 
       // 비밀번호 검증
       const dbPassword = foundUser.temp_password || foundUser.password;
+      console.log("[LOGIN] Validating password for role:", foundRole);
+
       if (String(dbPassword) !== String(password)) {
+        console.warn("[LOGIN] Password mismatch");
         setError("비밀번호가 틀렸습니다.");
         return;
       }
