@@ -82,7 +82,7 @@ export default function StudentSeatPage() {
         const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
         const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
 
-        if (!loginId || role !== 'student') {
+        if (!loginId || (role !== 'student' && role !== 'monitor')) {
             router.replace('/login');
             return;
         }
@@ -315,12 +315,14 @@ export default function StudentSeatPage() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={() => router.push('/student')}
-                        className="w-full py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
-                    >
-                        ← 학생 홈으로 돌아가기
-                    </button>
+                    {localStorage.getItem('dormichan_role') !== 'monitor' && (
+                        <button
+                            onClick={() => router.push('/student')}
+                            className="w-full py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
+                        >
+                            ← 학생 홈으로 돌아가기
+                        </button>
+                    )}
                 </div>
 
                 {/* Seat Grid */}

@@ -181,7 +181,7 @@ export default function LoginPage() {
     } else if (role === "teacher") {
       router.push("/teacher");
     } else if (role === "monitor" as any) {
-      router.push("/monitor");
+      router.push("/student/seats");
     }
   };
 
