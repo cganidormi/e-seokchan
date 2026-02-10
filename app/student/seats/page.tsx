@@ -149,11 +149,15 @@ export default function StudentSeatPage() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('leave_requests')
             .select('*, leave_request_students(student_id)')
             .in('status', ['승인', '신청'])
             .gte('end_time', today.toISOString());
+
+        if (error) {
+            window.alert("출입 현황 로드 에러: " + JSON.stringify(error));
+        }
 
         if (data) {
             const filteredData = data.filter(req => {
@@ -168,11 +172,15 @@ export default function StudentSeatPage() {
         setIsLoading(true);
         try {
             // Fetch Layout
-            const { data: layoutData } = await supabase
+            const { data: layoutData, error: layoutError } = await supabase
                 .from('room_layouts')
                 .select('*')
                 .eq('room_number', roomNum)
                 .single();
+
+            if (layoutError && layoutError.code !== 'PGRST116') {
+                window.alert("룸 구조 로드 에러: " + JSON.stringify(layoutError));
+            }
 
             if (layoutData) {
                 setLayout(layoutData);
@@ -182,10 +190,14 @@ export default function StudentSeatPage() {
             }
 
             // Fetch Assignments
-            const { data: seatData } = await supabase
+            const { data: seatData, error: seatError } = await supabase
                 .from('seat_assignments')
                 .select('*, student:students(*)')
                 .eq('room_number', roomNum);
+
+            if (seatError) {
+                window.alert("좌석 배치 로드 에러: " + JSON.stringify(seatError));
+            }
 
             if (seatData) {
                 setAssignments(seatData);
@@ -194,18 +206,23 @@ export default function StudentSeatPage() {
             }
 
             // Fetch Seat Properties (Disabled Status)
-            const { data: propData } = await supabase
+            const { data: propData, error: propError } = await supabase
                 .from('seats')
                 .select('*')
                 .eq('room_number', roomNum);
+
+            if (propError) {
+                window.alert("좌석 상세 데이터 로드 에러: " + JSON.stringify(propError));
+            }
 
             if (propData) {
                 setSeatProperties(propData);
             } else {
                 setSeatProperties([]);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching room data:', error);
+            window.alert("심각한 룸 데이터 로드 에러: " + error.message);
             toast.error('데이터를 불러오는 중 오류가 발생했습니다.');
         } finally {
             setIsLoading(false);
