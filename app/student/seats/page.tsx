@@ -88,6 +88,24 @@ export default function StudentSeatPage() {
         }
         setStudentId(loginId);
 
+        if (role === 'monitor') {
+            // Find which room this monitor belongs to
+            const fetchMonitorRoom = async () => {
+                const { data } = await supabase
+                    .from('monitors_auth')
+                    .select('room_name')
+                    .eq('monitor_id', loginId)
+                    .maybeSingle();
+
+                if (data?.room_name) {
+                    if (data.room_name.includes('3') || data.room_name.includes('양현재')) setSelectedRoom(3);
+                    else if (data.room_name.includes('2') || data.room_name.includes('면학실')) setSelectedRoom(2);
+                    else if (data.room_name.includes('1') || data.room_name.includes('자습실')) setSelectedRoom(1);
+                }
+            };
+            fetchMonitorRoom();
+        }
+
         fetchCommonData();
 
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);

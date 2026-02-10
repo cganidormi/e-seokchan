@@ -83,105 +83,63 @@ export default function LoginPage() {
     router.replace(`/parent?token=${tokenToUse}`);
   };
 
+  const completeLogin = (id: string, role: string) => {
+    localStorage.setItem("dormichan_login_id", id);
+    localStorage.setItem("dormichan_role", role);
+    localStorage.setItem("dormichan_keepLoggedIn", "true");
+
+    sessionStorage.removeItem("dormichan_login_id");
+    sessionStorage.removeItem("dormichan_role");
+
+    // Use hard window location replace to be absolute
+    if (role === "monitor") {
+      window.location.replace("/student/seats");
+    } else if (role === "teacher") {
+      window.location.replace("/teacher");
+    } else {
+      window.location.replace("/student");
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
     try {
       const rawId = loginId || "";
-      const normalizedId = rawId.trim().normalize('NFC');
-      const cleanId = normalizedId.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+      const id = rawId.trim().normalize('NFC').replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+      const pw = password.trim();
 
-      console.log("[LOGIN] Attempting login for:", cleanId);
-
-      if (!cleanId) {
+      if (!id) {
         setError("아이디를 입력해주세요.");
         return;
       }
 
-      let foundUser: any = null;
-      let foundRole: "student" | "teacher" | "monitor" | null = null;
-
-      // 1️⃣ 학생 체크
-      const studentRes = await supabase.from("students_auth").select("*").eq("student_id", cleanId).maybeSingle();
-      if (studentRes.error) console.error("[LOGIN] Student check error:", studentRes.error);
-      if (studentRes.data) {
-        console.log("[LOGIN] Found in students_auth");
-        foundUser = studentRes.data;
-        foundRole = "student";
-      }
-
-      // 2️⃣ 교사 체크
-      if (!foundUser) {
-        const teacherRes = await supabase.from("teachers_auth").select("*").eq("teacher_id", cleanId).maybeSingle();
-        if (teacherRes.error) console.error("[LOGIN] Teacher check error:", teacherRes.error);
-        if (teacherRes.data) {
-          console.log("[LOGIN] Found in teachers_auth");
-          foundUser = teacherRes.data;
-          foundRole = "teacher";
-        }
-      }
-
-      // 3️⃣ 모니터 체크
-      if (!foundUser) {
-        const monitorRes = await supabase.from("monitors_auth").select("*").eq("monitor_id", cleanId).maybeSingle();
-        if (monitorRes.error) console.error("[LOGIN] Monitor check error:", monitorRes.error);
-        if (monitorRes.data) {
-          console.log("[LOGIN] Found in monitors_auth");
-          foundUser = monitorRes.data;
-          foundRole = "monitor";
-        }
-      }
-
-      if (!foundUser || !foundRole) {
-        console.warn("[LOGIN] Account not found for ID:", cleanId);
-        setError(`계정을 찾을 수 없습니다. (ID: ${cleanId})`);
+      // 1. Check Student
+      const { data: student } = await supabase.from("students_auth").select("*").eq("student_id", id).maybeSingle();
+      if (student && String(student.temp_password || student.password) === pw) {
+        completeLogin(id, "student");
         return;
       }
 
-      // 비밀번호 검증
-      const dbPassword = foundUser.temp_password || foundUser.password;
-      console.log("[LOGIN] Validating password for role:", foundRole);
-
-      if (String(dbPassword) !== String(password)) {
-        console.warn("[LOGIN] Password mismatch");
-        setError("비밀번호가 틀렸습니다.");
+      // 2. Check Teacher
+      const { data: teacher } = await supabase.from("teachers_auth").select("*").eq("teacher_id", id).maybeSingle();
+      if (teacher && String(teacher.temp_password || teacher.password) === pw) {
+        completeLogin(id, "teacher");
         return;
       }
 
-      // 최초 로그인 비번 변경 체크 (모니터는 스킵 가능)
-      if (foundRole !== "monitor") {
-        const mustChange =
-          foundUser.must_change_password === true ||
-          foundUser.must_change_password === "true" ||
-          foundUser.must_change_password === 1;
-
-        if (mustChange) {
-          router.push(`/change-password?id=${encodeURIComponent(cleanId)}&role=${foundRole}`);
-          return;
-        }
+      // 3. Check Monitor
+      const { data: monitor } = await supabase.from("monitors_auth").select("*").eq("monitor_id", id).maybeSingle();
+      if (monitor && String(monitor.password || monitor.temp_password) === pw) {
+        completeLogin(id, "monitor");
+        return;
       }
 
-      // 세션 저장
-      localStorage.setItem("dormichan_login_id", cleanId);
-      localStorage.setItem("dormichan_role", foundRole);
-      localStorage.setItem("dormichan_keepLoggedIn", "true");
-
-      sessionStorage.removeItem("dormichan_login_id");
-      sessionStorage.removeItem("dormichan_role");
-
-      // 이동
-      if (foundRole === "monitor") {
-        router.push("/student/seats");
-      } else if (foundRole === "teacher") {
-        router.push("/teacher");
-      } else {
-        router.push("/student");
-      }
-
+      setError("아이디 또는 비밀번호가 틀렸습니다.");
     } catch (err: any) {
       console.error("Login fatal error:", err);
-      setError("로그인 처리 중 기술적인 오류가 발생했습니다.");
+      setError("로그인 처리 중 오류가 발생했습니다.");
     }
   };
 
