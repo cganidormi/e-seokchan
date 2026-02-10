@@ -83,7 +83,6 @@ export default function StudentSeatPage() {
         const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
 
         if (!loginId || (role !== 'student' && role !== 'monitor')) {
-            window.alert("접근 거부 (로그인 페이지로 이동): ID=" + loginId + ", Role=" + role);
             router.replace('/login');
             return;
         }

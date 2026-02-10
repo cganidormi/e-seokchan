@@ -99,10 +99,17 @@ export default function LoginPage() {
     sessionStorage.removeItem("dormichan_login_id");
     sessionStorage.removeItem("dormichan_role");
 
-    addLog(`리다이렉트 시도: /student/seats`);
-    // Use hard window location replace for absolute certainty
+    addLog(`세션 설정 완료. 자동 이동 중...`);
+
+    // Auto-redirect restored
     setTimeout(() => {
-      window.location.replace("/student/seats");
+      if (role === 'monitor') {
+        window.location.replace("/student/seats");
+      } else if (role === 'teacher') {
+        window.location.replace("/teacher");
+      } else {
+        window.location.replace("/student");
+      }
     }, 500);
   };
 
@@ -445,6 +452,13 @@ export default function LoginPage() {
           >
             [긴급] 양현재 바로 입장하기
           </button>
+
+          {/* Manual Move Link */}
+          <div style={{ marginTop: '10px', textAlign: 'center' }}>
+            <a href="/student/seats" style={{ color: '#aaa', textDecoration: 'underline', fontSize: '14px' }}>
+              ➡️ [수동 이동] 자습실 배치도로 이동
+            </a>
+          </div>
 
           <button
             type="button"

@@ -16,7 +16,7 @@ export default function StudentLayout({
         const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
         const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
 
-        if (!loginId || role !== 'student') {
+        if (!loginId || (role !== 'student' && role !== 'monitor')) {
             router.replace('/login');
         } else {
             setIsAuthorized(true);
