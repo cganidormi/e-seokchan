@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import MonitorSeatingChart from "@/components/room/MonitorSeatingChart";
+import { StudyRoomMonitor } from "@/components/room/StudyRoomMonitor";
 
 export default function MonitorPage() {
     const router = useRouter();
@@ -57,7 +57,7 @@ export default function MonitorPage() {
                                 onClick={() => setCurrentFloor(f)}
                                 className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${currentFloor === f ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/40' : 'bg-[#2c2c2e] text-gray-400 hover:bg-[#3a3a3c]'}`}
                             >
-                                {f}F
+                                {f}실
                             </button>
                         ))}
                     </div>
@@ -66,7 +66,7 @@ export default function MonitorPage() {
 
             {/* Main Content */}
             <div className="flex-1 relative">
-                <MonitorSeatingChart floor={currentFloor} />
+                <StudyRoomMonitor roomId={currentFloor} />
             </div>
         </div>
     );
