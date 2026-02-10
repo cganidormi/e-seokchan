@@ -323,7 +323,7 @@ export default function LoginPage() {
           <form onSubmit={handleLogin}>
             <input
               type="text"
-              placeholder="아이디 (학번+이름 / 교사이름)"
+              placeholder="아이디 (학번+이름 / 교사이름 / 모니터ID)"
               value={loginId}
               onChange={(e) => setLoginId(e.target.value)}
               style={{
