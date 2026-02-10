@@ -87,101 +87,98 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    // 전각 숫자 -> 반각 변환 및 공백 제거
-    // ０-９ (Full-width digits) to 0-9
-    const cleanId = loginId.trim().replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+    try {
+      // 전각 숫자 -> 반각 변환 및 공백 제거
+      const cleanId = loginId.trim().replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
 
-    let user: any = null;
-    let role: "student" | "teacher" | null = null;
+      let user: any = null;
+      let role: "student" | "teacher" | "monitor" | null = null;
 
-    // 1️⃣ 학생 auth 조회
-    const { data: student, error: studentError } = await supabase
-      .from("students_auth")
-      .select("*")
-      .eq("student_id", cleanId)
-      .single();
-
-    if (student) {
-      user = student;
-      role = "student";
-    }
-
-    // 2️⃣ 학생이 아니면 교사 auth 조회
-    if (!user) {
-      const { data: teacher, error: teacherError } = await supabase
-        .from("teachers_auth")
+      // 1️⃣ 학생 auth 조회
+      const { data: student } = await supabase
+        .from("students_auth")
         .select("*")
-        .eq("teacher_id", cleanId)
+        .eq("student_id", cleanId)
         .single();
 
-      if (teacher) {
-        user = teacher;
-        role = "teacher";
+      if (student) {
+        user = student;
+        role = "student";
       }
-    }
 
-    // 3️⃣ 학생/교사도 아니면 모니터 auth 조회
-    if (!user) {
-      const { data: monitor, error: monitorError } = await supabase
-        .from("monitors_auth")
-        .select("*")
-        .eq("monitor_id", cleanId)
-        .single();
+      // 2️⃣ 학생이 아니면 교사 auth 조회
+      if (!user) {
+        const { data: teacher } = await supabase
+          .from("teachers_auth")
+          .select("*")
+          .eq("teacher_id", cleanId)
+          .single();
 
-      if (monitor) {
-        user = monitor;
-        role = "monitor" as any; // Using 'any' to bypass TS strict check if type isn't updated yet
+        if (teacher) {
+          user = teacher;
+          role = "teacher";
+        }
       }
-    }
 
-    // 3️⃣ 둘 다 없으면 실패
-    if (!user || !role) {
-      setError(`계정을 찾을 수 없습니다. (ID: ${cleanId})`);
-      return;
-    }
+      // 3️⃣ 학생/교사도 아니면 모니터 auth 조회
+      if (!user) {
+        const { data: monitor } = await supabase
+          .from("monitors_auth")
+          .select("*")
+          .eq("monitor_id", cleanId)
+          .single();
 
-    const dbPassword = user.temp_password || user.password;
-    if (String(dbPassword) !== String(password)) {
-      setError("비밀번호가 틀렸습니다.");
-      return;
-    }
+        if (monitor) {
+          user = monitor;
+          role = "monitor";
+        }
+      }
 
-    // 5️⃣ 최초 로그인 여부
-    const mustChange =
-      user.must_change_password === true ||
-      user.must_change_password === "true" ||
-      user.must_change_password === 1 ||
-      user.must_change_password === "1";
+      // 4️⃣ 없으면 실패
+      if (!user || !role) {
+        setError(`계정을 찾을 수 없습니다. (ID: ${cleanId || loginId})`);
+        return;
+      }
 
-    if (mustChange) {
-      router.push(
-        `/change-password?id=${encodeURIComponent(cleanId)}&role=${role}`
-      );
-      return;
-    }
+      const dbPassword = user.temp_password || user.password;
+      if (String(dbPassword) !== String(password)) {
+        setError("비밀번호가 틀렸습니다.");
+        return;
+      }
 
-    // 6️⃣ 로그인 상태 저장 (무조건 localStorage 사용)
-    const storage = localStorage;
+      // 5️⃣ 최초 로그인 여부 (모니터는 제외할 수 있음)
+      if (role !== "monitor") {
+        const mustChange =
+          user.must_change_password === true ||
+          user.must_change_password === "true" ||
+          user.must_change_password === 1 ||
+          user.must_change_password === "1";
 
-    // sessionStorage 기존 세션 삭제 (충돌 방지)
-    sessionStorage.removeItem("dormichan_login_id");
-    sessionStorage.removeItem("dormichan_role");
-    sessionStorage.removeItem("dormichan_keepLoggedIn");
+        if (mustChange) {
+          router.push(`/change-password?id=${encodeURIComponent(cleanId)}&role=${role}`);
+          return;
+        }
+      }
 
-    storage.setItem("dormichan_login_id", cleanId);
-    storage.setItem("dormichan_role", role);
-    storage.setItem("dormichan_keepLoggedIn", "true");
+      // 6️⃣ 로그인 상태 저장
+      localStorage.setItem("dormichan_login_id", cleanId);
+      localStorage.setItem("dormichan_role", role);
+      localStorage.setItem("dormichan_keepLoggedIn", "true");
 
-    storage.setItem("dormichan_role", role);
-    storage.setItem("dormichan_keepLoggedIn", "true");
+      sessionStorage.removeItem("dormichan_login_id");
+      sessionStorage.removeItem("dormichan_role");
 
-    // 7️⃣ 역할별 페이지 이동
-    if (role === "student") {
-      router.push("/student");
-    } else if (role === "teacher") {
-      router.push("/teacher");
-    } else if (role === "monitor" as any) {
-      router.push("/student/seats");
+      // 7️⃣ 역할별 페이지 이동
+      if (role === "student") {
+        router.push("/student");
+      } else if (role === "teacher") {
+        router.push("/teacher");
+      } else if (role === "monitor") {
+        router.push("/student/seats");
+      }
+    } catch (err: any) {
+      console.error("Login crash:", err);
+      setError("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     }
   };
 
