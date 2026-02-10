@@ -77,6 +77,7 @@ export default function Home() {
     if (loginId && role) {
       if (role === 'student') window.location.replace(`/student${search}`);
       else if (role === 'teacher') window.location.replace(`/teacher${search}`);
+      else if (role === 'monitor') window.location.replace(`/monitor`);
       else window.location.replace('/login');
     } else if (parentToken) {
       window.location.replace(`/parent?token=${parentToken}`);

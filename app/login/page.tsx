@@ -120,6 +120,20 @@ export default function LoginPage() {
       }
     }
 
+    // 3️⃣ 학생/교사도 아니면 모니터 auth 조회
+    if (!user) {
+      const { data: monitor, error: monitorError } = await supabase
+        .from("monitors_auth")
+        .select("*")
+        .eq("monitor_id", cleanId)
+        .single();
+
+      if (monitor) {
+        user = monitor;
+        role = "monitor" as any; // Using 'any' to bypass TS strict check if type isn't updated yet
+      }
+    }
+
     // 3️⃣ 둘 다 없으면 실패
     if (!user || !role) {
       setError(`계정을 찾을 수 없습니다. (ID: ${cleanId})`);
@@ -165,6 +179,8 @@ export default function LoginPage() {
       router.push("/student");
     } else if (role === "teacher") {
       router.push("/teacher");
+    } else if (role === "monitor" as any) {
+      router.push("/monitor");
     }
   };
 
