@@ -129,8 +129,8 @@ export default function Home() {
 
         {/* Logo Section */}
         <div className="mb-8">
-          <div className="w-24 h-24 bg-white/20 rounded-[2rem] mx-auto flex items-center justify-center mb-6 shadow-inner backdrop-blur-sm border border-white/10 p-4">
-            <img src="/images/school_emblem.png" alt="강원과학고" className="w-full h-full object-contain drop-shadow-sm" />
+          <div className="w-24 h-24 bg-white/20 rounded-[2rem] mx-auto flex items-center justify-center mb-6 shadow-inner backdrop-blur-sm border border-white/10 overflow-hidden">
+            <img src="/images/school_emblem.png" alt="강원과학고" className="w-full h-full object-cover drop-shadow-sm" />
           </div>
           <h1 className="text-3xl font-extrabold text-white mb-2 tracking-wide drop-shadow-md">이석찬</h1>
           <p className="text-gray-200 font-medium">
