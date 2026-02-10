@@ -121,6 +121,13 @@ export default function LoginPage() {
         return;
       }
 
+      // Hardcoded Bypass for Debugging '양현재'
+      if (id === '양현재' && pw === '1234') {
+        window.alert("[양현재] 디버그 로그인 활성화. 버튼을 누르면 자습실 화면으로 이동합니다.");
+        completeLogin('양현재', 'monitor');
+        return;
+      }
+
       // Check Student
       const { data: student } = await supabase.from("students_auth").select("*").eq("student_id", id).maybeSingle();
       if (student && String(student.temp_password || student.password) === pw) {
@@ -375,14 +382,40 @@ export default function LoginPage() {
 
         <div style={{
           marginTop: '20px',
-          color: '#eee',
-          fontSize: '12px',
-          textAlign: 'center',
-          background: 'rgba(0,0,0,0.3)',
-          padding: '8px',
-          borderRadius: '5px'
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
         }}>
-          {dbStatus}
+          <div style={{
+            color: '#eee',
+            fontSize: '12px',
+            textAlign: 'center',
+            background: 'rgba(0,0,0,0.3)',
+            padding: '8px',
+            borderTopLeftRadius: '10px',
+            borderTopRightRadius: '10px'
+          }}>
+            {dbStatus} (v1.0.8-debug)
+          </div>
+          <button
+            onClick={() => {
+              localStorage.clear();
+              sessionStorage.clear();
+              window.location.reload();
+            }}
+            style={{
+              background: 'rgba(255,0,0,0.4)',
+              color: '#fff',
+              border: 'none',
+              padding: '8px',
+              fontSize: '11px',
+              borderBottomLeftRadius: '10px',
+              borderBottomRightRadius: '10px',
+              cursor: 'pointer'
+            }}
+          >
+            캐시 및 세션 초기화 (로그인이 계속 안 될 때)
+          </button>
         </div>
       </div>
     </div>
