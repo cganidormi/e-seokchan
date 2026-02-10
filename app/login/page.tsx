@@ -140,7 +140,8 @@ export default function LoginPage() {
       return;
     }
 
-    if (String(user.temp_password) !== String(password)) {
+    const dbPassword = user.temp_password || user.password;
+    if (String(dbPassword) !== String(password)) {
       setError("비밀번호가 틀렸습니다.");
       return;
     }
