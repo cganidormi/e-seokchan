@@ -9,9 +9,7 @@ import { IoShareOutline, IoAddOutline } from "react-icons/io5";
 export default function Home() {
   const router = useRouter();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isChromeIOS, setIsChromeIOS] = useState(false);
 
   // 1. Session & Environment Check
   useEffect(() => {
@@ -35,9 +33,19 @@ export default function Home() {
     const inStandalone = checkStandalone();
     setIsStandalone(inStandalone);
 
-    // Detect iOS
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    // Detect iOS & Browser Type
+    const userAgent = navigator.userAgent;
+    const iOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
     setIsIOS(iOS);
+
+    // Detect Chrome on iOS (Real Device OR DevTools Simulation)
+    // CriOS: Real Chrome App on iOS
+    // Google Inc: Chrome DevTools simulating iOS
+    const isChrome = /CriOS/.test(userAgent) || (iOS && navigator.vendor === 'Google Inc.');
+
+    if (isChrome) {
+      setIsChromeIOS(true);
+    }
 
     // If already in App Mode OR already logged in -> Redirect immediately
     // (We want to skip the landing page if they are already using the app or have a session)
@@ -129,8 +137,8 @@ export default function Home() {
 
         {/* Logo Section */}
         <div className="mb-8">
-          <div className="w-24 h-24 bg-white/20 rounded-[2rem] mx-auto flex items-center justify-center mb-6 shadow-inner backdrop-blur-sm border border-white/10 overflow-hidden">
-            <img src="/images/school_emblem.png" alt="강원과학고" className="w-full h-full object-cover drop-shadow-sm" />
+          <div className="w-24 h-24 bg-white/20 rounded-[2rem] mx-auto flex items-center justify-center mb-6 shadow-inner backdrop-blur-sm border border-white/10 overflow-hidden transform-gpu">
+            <img src="/images/school_emblem.png" alt="강원과학고" className="w-full h-full object-cover drop-shadow-sm rounded-[2rem]" />
           </div>
           <h1 className="text-3xl font-extrabold text-white mb-2 tracking-wide drop-shadow-md">이석찬</h1>
           <p className="text-gray-200 font-medium">
@@ -159,7 +167,7 @@ export default function Home() {
             // iOS Guide Box
             <div className="bg-white/10 p-5 rounded-2xl text-left border border-white/20 backdrop-blur-md shadow-lg">
               <h3 className="font-bold text-white mb-4 text-center text-lg">
-                📱 아이폰 앱 설치 방법
+                📱 {isChromeIOS ? 'Chrome' : 'Safari'}에서 설치하기
               </h3>
 
               <div className="space-y-4 text-sm text-gray-100">
@@ -171,8 +179,7 @@ export default function Home() {
                   <div>
                     <p className="font-bold text-white mb-1">1. 공유 버튼 누르기</p>
                     <p className="text-xs text-gray-300">
-                      사파리 화면 하단(또는 상단)의 <br />
-                      <span className="text-blue-300 font-bold">공유 아이콘</span>을 찾아주세요.
+                      {isChromeIOS ? '우측 상단에 있습니다.' : <>사파리 화면 하단(또는 상단)의 <br /><span className="text-blue-300 font-bold">공유 아이콘</span>을 찾아주세요.</>}
                     </p>
                   </div>
                 </div>
@@ -203,3 +210,4 @@ export default function Home() {
     </div>
   );
 }
+
