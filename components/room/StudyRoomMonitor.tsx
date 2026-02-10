@@ -82,7 +82,6 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
 
     useEffect(() => {
         fetchCommonData();
-        // Clock for Monitor Mode - 1 second precision
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
@@ -359,6 +358,7 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
 
                                             let headerBgClass = "bg-white";
                                             let studentIdTextColor = "text-gray-800";
+                                            let activeLeaveReq: any = null;
 
                                             const isWeeklyHome = (assignment?.student?.weekend || weeklyReturnStudents.has(assignment?.student_id || '')) && isWeeklyHomeTime(currentTime);
 
@@ -370,6 +370,7 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
                                                     new Date(req.end_time) >= currentTime
                                                 );
                                                 if (awayReq) {
+                                                    activeLeaveReq = awayReq;
                                                     const diffMins = (currentTime.getTime() - new Date(awayReq.start_time).getTime()) / 60000;
                                                     seatStatusColor = "bg-red-500";
                                                     if (diffMins >= 10) isAwayBlinking = true;
@@ -410,13 +411,14 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
                                                     isDisabled ? "bg-gray-300" : "bg-white",
                                                     !assignment && !isDisabled && "bg-gray-50/50",
                                                     "w-full h-[54px]",
+                                                    activeLeaveReq?.leave_type === '자리비움' && !isAwayBlinking && "bg-red-50",
                                                     isAwayBlinking && "animate-[pulse_1s_infinite] bg-red-100",
                                                     isWeeklyHome && "bg-gray-400/20"
                                                 )}>
                                                     {!isDisabled && (
                                                         <span className={clsx(
-                                                            "absolute top-0.5 right-1 text-[9px] font-bold z-10",
-                                                            assignment ? "text-gray-300" : "text-gray-400"
+                                                            "absolute top-0.5 right-1 text-[8px] font-medium select-none z-20",
+                                                            activeLeaveReq?.leave_type === '자리비움' ? "text-white/80" : "text-gray-300"
                                                         )}>
                                                             {seatNum}
                                                         </span>
@@ -425,35 +427,62 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
                                                     {assignment ? (
                                                         <>
                                                             <div className={clsx(
-                                                                "flex-[2] flex items-center justify-center font-bold text-sm tracking-tight relative overflow-hidden",
-                                                                headerBgClass,
-                                                                studentIdTextColor
+                                                                "flex-1 flex items-center px-1.5 border-b border-gray-100 transition-colors",
+                                                                activeLeaveReq?.leave_type === '자리비움' ? (isAwayBlinking ? "bg-red-600" : "bg-red-500") : headerBgClass
                                                             )}>
-                                                                {assignment.student?.name}
+                                                                <span className={clsx("text-[11px] truncate font-medium flex-1", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
+                                                                    {assignment.student?.student_id}
+                                                                    {activeLeaveReq?.leave_type === '자리비움' && <span className="text-[9px] ml-1 font-normal">자리비움</span>}
+                                                                    {isWeeklyHome && <span className="text-[9px] ml-auto font-normal text-white/90">귀가</span>}
+                                                                </span>
                                                             </div>
-                                                            <div className="h-5 border-t border-gray-100 flex divide-x divide-gray-100 bg-gray-50">
-                                                                {activePeriods.map((period) => {
-                                                                    const status = getPeriodStatus(period.id, assignment, activeLeaves);
-                                                                    let cellClass = "bg-transparent";
-                                                                    if (status.status === 'active') {
-                                                                        switch (status.type) {
-                                                                            case '컴이석': cellClass = "bg-blue-400"; break;
-                                                                            case '이석': cellClass = "bg-orange-400"; break;
-                                                                            case '외출': cellClass = "bg-green-400"; break;
-                                                                            case '외박': cellClass = "bg-purple-400"; break;
-                                                                            case '자리비움': cellClass = "bg-red-500"; break;
-                                                                        }
-                                                                    } else if (status.status === 'past') {
-                                                                        cellClass = "bg-gray-200";
-                                                                    }
 
-                                                                    if (isWeeklyHome && status.status !== 'past') {
-                                                                        cellClass = "bg-gray-400";
+                                                            <div className="h-5 flex bg-gray-50/30">
+                                                                {activePeriods.map((periodObj) => {
+                                                                    const { status, type } = getPeriodStatus(periodObj.id, assignment, activeLeaves);
+
+                                                                    let blockClass = "";
+                                                                    let textClass = "text-transparent";
+                                                                    let content: React.ReactNode = periodObj.p;
+
+                                                                    if (status === 'active' && type) {
+                                                                        textClass = "font-bold text-[10px]";
+                                                                        switch (type) {
+                                                                            case '컴이석':
+                                                                                blockClass = "bg-blue-200";
+                                                                                textClass = "text-blue-700";
+                                                                                content = '컴';
+                                                                                break;
+                                                                            case '이석':
+                                                                                blockClass = "bg-orange-200";
+                                                                                textClass = "text-orange-700";
+                                                                                content = '이';
+                                                                                break;
+                                                                            case '외출':
+                                                                                blockClass = "bg-green-200";
+                                                                                textClass = "text-green-800";
+                                                                                content = '출';
+                                                                                break;
+                                                                            case '외박':
+                                                                                blockClass = "bg-purple-200";
+                                                                                textClass = "text-purple-700";
+                                                                                content = '박';
+                                                                                break;
+                                                                            case '자리비움':
+                                                                                blockClass = isAwayBlinking ? "bg-red-600" : "bg-red-500";
+                                                                                textClass = "text-white";
+                                                                                content = '비';
+                                                                                break;
+                                                                        }
+                                                                    } else if (status === 'past') {
+                                                                        blockClass = "bg-gray-300";
                                                                     }
 
                                                                     return (
-                                                                        <div key={period.id} className={clsx("flex-1", cellClass)}></div>
-                                                                    )
+                                                                        <div key={periodObj.id} className={clsx("flex-1 flex items-center justify-center text-[10px] border-r border-gray-100 last:border-r-0", blockClass, status === 'active' && "border-r-white")}>
+                                                                            <span className={textClass}>{content}</span>
+                                                                        </div>
+                                                                    );
                                                                 })}
                                                             </div>
                                                         </>
@@ -474,7 +503,7 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
             </div>
 
             {/* Legend (Fixed Bottom) */}
-            <div className="bg-white border-t border-gray-200 p-3 flex justify-center gap-4 text-xs font-bold text-gray-600 shadow-lg z-10">
+            <div className="bg-white border-t border-gray-200 p-3 flex justify-center gap-4 text-xs font-bold text-gray-600 shadow-lg z-10 w-full">
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-blue-200 border border-blue-300 rounded-sm"></div>컴퓨터</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-orange-200 border border-orange-300 rounded-sm"></div>자습실이석</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-green-200 border border-green-300 rounded-sm"></div>외출</div>

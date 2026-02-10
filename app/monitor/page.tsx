@@ -51,7 +51,7 @@ export default function MonitorPage() {
                     <div className="w-px h-8 bg-white/10 mx-2"></div>
 
                     <div className="flex gap-2">
-                        {[1, 2, 3, 4].map(f => (
+                        {[1, 2, 3].map(f => (
                             <button
                                 key={f}
                                 onClick={() => setCurrentFloor(f)}
