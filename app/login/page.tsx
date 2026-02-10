@@ -88,97 +88,100 @@ export default function LoginPage() {
     setError("");
 
     try {
-      // 전각 숫자 -> 반각 변환 및 공백 제거
       const cleanId = loginId.trim().replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+      if (!cleanId) {
+        setError("아이디를 입력해주세요.");
+        return;
+      }
 
-      let user: any = null;
-      let role: "student" | "teacher" | "monitor" | null = null;
+      let foundUser: any = null;
+      let foundRole: "student" | "teacher" | "monitor" | null = null;
 
-      // 1️⃣ 학생 auth 조회
+      // 1️⃣ 학생 체크
       const { data: student } = await supabase
         .from("students_auth")
         .select("*")
         .eq("student_id", cleanId)
-        .single();
+        .maybeSingle();
 
       if (student) {
-        user = student;
-        role = "student";
+        foundUser = student;
+        foundRole = "student";
       }
 
-      // 2️⃣ 학생이 아니면 교사 auth 조회
-      if (!user) {
+      // 2️⃣ 교사 체크
+      if (!foundUser) {
         const { data: teacher } = await supabase
           .from("teachers_auth")
           .select("*")
           .eq("teacher_id", cleanId)
-          .single();
+          .maybeSingle();
 
         if (teacher) {
-          user = teacher;
-          role = "teacher";
+          foundUser = teacher;
+          foundRole = "teacher";
         }
       }
 
-      // 3️⃣ 학생/교사도 아니면 모니터 auth 조회
-      if (!user) {
+      // 3️⃣ 모니터 체크
+      if (!foundUser) {
         const { data: monitor } = await supabase
           .from("monitors_auth")
           .select("*")
           .eq("monitor_id", cleanId)
-          .single();
+          .maybeSingle();
 
         if (monitor) {
-          user = monitor;
-          role = "monitor";
+          foundUser = monitor;
+          foundRole = "monitor";
         }
       }
 
-      // 4️⃣ 없으면 실패
-      if (!user || !role) {
-        setError(`계정을 찾을 수 없습니다. (ID: ${cleanId || loginId})`);
+      if (!foundUser || !foundRole) {
+        setError(`계정을 찾을 수 없습니다. (ID: ${cleanId})`);
         return;
       }
 
-      const dbPassword = user.temp_password || user.password;
+      // 비밀번호 검증
+      const dbPassword = foundUser.temp_password || foundUser.password;
       if (String(dbPassword) !== String(password)) {
         setError("비밀번호가 틀렸습니다.");
         return;
       }
 
-      // 5️⃣ 최초 로그인 여부 (모니터는 제외할 수 있음)
-      if (role !== "monitor") {
+      // 최초 로그인 비번 변경 체크 (모니터는 스킵 가능)
+      if (foundRole !== "monitor") {
         const mustChange =
-          user.must_change_password === true ||
-          user.must_change_password === "true" ||
-          user.must_change_password === 1 ||
-          user.must_change_password === "1";
+          foundUser.must_change_password === true ||
+          foundUser.must_change_password === "true" ||
+          foundUser.must_change_password === 1;
 
         if (mustChange) {
-          router.push(`/change-password?id=${encodeURIComponent(cleanId)}&role=${role}`);
+          router.push(`/change-password?id=${encodeURIComponent(cleanId)}&role=${foundRole}`);
           return;
         }
       }
 
-      // 6️⃣ 로그인 상태 저장
+      // 세션 저장
       localStorage.setItem("dormichan_login_id", cleanId);
-      localStorage.setItem("dormichan_role", role);
+      localStorage.setItem("dormichan_role", foundRole);
       localStorage.setItem("dormichan_keepLoggedIn", "true");
 
       sessionStorage.removeItem("dormichan_login_id");
       sessionStorage.removeItem("dormichan_role");
 
-      // 7️⃣ 역할별 페이지 이동
-      if (role === "student") {
-        router.push("/student");
-      } else if (role === "teacher") {
-        router.push("/teacher");
-      } else if (role === "monitor") {
+      // 이동
+      if (foundRole === "monitor") {
         router.push("/student/seats");
+      } else if (foundRole === "teacher") {
+        router.push("/teacher");
+      } else {
+        router.push("/student");
       }
+
     } catch (err: any) {
-      console.error("Login crash:", err);
-      setError("로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      console.error("Login fatal error:", err);
+      setError("로그인 처리 중 기술적인 오류가 발생했습니다.");
     }
   };
 
