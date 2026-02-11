@@ -82,6 +82,7 @@ export default function SeatManagementPage() {
     const [weeklyReturnStudents, setWeeklyReturnStudents] = useState<Set<string>>(new Set());
     const [currentTime, setCurrentTime] = useState(new Date());
     const [teacherName, setTeacherName] = useState<string>('담당 교사');
+    const [teacherPosition, setTeacherPosition] = useState<string>('');
 
     // Edit Mode for Layout
     const [isEditingLayout, setIsEditingLayout] = useState(false);
@@ -137,12 +138,15 @@ export default function SeatManagementPage() {
     useEffect(() => {
         fetchCommonData();
 
-        // Fetch Teacher Name from Session
+        // Fetch Teacher Name & Position from Session
         const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
         if (loginId) {
-            supabase.from('teachers').select('name').eq('teacher_id', loginId).single()
+            supabase.from('teachers').select('name, position').eq('teacher_id', loginId).single()
                 .then(({ data }) => {
-                    if (data) setTeacherName(data.name);
+                    if (data) {
+                        setTeacherName(data.name);
+                        setTeacherPosition(data.position);
+                    }
                 });
         }
 
@@ -526,16 +530,18 @@ export default function SeatManagementPage() {
                             </h1>
                         </div>
 
-                        {/* Seat Management Toggle (Compact - Top Right) */}
-                        <button
-                            onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
-                            className={clsx(
-                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1",
-                                mode === 'edit' ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                            )}
-                        >
-                            <span>{mode === 'edit' ? '모니터로 돌아가기' : '⚙️ 좌석 관리'}</span>
-                        </button>
+                        {/* Seat Management Toggle (Compact - Top Right) - Only for Authorized Roles */}
+                        {(teacherPosition === '사감' || teacherPosition === '기숙사부장') && (
+                            <button
+                                onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
+                                className={clsx(
+                                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1",
+                                    mode === 'edit' ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                )}
+                            >
+                                <span>{mode === 'edit' ? '모니터로 돌아가기' : '⚙️ 좌석 관리'}</span>
+                            </button>
+                        )}
                     </div>
 
                     {/* Full Width Leave List Button */}

@@ -139,6 +139,17 @@ export default function HeadcountPage() {
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [historyStudent, setHistoryStudent] = useState<{ name: string, student_id: string } | null>(null);
     const [historyRecords, setHistoryRecords] = useState<any[]>([]);
+    const [teacherPosition, setTeacherPosition] = useState<string>('');
+
+    useEffect(() => {
+        const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
+        if (loginId) {
+            supabase.from('teachers').select('position').eq('teacher_id', loginId).single()
+                .then(({ data }) => {
+                    if (data) setTeacherPosition(data.position);
+                });
+        }
+    }, []);
 
     const fetchStudentHistory = async (studentId: string, name: string) => {
         try {
@@ -422,15 +433,17 @@ export default function HeadcountPage() {
                         >
                             📋 점검
                         </button>
-                        <button
-                            onClick={() => setMode('assign')}
-                            className={clsx(
-                                "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
-                                mode === 'assign' ? "bg-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white"
-                            )}
-                        >
-                            ⚙️ 배정
-                        </button>
+                        {(teacherPosition === '사감' || teacherPosition === '기숙사부장') && (
+                            <button
+                                onClick={() => setMode('assign')}
+                                className={clsx(
+                                    "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
+                                    mode === 'assign' ? "bg-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white"
+                                )}
+                            >
+                                ⚙️ 배정
+                            </button>
+                        )}
                     </div>
 
                     {/* Action Buttons (Stacked below toggle on mobile/desktop to save width) */}
