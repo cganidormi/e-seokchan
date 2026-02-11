@@ -6,12 +6,18 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { updates } = body;
 
-        // Use service role to bypass RLS
+        // Use service role if available, otherwise fallback to Anon key (assuming public update policy exists)
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+        if (!supabaseKey) {
+            console.error('Missing Supabase Key');
+            return NextResponse.json({ error: 'Server Configuration Error: Missing Supabase Key' }, { status: 500 });
+        }
 
         // Ensure createClient is imported/used correctly for server-side
         const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            supabaseUrl,
             supabaseKey,
             {
                 auth: {
@@ -25,22 +31,34 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid data format' }, { status: 400 });
         }
 
+        console.log(`Processing ${updates.length} room assignments...`);
+
         // Parallel execution for speed
-        const promises = updates.map(update =>
-            supabase
+        // Store explicit results to debug failures
+        const results = await Promise.all(updates.map(async (update) => {
+            const { error } = await supabase
                 .from('students')
                 .update({ room_number: update.room_number })
-                .eq('student_id', update.student_id)
-        );
+                .eq('student_id', update.student_id);
 
-        const results = await Promise.all(promises);
+            return {
+                student_id: update.student_id,
+                error: error ? error.message : null,
+                details: error
+            };
+        }));
 
         // Check for errors
-        const errors = results.filter(r => r.error).map(r => r.error);
+        const failures = results.filter(r => r.error);
 
-        if (errors.length > 0) {
-            console.error('Partial update failures:', errors);
-            return NextResponse.json({ error: 'Partial update failure', details: errors }, { status: 500 });
+        if (failures.length > 0) {
+            console.error('Partial update failures:', failures);
+            // Return detailed error for the first failure to show in toast
+            const firstError = failures[0];
+            return NextResponse.json({
+                error: `Update failed for ${firstError.student_id}: ${firstError.error}`,
+                details: failures
+            }, { status: 500 });
         }
 
         return NextResponse.json({ message: 'Saved successfully' });

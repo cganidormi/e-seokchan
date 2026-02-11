@@ -1,0 +1,11 @@
+[
+  "id",
+  "name",
+  "grade",
+  "class",
+  "created_at",
+  "number",
+  "weekend",
+  "student_id",
+  "parent_token"
+]

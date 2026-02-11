@@ -463,7 +463,7 @@ export default function HeadcountPage() {
                     wheel={{ step: 0.1 }}
                     panning={{ disabled: false }}
                     doubleClick={{ disabled: true }}
-                    limitToBounds={false}
+                    limitToBounds={true}
                 >
                     <TransformComponent
                         wrapperStyle={{ width: "100%", height: "100%" }}
