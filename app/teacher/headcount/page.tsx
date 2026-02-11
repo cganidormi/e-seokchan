@@ -11,8 +11,6 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
 // Room Layout Configuration (Row, Col) based on floor plan
 // Abstracted using last 2 digits (01-25)
-// Room Layout Configuration (Row, Col) based on floor plan
-// Abstracted using last 2 digits (01-25)
 const DEFAULT_LAYOUT: Record<number, { row: number, col: number }> = {
     // Top Row (06-10)
     6: { row: 1, col: 1 },
@@ -333,19 +331,22 @@ export default function HeadcountPage() {
                 }
             });
 
-            // Update room_number for every assigned student.
-            for (const update of updates) {
-                const { error } = await supabase
-                    .from('students')
-                    .update({ room_number: update.room_number })
-                    .eq('student_id', update.student_id);
-                if (error) throw error;
+            // Call API to bypass RLS
+            const res = await fetch('/api/teacher/save-room-assignments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ updates })
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || '저장 실패');
             }
 
             toast.success('서버에 저장되었습니다.', { id: loading });
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            toast.error('저장 중 오류가 발생했습니다.', { id: loading });
+            toast.error(e.message || '저장 중 오류가 발생했습니다.', { id: loading });
         }
     };
 
