@@ -482,7 +482,7 @@ export default function HeadcountPage() {
                         wrapperStyle={{ width: "100%", height: "100%" }}
                         contentStyle={{ display: "flex", alignItems: "center", justifyContent: "center" }} // Removed width/height 100% to let content define bounds
                     >
-                        <div className="grid grid-cols-5 gap-1.5 min-w-[1000px] select-none p-10"> {/* Reduced min-w slightly, added padding for bezel */}
+                        <div className="grid grid-cols-5 gap-1.5 min-w-[1000px] select-none px-10 pt-10 pb-40"> {/* Increased bottom padding to prevent clipping */}
                             {Object.keys(currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT))).map((key) => {
                                 const idx = Number(key);
                                 const roomNum = currentFloor * 100 + idx;
