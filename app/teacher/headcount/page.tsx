@@ -246,48 +246,8 @@ export default function HeadcountPage() {
                     };
                 });
 
-                // Load overrides from LocalStorage (Room Config)
-                const savedConfig = localStorage.getItem('dormichan_assignments');
-                if (savedConfig) {
-                    const parsed = JSON.parse(savedConfig);
-                    ALL_ROOMS.forEach(roomNum => {
-                        const savedRoom = parsed[roomNum];
-                        if (savedRoom) {
-                            if (!initialStatus[roomNum]) initialStatus[roomNum] = { left: { status: 'in', name: '' }, right: { status: 'in', name: '' } };
 
-                            if (savedRoom.left) {
-                                initialStatus[roomNum].left.name = savedRoom.left.name;
-                                initialStatus[roomNum].left.student_id = savedRoom.left.student_id;
-                                initialStatus[roomNum].left.status = savedRoom.left.student_id && outStatus.has(savedRoom.left.student_id) ? 'out' : 'in';
-                                initialStatus[roomNum].left.leaveType = savedRoom.left.student_id ? outStatus.get(savedRoom.left.student_id) : undefined;
-                                // Restore weekend status from DB data
-                                const student = students?.find((s: any) => s.student_id === savedRoom.left.student_id);
-                                initialStatus[roomNum].left.isWeekend = student?.weekend || false;
-                            } else {
-                                initialStatus[roomNum].left.name = '';
-                                initialStatus[roomNum].left.student_id = '';
-                                initialStatus[roomNum].left.status = 'in';
-                                initialStatus[roomNum].left.isWeekend = false;
-                            }
-
-                            if (savedRoom.right) {
-                                initialStatus[roomNum].right.name = savedRoom.right.name;
-                                initialStatus[roomNum].right.student_id = savedRoom.right.student_id;
-                                initialStatus[roomNum].right.status = savedRoom.right.student_id && outStatus.has(savedRoom.right.student_id) ? 'out' : 'in';
-                                initialStatus[roomNum].right.leaveType = savedRoom.right.student_id ? outStatus.get(savedRoom.right.student_id) : undefined;
-                                // Restore weekend status from DB data
-                                const student = students?.find((s: any) => s.student_id === savedRoom.right.student_id);
-                                initialStatus[roomNum].right.isWeekend = student?.weekend || false;
-                            } else {
-                                initialStatus[roomNum].right.name = '';
-                                initialStatus[roomNum].right.student_id = '';
-                                initialStatus[roomNum].right.status = 'in';
-                                initialStatus[roomNum].right.isWeekend = false;
-                            }
-                        }
-                    });
-                }
-
+                // NO LocalStorage Override. DB is source of truth.
                 setRoomStatus(initialStatus);
             } catch (err) {
                 console.error('Error fetching students:', err);
@@ -357,18 +317,36 @@ export default function HeadcountPage() {
 
     const handleSave = async () => {
         const loading = toast.loading('배정 현황 저장 중...');
-        const storageData: Record<number, any> = {};
-        Object.keys(roomStatus).forEach(key => {
-            const k = Number(key);
-            storageData[k] = {
-                left: { name: roomStatus[k].left.name, student_id: roomStatus[k].left.student_id },
-                right: { name: roomStatus[k].right.name, student_id: roomStatus[k].right.student_id }
-            };
-        });
+        try {
+            // 1. Gather all students currently assigned in UI
+            const updates: { student_id: string, room_number: number }[] = [];
 
-        localStorage.setItem('dormichan_assignments', JSON.stringify(storageData));
-        await new Promise(r => setTimeout(r, 600));
-        toast.success('저장되었습니다.', { id: loading });
+            Object.keys(roomStatus).forEach(key => {
+                const roomNum = Number(key);
+                const roomData = roomStatus[roomNum];
+
+                if (roomData.left.student_id) {
+                    updates.push({ student_id: roomData.left.student_id, room_number: roomNum });
+                }
+                if (roomData.right.student_id) {
+                    updates.push({ student_id: roomData.right.student_id, room_number: roomNum });
+                }
+            });
+
+            // Update room_number for every assigned student.
+            for (const update of updates) {
+                const { error } = await supabase
+                    .from('students')
+                    .update({ room_number: update.room_number })
+                    .eq('student_id', update.student_id);
+                if (error) throw error;
+            }
+
+            toast.success('서버에 저장되었습니다.', { id: loading });
+        } catch (e) {
+            console.error(e);
+            toast.error('저장 중 오류가 발생했습니다.', { id: loading });
+        }
     };
 
     const handleResetAssignments = () => {
