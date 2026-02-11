@@ -574,7 +574,7 @@ export default function HeadcountPage() {
 
                                                 {/* Student Name */}
                                                 <span className={clsx(
-                                                    "text-[10px] sm:text-[12px] font-bold truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30",
+                                                    "text-[9px] sm:text-[12px] font-bold truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30",
                                                     mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.left.isWeekend
                                                         ? "text-gray-400" // Weekly Home text color (Light gray for dark bg)
                                                         : (
@@ -637,7 +637,7 @@ export default function HeadcountPage() {
 
                                                 {/* Student Name */}
                                                 <span className={clsx(
-                                                    "text-[10px] sm:text-[12px] font-bold truncate max-w-full leading-tight px-1 flex flex-col items-center z-30",
+                                                    "text-[9px] sm:text-[12px] font-bold truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30",
                                                     mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.right.isWeekend
                                                         ? "text-gray-400" // Weekly Home text color
                                                         : (

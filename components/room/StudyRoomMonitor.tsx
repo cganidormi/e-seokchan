@@ -430,7 +430,7 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
                                                                 "flex-1 flex items-center px-1.5 border-b border-gray-100 transition-colors",
                                                                 activeLeaveReq?.leave_type === '자리비움' ? (isAwayBlinking ? "bg-red-600" : "bg-red-500") : headerBgClass
                                                             )}>
-                                                                <span className={clsx("text-[10px] sm:text-[11px] truncate font-medium flex-1", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
+                                                                <span className={clsx("text-[9px] sm:text-[11px] truncate font-medium flex-1", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
                                                                     {assignment.student?.student_id}
                                                                     {activeLeaveReq?.leave_type === '자리비움' && <span className="text-[8px] sm:text-[9px] ml-0.5 sm:ml-1 font-normal hidden sm:inline">자리비움</span>}
                                                                     {isWeeklyHome && <span className="text-[8px] sm:text-[9px] ml-auto font-normal text-white/90">귀가</span>}
