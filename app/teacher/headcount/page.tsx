@@ -574,12 +574,12 @@ export default function HeadcountPage() {
 
                                                 {/* Student Name */}
                                                 <span className={clsx(
-                                                    "text-[9px] sm:text-[12px] font-bold truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30",
+                                                    "truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30 font-medium",
                                                     mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.left.isWeekend
-                                                        ? "text-gray-400" // Weekly Home text color (Light gray for dark bg)
+                                                        ? "text-gray-400"
                                                         : (
                                                             mode === 'check' && roomData.left.status === 'in' && roomData.left.name
-                                                                ? "text-black" // Present text color (on white)
+                                                                ? "text-black"
                                                                 : (
                                                                     mode === 'check' && roomData.left.status === 'out'
                                                                         ? "text-white"
@@ -588,9 +588,14 @@ export default function HeadcountPage() {
                                                         ),
                                                     mode === 'assign' && !roomData.left.name && "text-gray-600 text-[10px]"
                                                 )}>
-                                                    {roomData.left.name ? (roomData.left.student_id || roomData.left.name) : (mode === 'assign' ? '빈 침대' : '-')}
+                                                    {roomData.left.name ? (
+                                                        <div className="flex items-baseline gap-0.5 w-full justify-center">
+                                                            <span className="text-[9px] sm:text-[10px] opacity-80 font-normal">{(roomData.left.student_id || roomData.left.name).match(/^\d+/)?.[0]}</span>
+                                                            <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.left.student_id || roomData.left.name).replace(/^\d+/, '').trim()}</span>
+                                                        </div>
+                                                    ) : (mode === 'assign' ? '빈 침대' : '-')}
                                                     {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.left.isWeekend && (
-                                                        <span className="text-[12px] font-bold text-gray-600 mt-1">매주귀가</span>
+                                                        <span className="text-[10px] font-bold text-gray-600 mt-0.5">매주귀가</span>
                                                     )}
                                                 </span>
                                             </button>
@@ -637,12 +642,12 @@ export default function HeadcountPage() {
 
                                                 {/* Student Name */}
                                                 <span className={clsx(
-                                                    "text-[9px] sm:text-[12px] font-bold truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30",
+                                                    "truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30 font-medium",
                                                     mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.right.isWeekend
-                                                        ? "text-gray-400" // Weekly Home text color
+                                                        ? "text-gray-400"
                                                         : (
                                                             mode === 'check' && roomData.right.status === 'in' && roomData.right.name
-                                                                ? "text-black" // Present text color
+                                                                ? "text-black"
                                                                 : (
                                                                     mode === 'check' && roomData.right.status === 'out'
                                                                         ? "text-white"
@@ -651,9 +656,14 @@ export default function HeadcountPage() {
                                                         ),
                                                     mode === 'assign' && !roomData.right.name && "text-gray-600 text-[10px]"
                                                 )}>
-                                                    {roomData.right.name ? (roomData.right.student_id || roomData.right.name) : (mode === 'assign' ? '빈 침대' : '-')}
+                                                    {roomData.right.name ? (
+                                                        <div className="flex items-baseline gap-0.5 w-full justify-center">
+                                                            <span className="text-[9px] sm:text-[10px] opacity-80 font-normal">{(roomData.right.student_id || roomData.right.name).match(/^\d+/)?.[0]}</span>
+                                                            <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.right.student_id || roomData.right.name).replace(/^\d+/, '').trim()}</span>
+                                                        </div>
+                                                    ) : (mode === 'assign' ? '빈 침대' : '-')}
                                                     {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.right.isWeekend && (
-                                                        <span className="text-[12px] font-bold text-gray-600 mt-1">매주귀가</span>
+                                                        <span className="text-[10px] font-bold text-gray-600 mt-0.5">매주귀가</span>
                                                     )}
                                                 </span>
                                             </button>
@@ -677,100 +687,102 @@ export default function HeadcountPage() {
             />
 
             {/* Student History Modal */}
-            {isHistoryModalOpen && historyStudent && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsHistoryModalOpen(false)}>
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden text-gray-800" onClick={e => e.stopPropagation()}>
-                        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                            <div className="flex items-center gap-3">
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-lg font-bold text-gray-800">{historyStudent.student_id}</h3>
-                                        <button
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
-                                                try {
-                                                    const res = await fetch('/api/teacher/summon', {
-                                                        method: 'POST',
-                                                        headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({
-                                                            studentId: historyStudent.student_id,
-                                                            teacherName: '담당 교사'
-                                                        })
-                                                    });
-                                                    if (res.ok) toast.success('호출 알림을 보냈습니다.');
-                                                    else toast.error('호출 실패');
-                                                } catch (err) {
-                                                    toast.error('오류 발생');
-                                                }
-                                            }}
-                                            className="text-xl p-1 text-gray-400 hover:text-red-500 transition-colors"
-                                            title="호출"
-                                        >
-                                            🔔
-                                        </button>
+            {
+                isHistoryModalOpen && historyStudent && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsHistoryModalOpen(false)}>
+                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden text-gray-800" onClick={e => e.stopPropagation()}>
+                            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                                <div className="flex items-center gap-3">
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-lg font-bold text-gray-800">{historyStudent.student_id}</h3>
+                                            <button
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
+                                                    try {
+                                                        const res = await fetch('/api/teacher/summon', {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({
+                                                                studentId: historyStudent.student_id,
+                                                                teacherName: '담당 교사'
+                                                            })
+                                                        });
+                                                        if (res.ok) toast.success('호출 알림을 보냈습니다.');
+                                                        else toast.error('호출 실패');
+                                                    } catch (err) {
+                                                        toast.error('오류 발생');
+                                                    }
+                                                }}
+                                                className="text-xl p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                                title="호출"
+                                            >
+                                                🔔
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-gray-500">최근 이석 기록 (최신순 20건)</p>
                                     </div>
-                                    <p className="text-xs text-gray-500">최근 이석 기록 (최신순 20건)</p>
                                 </div>
+                                <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400">
+                                    ✕
+                                </button>
                             </div>
-                            <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400">
-                                ✕
-                            </button>
-                        </div>
 
-                        <div className="overflow-y-auto p-4 flex flex-col gap-3">
-                            {historyRecords.length === 0 ? (
-                                <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
-                            ) : (
-                                historyRecords.map((rec) => {
-                                    const statusColors: any = {
-                                        '신청': 'bg-blue-50 text-blue-600',
-                                        '승인': 'bg-green-50 text-green-600',
-                                        '반려': 'bg-red-50 text-red-600',
-                                        '취소': 'bg-gray-50 text-gray-500',
-                                        '복귀': 'bg-gray-100 text-gray-600',
-                                        '학부모승인': 'bg-orange-50 text-orange-600',
-                                        '학부모승인대기': 'bg-yellow-50 text-yellow-600',
-                                    };
+                            <div className="overflow-y-auto p-4 flex flex-col gap-3">
+                                {historyRecords.length === 0 ? (
+                                    <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
+                                ) : (
+                                    historyRecords.map((rec) => {
+                                        const statusColors: any = {
+                                            '신청': 'bg-blue-50 text-blue-600',
+                                            '승인': 'bg-green-50 text-green-600',
+                                            '반려': 'bg-red-50 text-red-600',
+                                            '취소': 'bg-gray-50 text-gray-500',
+                                            '복귀': 'bg-gray-100 text-gray-600',
+                                            '학부모승인': 'bg-orange-50 text-orange-600',
+                                            '학부모승인대기': 'bg-yellow-50 text-yellow-600',
+                                        };
 
-                                    return (
-                                        <div key={rec.id} className="flex flex-col p-3 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors bg-white shadow-sm">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={clsx("px-2 py-0.5 rounded text-[10px] font-bold border border-opacity-10", statusColors[rec.status] || 'bg-gray-50 text-gray-500')}>
-                                                        {rec.status}
-                                                    </span>
-                                                    <span className="font-bold text-gray-700 text-sm">{rec.leave_type}</span>
+                                        return (
+                                            <div key={rec.id} className="flex flex-col p-3 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors bg-white shadow-sm">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={clsx("px-2 py-0.5 rounded text-[10px] font-bold border border-opacity-10", statusColors[rec.status] || 'bg-gray-50 text-gray-500')}>
+                                                            {rec.status}
+                                                        </span>
+                                                        <span className="font-bold text-gray-700 text-sm">{rec.leave_type}</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-gray-400">{new Date(rec.created_at).toLocaleDateString()}</span>
                                                 </div>
-                                                <span className="text-[10px] text-gray-400">{new Date(rec.created_at).toLocaleDateString()}</span>
-                                            </div>
 
-                                            <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg mb-2">
-                                                {rec.leave_type === '컴이석' || rec.leave_type === '이석' ? (
-                                                    <div className="font-mono text-xs">
-                                                        {rec.period}
-                                                    </div>
-                                                ) : (
-                                                    <div>
-                                                        {new Date(rec.start_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
-                                                        {new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                    </div>
+                                                <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg mb-2">
+                                                    {rec.leave_type === '컴이석' || rec.leave_type === '이석' ? (
+                                                        <div className="font-mono text-xs">
+                                                            {rec.period}
+                                                        </div>
+                                                    ) : (
+                                                        <div>
+                                                            {new Date(rec.start_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
+                                                            {new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {rec.reason && (
+                                                    <p className="text-[11px] text-gray-500 truncate">
+                                                        Running: {rec.reason}
+                                                    </p>
                                                 )}
                                             </div>
-
-                                            {rec.reason && (
-                                                <p className="text-[11px] text-gray-500 truncate">
-                                                    Running: {rec.reason}
-                                                </p>
-                                            )}
-                                        </div>
-                                    );
-                                })
-                            )}
+                                        );
+                                    })
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
