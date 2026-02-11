@@ -531,7 +531,7 @@ export default function SeatManagementPage() {
                         </div>
 
                         {/* Seat Management Toggle (Compact - Top Right) - Only for Authorized Roles */}
-                        {(teacherPosition === '사감' || teacherPosition === '기숙사부장') && (
+                        {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자') && (
                             <button
                                 onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
                                 className={clsx(

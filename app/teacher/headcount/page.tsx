@@ -433,7 +433,7 @@ export default function HeadcountPage() {
                         >
                             📋 점검
                         </button>
-                        {(teacherPosition === '사감' || teacherPosition === '기숙사부장') && (
+                        {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자') && (
                             <button
                                 onClick={() => setMode('assign')}
                                 className={clsx(
