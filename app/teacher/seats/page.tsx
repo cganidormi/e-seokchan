@@ -817,10 +817,11 @@ export default function SeatManagementPage() {
                                                             "flex-1 flex items-center px-1.5 border-b border-gray-100 transition-colors",
                                                             activeLeaveReq?.leave_type === '자리비움' ? (isAwayBlinking ? "bg-red-600" : "bg-red-500") : headerBgClass
                                                         )}>
-                                                            <span className={clsx("text-[11px] truncate font-medium flex-1", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
-                                                                {assignment.student?.student_id}
-                                                                {activeLeaveReq?.leave_type === '자리비움' && <span className="text-[9px] ml-1 font-normal">자리비움</span>}
-                                                                {isWeeklyHome && <span className="text-[9px] ml-auto font-normal text-white/90">귀가</span>}
+                                                            <span className={clsx("truncate font-medium flex-1 flex items-baseline gap-0.5", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
+                                                                <span className="text-[9px] sm:text-[10px] opacity-90">{assignment.student?.student_id?.match(/^\d+/)?.[0]}</span>
+                                                                <span className="text-[11px] sm:text-[12px]">{assignment.student?.student_id?.replace(/^\d+/, '').trim()}</span>
+                                                                {activeLeaveReq?.leave_type === '자리비움' && <span className="text-[8px] sm:text-[9px] ml-0.5 sm:ml-1 font-normal hidden sm:inline">자리비움</span>}
+                                                                {isWeeklyHome && <span className="text-[8px] sm:text-[9px] ml-auto font-normal text-white/90">귀가</span>}
                                                             </span>
                                                         </div>
 
