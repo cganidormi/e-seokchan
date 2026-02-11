@@ -16,7 +16,7 @@ export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
 
-import TributeFooter from "./components/TributeFooter";
+import TributeFooter from "@/components/TributeFooter";
 
 export default function RootLayout({
   children,
