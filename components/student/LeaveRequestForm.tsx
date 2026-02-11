@@ -400,6 +400,78 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 }
             } else if (leaveType === '자리비움') {
                 const now = new Date();
+                const { data: timetable } = await supabase.from('timetable_entries').select('*');
+
+                // 1. Determine Current Period Constraints
+                let limitStartTime = new Date(now);
+                let limitEndTime = new Date(now);
+                let isInsidePeriod = false;
+                let periodName = '';
+
+                if (timetable) {
+                    const currentHHmm = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+                    const isHoliday = isDateHoliday(now);
+                    let matchType = '';
+                    if (isHoliday) {
+                        // Weekend logic simplification
+                        if (currentHHmm < '13:00') matchType = 'weekend morning';
+                        else if (currentHHmm < '18:30') matchType = 'weekend day'; // Afternoon
+                        else matchType = 'weekend night';
+                    } else {
+                        // Weekday
+                        if (currentHHmm < '19:00') matchType = 'weekday day';
+                        else matchType = 'weekday night';
+                    }
+
+                    const entry = timetable.find(t => {
+                        const dt = t.day_type.toLowerCase();
+                        const normalizedMatchType = matchType.toLowerCase();
+                        // Find entry that covers NOW
+                        if (dt.includes(normalizedMatchType)) {
+                            return currentHHmm >= t.start_time && currentHHmm <= t.end_time;
+                        }
+                        return false;
+                    });
+
+                    if (entry) {
+                        isInsidePeriod = true;
+                        periodName = entry.description;
+                        const [sh, sm] = entry.start_time.split(':').map(Number);
+                        const [eh, em] = entry.end_time.split(':').map(Number);
+                        limitStartTime.setHours(sh, sm, 0, 0);
+                        limitEndTime.setHours(eh, em, 59, 999);
+                    }
+                }
+
+                // Fallback: If not in a defined period (Break time?), limit to "Last 50 minutes" to prevent spam
+                if (!isInsidePeriod) {
+                    limitStartTime = new Date(now.getTime() - 50 * 60 * 1000);
+                    limitEndTime = new Date(now.getTime() + 1000); // Just now
+                }
+
+                // 2. Check for EXISTING '자리비움' in this timeframe
+                // We look for any '자리비움' request created or active within [limitStartTime, limitEndTime]
+                // Since '자리비움' has a long end_time (end of day), we mainly check 'start_time' or 'created_at'.
+                // Ideally check if (req.start_time >= limitStartTime && req.start_time <= limitEndTime)
+
+                const { data: recentAway } = await supabase
+                    .from('leave_requests')
+                    .select('id, start_time')
+                    .eq('student_id', studentId)
+                    .eq('leave_type', '자리비움')
+                    .gte('start_time', limitStartTime.toISOString())
+                    .lte('start_time', limitEndTime.toISOString())
+                    .in('status', ['신청', '승인']) // Should be '승인' mostly
+                    .limit(1);
+
+                if (recentAway && recentAway.length > 0) {
+                    const msg = isInsidePeriod
+                        ? `[제한] ${periodName}에 이미 '자리비움'을 사용했습니다. (한 교시에 1회만 가능)`
+                        : `[제한] 최근에 이미 '자리비움'을 사용했습니다. 잠시 후 다시 시도하세요.`;
+                    toast.error(msg);
+                    return;
+                }
+
                 finalStartTime = now.toISOString();
                 // Set end time to end of day so it persists until manually cancelled
                 const eod = new Date(now);
