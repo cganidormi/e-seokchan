@@ -16,6 +16,8 @@ export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
 
+import TributeFooter from "./components/TributeFooter";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,10 +30,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="stylesheet" as="style" crossOrigin="anonymous" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
       </head>
-      <body className="antialiased">
+      <body className="antialiased" style={{ paddingBottom: '60px' }}>
         <ServiceWorkerRegister />
         {children}
         <div id="datepicker-portal" />
+        <TributeFooter />
       </body>
     </html>
   );
