@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/supabaseClient';
 
 export default function StudentLayout({
     children,
@@ -11,16 +12,40 @@ export default function StudentLayout({
     const router = useRouter();
     const [isAuthorized, setIsAuthorized] = useState(false);
 
-    useEffect(() => {
-        // Security Check
-        const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
-        const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
 
-        if (!loginId || (role !== 'student' && role !== 'monitor')) {
-            router.replace('/login');
-        } else {
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
+            const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
+
+            if (!loginId || (role !== 'student' && role !== 'monitor')) {
+                router.replace('/login');
+                return;
+            }
+
+            // Only check password change for students (not monitors for now, as monitors_auth schema might differ)
+            if (role === 'student') {
+                try {
+                    const { data, error } = await supabase
+                        .from('students_auth')
+                        .select('must_change_password')
+                        .eq('student_id', loginId)
+                        .maybeSingle();
+
+                    if (data?.must_change_password) {
+                        router.replace(`/change-password?role=student&id=${loginId}`);
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Auth check error:", e);
+                }
+            }
+
             setIsAuthorized(true);
-        }
+        };
+
+        checkAuth();
     }, [router]);
 
     if (!isAuthorized) {

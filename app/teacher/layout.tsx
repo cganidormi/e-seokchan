@@ -13,15 +13,35 @@ export default function TeacherLayout({
     const [isAuthorized, setIsAuthorized] = useState(false);
 
     useEffect(() => {
-        // Security Check
-        const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
-        const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
+        const checkAuth = async () => {
+            const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
+            const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
 
-        if (!loginId || role !== 'teacher') {
-            router.replace('/login');
-        } else {
+            if (!loginId || role !== 'teacher') {
+                router.replace('/login');
+                return;
+            }
+
+            try {
+                // Check if password change is required
+                const { data, error } = await supabase
+                    .from('teachers_auth')
+                    .select('must_change_password')
+                    .eq('teacher_id', loginId)
+                    .single();
+
+                if (data?.must_change_password) {
+                    router.replace(`/change-password?role=teacher&id=${loginId}`);
+                    return;
+                }
+            } catch (e) {
+                console.error("Auth check error:", e);
+            }
+
             setIsAuthorized(true);
-        }
+        };
+
+        checkAuth();
     }, [router]);
 
     // Lazy Sync & Notification Trigger
