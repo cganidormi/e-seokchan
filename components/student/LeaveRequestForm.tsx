@@ -489,10 +489,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 }
 
                 finalStartTime = now.toISOString();
-                // Set end time to end of day so it persists until manually cancelled
-                const eod = new Date(now);
-                eod.setHours(23, 59, 59, 999);
-                finalEndTime = eod.toISOString();
+                // [Auto-Reset] Set end time to the end of the current period (or limitEndTime)
+                // This ensures the status automatically clears when the period ends.
+                finalEndTime = limitEndTime.toISOString();
                 finalStatus = '승인';
             }
 
