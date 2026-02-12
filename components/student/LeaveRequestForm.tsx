@@ -442,18 +442,18 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         limitEndTime.setHours(eh, em, 59, 999);
 
                         // ---------------------------------------------------
-                        // [New Rule] 15-minute Restriction Logic
+                        // [New Rule] 10-minute Restriction Logic
                         // ---------------------------------------------------
-                        const allowedStart = new Date(limitStartTime.getTime() + 15 * 60 * 1000);
-                        const allowedEnd = new Date(limitEndTime.getTime() - 15 * 60 * 1000);
+                        const allowedStart = new Date(limitStartTime.getTime() + 10 * 60 * 1000);
+                        const allowedEnd = new Date(limitEndTime.getTime() - 10 * 60 * 1000);
 
                         if (now < allowedStart) {
-                            toast.error(`${periodName} 시작 후 15분 동안은 신청이 제한됩니다.`);
+                            toast.error(`${periodName} 시작 후 10분 동안은 신청이 제한됩니다.`);
                             return;
                         }
 
                         if (now > allowedEnd) {
-                            toast.error(`${periodName} 종료 15분 전부터는 신청이 제한됩니다.`);
+                            toast.error(`${periodName} 종료 10분 전부터는 신청이 제한됩니다.`);
                             return;
                         }
                     }
