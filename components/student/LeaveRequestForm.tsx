@@ -440,13 +440,29 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         const [eh, em] = entry.end_time.split(':').map(Number);
                         limitStartTime.setHours(sh, sm, 0, 0);
                         limitEndTime.setHours(eh, em, 59, 999);
+
+                        // ---------------------------------------------------
+                        // [New Rule] 15-minute Restriction Logic
+                        // ---------------------------------------------------
+                        const allowedStart = new Date(limitStartTime.getTime() + 15 * 60 * 1000);
+                        const allowedEnd = new Date(limitEndTime.getTime() - 15 * 60 * 1000);
+
+                        if (now < allowedStart) {
+                            toast.error(`${periodName} 시작 후 15분 동안은 신청이 제한됩니다.`);
+                            return;
+                        }
+
+                        if (now > allowedEnd) {
+                            toast.error(`${periodName} 종료 15분 전부터는 신청이 제한됩니다.`);
+                            return;
+                        }
                     }
                 }
 
-                // Fallback: If not in a defined period (Break time?), limit to "Last 50 minutes" to prevent spam
+                // Fallback: If not in a defined period (Break time?), BLOCK IT.
                 if (!isInsidePeriod) {
-                    limitStartTime = new Date(now.getTime() - 50 * 60 * 1000);
-                    limitEndTime = new Date(now.getTime() + 1000); // Just now
+                    toast.error('쉬는 시간 및 수업 외 시간에는 자리비움 신청을 할 수 없습니다.');
+                    return;
                 }
 
                 // 2. Check for EXISTING '자리비움' in this timeframe
