@@ -6,6 +6,7 @@ import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { IoQrCode } from 'react-icons/io5';
+import { MdLockReset } from 'react-icons/md';
 import { LeaveProcessList } from '@/components/teacher/LeaveProcessList';
 import { LeaveRequest } from '@/components/teacher/types';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
@@ -352,7 +353,7 @@ export default function TeacherPage() {
           className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1.5 px-3 rounded-xl shadow-sm transition-all flex items-center justify-center text-sm"
           title="비밀번호 변경"
         >
-          <span className="text-lg">🔒</span>
+          <MdLockReset className="w-6 h-6 text-gray-700" />
         </button>
 
         <button
