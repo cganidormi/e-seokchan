@@ -13,6 +13,7 @@ import PullToRefresh from '@/components/PullToRefresh';
 
 export default function TeacherPage() {
   const [teacherId, setTeacherId] = useState<string | null>(null);
+  const [teacherLoginId, setTeacherLoginId] = useState<string>(''); // For password change
   const [teacherName, setTeacherName] = useState<string>('');
   const [teacherPosition, setTeacherPosition] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
@@ -31,8 +32,9 @@ export default function TeacherPage() {
       return;
     }
 
-    setTeacherId(loginId);
-
+    // Temporarily set teacherId from storage to allow initial rendering if needed, 
+    // but we will overwrite it with UUID from DB. 
+    // Actually, let's wait for DB resolution.
   }, [router]);
 
   useEffect(() => {
@@ -42,6 +44,9 @@ export default function TeacherPage() {
     const resolveTeacherInfo = async () => {
       try {
         if (loginId && role === 'teacher') {
+          // We must fetch 'teacher_id' (string ID) as well to pass to change-password page correctly
+          // However, to be safe against column existence issues, we use the loginId variable 
+          // which we know is valid (since the query succeeded).
           const { data: teacher, error } = await supabase
             .from('teachers')
             .select('id, name, position')
@@ -53,7 +58,8 @@ export default function TeacherPage() {
           }
 
           if (teacher) {
-            setTeacherId(teacher.id);
+            setTeacherId(teacher.id); // UUID
+            setTeacherLoginId(loginId); // String ID (from storage, confirmed valid)
             setTeacherName(teacher.name);
             setTeacherPosition(teacher.position);
             await fetchLeaveRequests(teacher.id, teacher.name);
@@ -342,7 +348,7 @@ export default function TeacherPage() {
         </button>
 
         <button
-          onClick={() => router.push(`/change-password?role=teacher&id=${teacherId}`)}
+          onClick={() => router.push(`/change-password?role=teacher&id=${teacherLoginId}`)}
           className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1.5 px-3 rounded-xl shadow-sm transition-all flex items-center justify-center text-sm"
           title="비밀번호 변경"
         >
