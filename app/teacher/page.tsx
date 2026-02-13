@@ -342,6 +342,14 @@ export default function TeacherPage() {
         </button>
 
         <button
+          onClick={() => router.push(`/change-password?role=teacher&id=${teacherId}`)}
+          className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1.5 px-3 rounded-xl shadow-sm transition-all flex items-center justify-center text-sm"
+          title="비밀번호 변경"
+        >
+          <span className="text-lg">🔒</span>
+        </button>
+
+        <button
           onClick={() => router.push('/today')}
           className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1.5 px-4 rounded-xl shadow-sm transition-all flex items-center gap-2 text-sm"
         >
