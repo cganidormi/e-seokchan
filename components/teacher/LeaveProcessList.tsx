@@ -140,7 +140,12 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Morning Checkout Button */}
             <button
                 onClick={() => setIsMorningModalOpen(true)}
-                className="w-full mb-6 py-3 rounded-xl text-sm font-bold transition-all text-orange-100 bg-orange-600 hover:bg-orange-500 shadow-lg text-center"
+                className="w-full mb-6 py-3 rounded-xl text-sm font-bold transition-all text-white shadow-lg text-right pr-6 bg-no-repeat bg-[#2d2d2d] hover:bg-[#3d3d3d]"
+                style={{
+                    backgroundImage: `url('/yellow_card.svg')`,
+                    backgroundPosition: '10px center',
+                    backgroundSize: '40px 40px'
+                }}
             >
                 일과시간 미준수지도 →
             </button>
