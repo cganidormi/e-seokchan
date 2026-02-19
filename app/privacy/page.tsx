@@ -42,18 +42,7 @@ export default function PrivacyPage() {
                     </section>
 
                     <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">4. 개인정보의 파기절차 및 파기방법</h2>
-                        <p className="text-gray-600 leading-relaxed">
-                            본 서비스는 원칙적으로 개인정보 수집 및 이용목적이 달성된 후에는 해당 정보를 지체 없이 파기합니다. 파기절차 및 방법은 다음과 같습니다.
-                        </p>
-                        <ul className="list-disc list-inside text-gray-600 space-y-2 mt-2">
-                            <li>파기절차: 이용자가 입력한 정보는 목적 달성 후 별도의 DB에 옮겨져(종이의 경우 별도의 서류함) 내부 방침 및 기타 관련 법령에 의한 정보보호 사유에 따라(보유 및 이용기간 참조) 일정 기간 저장된 후 파기됩니다.</li>
-                            <li>파기방법: 전자적 파일조차 형태로 저장된 개인정보는 기록을 재생할 수 없는 기술적 방법을 사용하여 삭제합니다.</li>
-                        </ul>
-                    </section>
-
-                    <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">5. 이용자 및 법정대리인의 권리와 그 행사방법</h2>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">4. 이용자 및 법정대리인의 권리와 그 행사방법</h2>
                         <ul className="list-disc list-inside text-gray-600 space-y-2 mb-4">
                             <li>정보주체는 언제든지 자신의 개인정보를 열람하거나 정정을 요구할 수 있습니다.</li>
                             <li>개인정보의 오류에 대한 정정 및 삭제를 요청한 경우에는 정정 또는 삭제를 완료할 때까지 당해 개인정보를 이용하거나 제공하지 않습니다.</li>
@@ -67,7 +56,7 @@ export default function PrivacyPage() {
                     </section>
 
                     <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">6. 개인정보의 안전성 확보 조치</h2>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">5. 개인정보의 안전성 확보 조치</h2>
                         <p className="text-gray-600 leading-relaxed mb-2">서비스는 개인정보의 안전성 확보를 위해 다음과 같은 조치를 취하고 있습니다.</p>
                         <ul className="list-disc list-inside text-gray-600 space-y-2">
                             <li><strong>관리적 조치</strong>: 내부 관리계획 수립 및 시행, 개인정보 취급 담당자 최소화</li>
@@ -76,7 +65,7 @@ export default function PrivacyPage() {
                     </section>
 
                     <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">7. 개인정보 보호책임자 및 처리 업무 위탁</h2>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">6. 개인정보 보호책임자 및 처리 업무 위탁</h2>
                         <div className="space-y-4">
                             <div>
                                 <p className="text-gray-600 leading-relaxed mb-2">1) 서비스는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 관련 민원 처리를 위하여 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.</p>
