@@ -5,10 +5,10 @@ import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 export const metadata: Metadata = {
   title: "이석찬",
   description: "기숙사 이석/외박 관리 시스템",
-  manifest: "/manifest.json?v=10",
+  manifest: "/manifest.json?v=11",
   icons: {
-    icon: "/icon-v3-192.png?v=10",
-    apple: "/icon-v3-192.png?v=10",
+    icon: "/icon-v3-192.png?v=11",
+    apple: "/icon-v3-192.png?v=11",
   }
 };
 
