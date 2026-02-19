@@ -9,89 +9,87 @@ export default function PrivacyPage() {
                 <div className="px-4 py-5 sm:p-6">
                     <h1 className="text-3xl font-bold text-gray-900 mb-8 pb-4 border-b">개인정보 처리방침</h1>
 
+                    <p className="text-gray-600 mb-8 leading-relaxed">
+                        본 서비스 '이석찬'(이하 '서비스')은 정보주체의 자유와 권리 보호를 위해 「개인정보 보호법」 및 관계 법령이 정한 바를 준수하여, 적법하게 개인정보를 처리하고 안전하게 관리하고 있습니다.
+                    </p>
+
                     <section className="mb-8">
                         <h2 className="text-xl font-semibold text-gray-800 mb-4">1. 개인정보의 수집 및 이용 목적</h2>
                         <p className="text-gray-600 leading-relaxed mb-4">
-                            [이석찬]은 기숙사 생활 관리 및 학생 안전 확보를 위해 다음과 같은 목적으로 개인정보를 처리합니다. 처리하고 있는 개인정보는 다음의 목적 이외의 용도로는 이용되지 않으며, 이용 목적이 변경되는 경우에는 별도의 동의를 받는 등 필요한 조치를 이행할 예정입니다.
+                            서비스는 다음의 목적을 위하여 개인정보를 처리합니다. 처리하고 있는 개인정보는 다음의 목적 이외의 용도로는 이용되지 않으며, 이용 목적이 변경되는 경우에는 별도의 동의를 받는 등 필요한 조치를 이행할 예정입니다.
                         </p>
                         <ul className="list-disc list-inside text-gray-600 space-y-2">
-                            <li>학생 이석(외출, 외박, 이동 등) 신청 및 승인 관리</li>
-                            <li>기숙사 내 좌석 배치 및 인원 점검</li>
-                            <li>상벌점 부여 및 이력 관리</li>
-                            <li>보호자 대상 자녀 위치 및 안전 상태 정보 제공</li>
+                            <li>학생: 기숙사 외박/외출/잔류 신청 및 승인 관리, 점호 확인</li>
+                            <li>교사: 학생 신청 내역 승인/반려 처리, 기숙사생 생활 지도 및 관리</li>
+                            <li>학부모: 자녀의 외박/외출 신청 내역 조회 및 승인 알림 수신</li>
                         </ul>
                     </section>
 
                     <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">2. 수집하는 개인정보 항목</h2>
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                            <p className="text-gray-700 font-medium mb-2">[수집 항목]</p>
-                            <ul className="list-disc list-inside text-gray-600 space-y-1">
-                                <li>학생: 이름, 학년/반/번호, 성별, 학번, 상벌점 정보, 이석 사유, 비밀번호</li>
-                                <li>교사: 이름, 직함, 연락처(선택), 비밀번호</li>
-                                <li>학부모: 자녀 이름, 고유 토큰 정보</li>
-                            </ul>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">2. 수집하는 개인정보의 항목</h2>
+                        <p className="text-gray-600 leading-relaxed mb-4">
+                            서비스는 회원가입 절차 없이 학교에서 부여된 계정 정보를 기반으로 운영되며, 최소한의 개인정보만을 수집·처리합니다.
+                        </p>
+                        <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                            <p className="text-gray-700"><span className="font-bold">[학생] 필수항목:</span> 성명, 학번(학년/반/번호), 기숙사 호실 정보</p>
+                            <p className="text-gray-700"><span className="font-bold">[교사] 필수항목:</span> 성명, 직위/직책 (담임 여부 등)</p>
+                            <p className="text-gray-700"><span className="font-bold">[학부모] 필수항목:</span> 수집하지 않음 (학생 정보를 통한 자녀 확인)</p>
+                            <p className="text-gray-500 text-sm mt-2">* 본 서비스는 주민등록번호나 전화번호를 수집하지 않습니다.</p>
                         </div>
                     </section>
 
                     <section className="mb-8">
                         <h2 className="text-xl font-semibold text-gray-800 mb-4">3. 개인정보의 보유 및 이용 기간</h2>
-                        <p className="text-gray-600 leading-relaxed">
-                            본 시스템은 서비스 제공 기간 동안 혹은 학생의 재학 기간 동안 개인정보를 보유하며, 졸업 또는 서비스 종료 시 원칙적으로 지체 없이 파기합니다. 단, 관계 법령에 의해 보존할 필요가 있는 경우 해당 법령에 따릅니다.
-                        </p>
-                    </section>
-
-                    <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">4. 개인정보의 파기절차 및 파기방법</h2>
-                        <p className="text-gray-600 leading-relaxed">
-                            본 서비스는 원칙적으로 개인정보 수집 및 이용목적이 달성된 후에는 해당 정보를 지체 없이 파기합니다. 파기절차 및 방법은 다음과 같습니다.
-                        </p>
-                        <ul className="list-disc list-inside text-gray-600 space-y-2 mt-2">
-                            <li>파기절차: 이용자가 입력한 정보는 목적 달성 후 내부 방침 및 기타 관련 법령에 의한 정보보호 사유에 따라 일정 기간 저장된 후 파기됩니다.</li>
-                            <li>파기방법: 전자적 파일조차 형태로 저장된 개인정보는 기록을 재생할 수 없는 기술적 방법을 사용하여 삭제합니다.</li>
-                        </ul>
-                    </section>
-
-                    <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">4. 이용자 및 법정대리인의 권리와 그 행사방법</h2>
-                        <ul className="list-disc list-inside text-gray-600 space-y-2 mb-4">
-                            <li>정보주체는 언제든지 자신의 개인정보를 열람하거나 정정을 요구할 수 있습니다.</li>
-                            <li>개인정보의 오류에 대한 정정 및 삭제를 요청한 경우에는 정정 또는 삭제를 완료할 때까지 당해 개인정보를 이용하거나 제공하지 않습니다.</li>
-                        </ul>
-                        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
-                            <p className="text-gray-700 font-medium">* 권리 행사 방법</p>
-                            <p className="text-gray-600 mt-1">
-                                정보주체(학생 및 학부모)는 교내 시스템 관리자(담당 교사)에게 구두, 서면 또는 교내 메신저 등을 통해 권리 행사를 요구할 수 있으며, 서비스 관리자는 이에 대해 지체 없이 조치하겠습니다.
-                            </p>
+                        <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-gray-600">
+                            <p>개인정보는 원칙적으로 서비스 이용 목적이 달성되면 지체 없이 파기합니다. 단, 다음의 정보에 대해서는 아래의 이유로 명시한 기간 동안 보존합니다.</p>
+                            <ul className="list-disc list-inside mt-2">
+                                <li><strong>보존 항목:</strong> 외박/외출 신청 이력, 점호 기록</li>
+                                <li><strong>보존 근거:</strong> 기숙사 운영 규정에 따른 생활 기록 보존</li>
+                                <li><strong>보존 기간:</strong> 졸업 시 또는 학교의 별도 규정에 따름 (최대 3년)</li>
+                            </ul>
                         </div>
                     </section>
 
                     <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">6. 개인정보의 안전성 확보 조치</h2>
-                        <p className="text-gray-600 leading-relaxed mb-2">서비스는 개인정보의 안전성 확보를 위해 다음과 같은 조치를 취하고 있습니다.</p>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">4. 개인정보의 제3자 제공</h2>
+                        <p className="text-gray-600 leading-relaxed">
+                            서비스는 정보주체의 개인정보를 명시한 범위 내에서만 처리하며, 정보주체의 동의, 법률의 특별한 규정 등 「개인정보 보호법」 제17조 및 제18조에 해당하는 경우를 제외하고는 본인의 동의 없이 개인정보를 제3자에게 제공하지 않습니다.
+                        </p>
+                    </section>
+
+                    <section className="mb-8">
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">5. 정보주체의 권리·의무 및 행사 방법</h2>
+                        <p className="text-gray-600 leading-relaxed mb-4">
+                            정보주체는 언제든지 다음 각 호의 개인정보 보호 관련 권리를 행사할 수 있습니다.
+                        </p>
                         <ul className="list-disc list-inside text-gray-600 space-y-2">
-                            <li><strong>관리적 조치</strong>: 내부 관리계획 수립 및 시행, 개인정보 취급 담당자 최소화</li>
-                            <li><strong>기술적 조치</strong>: 개인정보 데이터의 암호화 저장, 관리자 페이지 접근 통제 및 인증 절차 적용</li>
+                            <li>개인정보 열람 요구</li>
+                            <li>오류 등이 있을 경우 정정 요구</li>
+                            <li>삭제 요구</li>
+                            <li>처리정지 요구</li>
                         </ul>
                     </section>
 
-                    <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">7. 개인정보 보호책임자 및 처리 업무 위탁</h2>
-                        <div className="space-y-4">
-                            <div>
-                                <p className="text-gray-600 leading-relaxed mb-2">1) 서비스는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 관련 민원 처리를 위하여 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.</p>
-                                <div className="bg-gray-50 p-4 rounded-lg">
-                                    <ul className="list-disc list-inside text-gray-600 space-y-1">
-                                        <li><strong>개인정보 보호책임자</strong>: [강원과학고등학교장]</li>
-                                        <li><strong>개인정보 보호 실무 담당자</strong>: [기숙사사감팀장] (연락처: 033-740-9700)</li>
-                                    </ul>
-                                </div>
+                    {/* --- KERIS 필수 기준 추가 항목 (사용자 요청에 따라 최소한으로 추가) --- */}
+                    <div className="mt-12 pt-8 border-t border-gray-200">
+                        <h3 className="text-lg font-bold text-gray-700 mb-4">[부칙: KERIS 학습지원 소프트웨어 필수 기준 관련]</h3>
+
+                        <section className="mb-6">
+                            <h4 className="text-md font-semibold text-gray-800 mb-2">가. 만 14세 미만 아동의 개인정보 처리</h4>
+                            <p className="text-gray-600 text-sm">
+                                본 서비스는 고등학생을 주 대상으로 하나, 만 14세 미만 아동의 개인정보를 처리하기 위해서는 법정대리인의 동의를 받습니다. 법정대리인은 아동의 개인정보에 대한 열람, 정정/삭제, 개인정보 수집 동의 철회 권리를 행사할 수 있습니다.
+                            </p>
+                        </section>
+
+                        <section className="mb-6">
+                            <h4 className="text-md font-semibold text-gray-800 mb-2">나. 개인정보 보호책임자</h4>
+                            <p className="text-gray-600 text-sm mb-2">서비스의 개인정보 처리에 관한 업무를 총괄해서 책임지고, 관련 고충처리를 위해 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.</p>
+                            <div className="bg-gray-50 p-3 rounded text-sm text-gray-600">
+                                <p>• 책임자: (학교 정보부장 또는 담당 교사)</p>
+                                <p>• 연락처: (학교 대표 번호)</p>
                             </div>
-                            <div>
-                                <p className="text-gray-600 leading-relaxed">2) 본 서비스는 외부 업체에 개인정보 처리 업무를 위탁하지 않으며, 교내 자체 시스템으로 안전하게 운영·관리됩니다.</p>
-                            </div>
-                        </div>
-                    </section>
+                        </section>
+                    </div>
 
                     <div className="mt-12 pt-8 border-t text-sm text-gray-500">
                         <p>공고일자: 2026년 2월 19일</p>
