@@ -53,7 +53,7 @@ export default function PrivacyPage() {
                     </section>
 
                     <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">4. 이용자 및 법정대리인의 권리와 그 행사방법</h2>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">5. 이용자 및 법정대리인의 권리와 그 행사방법</h2>
                         <ul className="list-disc list-inside text-gray-600 space-y-2 mb-4">
                             <li>정보주체는 언제든지 자신의 개인정보를 열람하거나 정정을 요구할 수 있습니다.</li>
                             <li>개인정보의 오류에 대한 정정 및 삭제를 요청한 경우에는 정정 또는 삭제를 완료할 때까지 당해 개인정보를 이용하거나 제공하지 않습니다.</li>
