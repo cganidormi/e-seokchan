@@ -604,6 +604,7 @@ function ParentContent() {
 
                 <div className="pt-8 pb-4 text-center">
                     <p className="text-xs text-gray-300">Dormichan Parent App</p>
+                    <a href="/privacy" className="text-[10px] text-gray-300 underline mt-2 inline-block">개인정보처리방침</a>
                 </div>
 
             </main>

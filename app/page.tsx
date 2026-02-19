@@ -203,6 +203,11 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-gray-400 z-10">
+        <p>Copyright 2026 © 이상찬. All Rights Reserved.</p>
+        <a href="/privacy" className="underline hover:text-white transition-colors">개인정보처리방침</a>
+      </div>
     </div>
   );
 }
