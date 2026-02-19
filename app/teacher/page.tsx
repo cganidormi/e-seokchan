@@ -387,6 +387,11 @@ export default function TeacherPage() {
           teacherName={teacherName}
           teacherId={teacherId}
         />
+        <div className="mt-8 text-center pb-8">
+          <a href="/privacy" className="text-xs text-gray-400 underline hover:text-gray-600 transition-colors">
+            개인정보처리방침
+          </a>
+        </div>
       </PullToRefresh>
 
       {/* QR Code Modal */}
@@ -424,12 +429,6 @@ export default function TeacherPage() {
           </div>
         </div>
       )}
-
-      <div className="mt-8 text-center pb-8">
-        <a href="/privacy" className="text-xs text-gray-400 underline hover:text-gray-600 transition-colors">
-          개인정보처리방침
-        </a>
-      </div>
     </div>
   );
 }
