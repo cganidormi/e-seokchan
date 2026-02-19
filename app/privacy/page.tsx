@@ -56,7 +56,7 @@ export default function PrivacyPage() {
                     </section>
 
                     <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">5. 개인정보의 안전성 확보 조치</h2>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">6. 개인정보의 안전성 확보 조치</h2>
                         <p className="text-gray-600 leading-relaxed mb-2">서비스는 개인정보의 안전성 확보를 위해 다음과 같은 조치를 취하고 있습니다.</p>
                         <ul className="list-disc list-inside text-gray-600 space-y-2">
                             <li><strong>관리적 조치</strong>: 내부 관리계획 수립 및 시행, 개인정보 취급 담당자 최소화</li>
@@ -65,7 +65,7 @@ export default function PrivacyPage() {
                     </section>
 
                     <section className="mb-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">6. 개인정보 보호책임자 및 처리 업무 위탁</h2>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">7. 개인정보 보호책임자 및 처리 업무 위탁</h2>
                         <div className="space-y-4">
                             <div>
                                 <p className="text-gray-600 leading-relaxed mb-2">1) 서비스는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 관련 민원 처리를 위하여 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.</p>
