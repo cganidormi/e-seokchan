@@ -1,12 +1,24 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function PrivacyPage() {
+    const router = useRouter();
+
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl mx-auto bg-white shadow sm:rounded-lg overflow-hidden">
                 <div className="px-4 py-5 sm:p-6">
+                    <button
+                        onClick={() => router.back()}
+                        className="mb-6 text-gray-500 hover:text-gray-700 flex items-center"
+                    >
+                        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        뒤로가기
+                    </button>
                     <h1 className="text-3xl font-bold text-gray-900 mb-8 pb-4 border-b">개인정보 처리방침</h1>
 
                     <p className="text-gray-600 mb-8 leading-relaxed">
@@ -62,14 +74,43 @@ export default function PrivacyPage() {
                         <p className="text-gray-600 leading-relaxed mb-4">
                             정보주체는 언제든지 다음 각 호의 개인정보 보호 관련 권리를 행사할 수 있습니다.
                         </p>
-                        <ul className="list-disc list-inside text-gray-600 space-y-2">
+                        <ul className="list-disc list-inside text-gray-600 space-y-2 mb-4">
                             <li>개인정보 열람 요구</li>
                             <li>오류 등이 있을 경우 정정 요구</li>
                             <li>삭제 요구</li>
                             <li>처리정지 요구</li>
                         </ul>
+                        <p className="text-gray-600 leading-relaxed">
+                            <strong>* 권리 행사 방법:</strong> 정보주체(학생 및 학부모)는 교내 시스템 관리자(담당 교사)에게 구두, 서면 또는 교내 메신저 등을 통해 권리 행사를 요구할 수 있으며, 서비스 관리자는 이에 대해 지체 없이 조치하겠습니다.
+                        </p>
                     </section>
 
+                    <section className="mb-8">
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">6. 개인정보의 안전성 확보 조치</h2>
+                        <p className="text-gray-600 leading-relaxed mb-4">
+                            서비스는 개인정보의 안전성 확보를 위해 다음과 같은 조치를 취하고 있습니다.
+                        </p>
+                        <ul className="list-disc list-inside text-gray-600 space-y-2">
+                            <li><strong>관리적 조치:</strong> 내부 관리계획 수립 및 시행, 개인정보 취급 담당자 최소화</li>
+                            <li><strong>기술적 조치:</strong> 개인정보 데이터의 암호화 저장, 관리자 페이지 접근 통제 및 인증 절차 적용</li>
+                        </ul>
+                    </section>
+
+                    <section className="mb-8">
+                        <h2 className="text-xl font-semibold text-gray-800 mb-4">7. 개인정보 보호책임자 및 처리 업무 위탁</h2>
+                        <div className="text-gray-600 leading-relaxed space-y-4">
+                            <div>
+                                <p className="mb-2">1) 서비스는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 관련 민원 처리를 위하여 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.</p>
+                                <ul className="list-disc list-inside ml-4 space-y-1">
+                                    <li><strong>개인정보 보호책임자:</strong> [OO학교장]</li>
+                                    <li><strong>개인정보 보호 실무 담당자:</strong> [교사 OOO] (연락처: 학교 대표번호)</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p>2) 본 서비스는 외부 업체에 개인정보 처리 업무를 위탁하지 않으며, 교내 자체 시스템으로 안전하게 운영·관리됩니다.</p>
+                            </div>
+                        </div>
+                    </section>
 
 
                     <div className="mt-12 pt-8 border-t text-sm text-gray-500">
