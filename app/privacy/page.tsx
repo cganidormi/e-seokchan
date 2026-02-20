@@ -70,26 +70,7 @@ export default function PrivacyPage() {
                         </ul>
                     </section>
 
-                    {/* --- KERIS 필수 기준 추가 항목 (사용자 요청에 따라 최소한으로 추가) --- */}
-                    <div className="mt-12 pt-8 border-t border-gray-200">
-                        <h3 className="text-lg font-bold text-gray-700 mb-4">[부칙: KERIS 학습지원 소프트웨어 필수 기준 관련]</h3>
 
-                        <section className="mb-6">
-                            <h4 className="text-md font-semibold text-gray-800 mb-2">가. 만 14세 미만 아동의 개인정보 처리</h4>
-                            <p className="text-gray-600 text-sm">
-                                본 서비스는 고등학생을 주 대상으로 하나, 만 14세 미만 아동의 개인정보를 처리하기 위해서는 법정대리인의 동의를 받습니다. 법정대리인은 아동의 개인정보에 대한 열람, 정정/삭제, 개인정보 수집 동의 철회 권리를 행사할 수 있습니다.
-                            </p>
-                        </section>
-
-                        <section className="mb-6">
-                            <h4 className="text-md font-semibold text-gray-800 mb-2">나. 개인정보 보호책임자</h4>
-                            <p className="text-gray-600 text-sm mb-2">서비스의 개인정보 처리에 관한 업무를 총괄해서 책임지고, 관련 고충처리를 위해 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.</p>
-                            <div className="bg-gray-50 p-3 rounded text-sm text-gray-600">
-                                <p>• 책임자: (학교 정보부장 또는 담당 교사)</p>
-                                <p>• 연락처: (학교 대표 번호)</p>
-                            </div>
-                        </section>
-                    </div>
 
                     <div className="mt-12 pt-8 border-t text-sm text-gray-500">
                         <p>공고일자: 2026년 2월 19일</p>
