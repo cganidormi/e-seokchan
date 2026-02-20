@@ -102,8 +102,8 @@ export default function PrivacyPage() {
                             <div>
                                 <p className="mb-2">1) 서비스는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 관련 민원 처리를 위하여 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.</p>
                                 <ul className="list-disc list-inside ml-4 space-y-1">
-                                    <li><strong>개인정보 보호책임자:</strong> [OO학교장]</li>
-                                    <li><strong>개인정보 보호 실무 담당자:</strong> [교사 OOO] (연락처: 학교 대표번호)</li>
+                                    <li><strong>개인정보 보호책임자:</strong> [강원과학고등학교장]</li>
+                                    <li><strong>개인정보 보호 실무 담당자:</strong> [기숙사사감팀장] (연락처: 033-740-9700)</li>
                                 </ul>
                             </div>
                             <div>
