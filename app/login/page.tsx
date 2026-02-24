@@ -403,10 +403,13 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="mt-4 text-center text-xs text-white/50 break-keep">
-          <a href="/privacy" className="underline hover:text-white transition-colors">개인정보처리방침</a>
-          <span className="mx-2">|</span>
-          <span>로그인 시 이에 동의하는 것으로 간주합니다.</span>
+        <div className="mt-4 text-center text-xs text-white/50 flex flex-col items-center gap-1">
+          <div className="flex items-center justify-center">
+            <a href="/privacy" className="underline hover:text-white transition-colors">개인정보처리방침</a>
+            <span className="mx-2">|</span>
+            <span>로그인 시 이에 동의하는</span>
+          </div>
+          <span>것으로 간주합니다.</span>
         </div>
       </div>
     </div>
