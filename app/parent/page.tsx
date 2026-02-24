@@ -445,7 +445,7 @@ function ParentContent() {
             <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-10">
                 <div>
                     <h1 className="text-xl font-bold text-gray-800">강원과학고등학교</h1>
-                    <p className="text-xs text-gray-500">KSHS 통합 이석 관리 플랫폼 (v1.1)</p>
+                    <p className="text-xs text-gray-500">KSHS 통합 이석 관리 플랫폼</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-bold">

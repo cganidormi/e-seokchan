@@ -219,7 +219,7 @@ export default function LoginPage() {
             fontWeight: "500",
           }}
         >
-          {isParentMode ? "학부모 전용 로그인" : "KSHS 통합 이석 관리 플랫폼 (v1.1)"}
+          {isParentMode ? "학부모 전용 로그인" : "KSHS 통합 이석 관리 플랫폼"}
         </p>
 
         {/* --- Toggle Buttons --- */}
