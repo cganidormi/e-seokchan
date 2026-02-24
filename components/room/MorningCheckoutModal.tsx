@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { supabase } from '@/supabaseClient';
@@ -111,7 +112,12 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
         }
     };
 
-    return (
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const modalContent = (
         <AnimatePresence>
             {isOpen && (
                 <motion.div
@@ -218,4 +224,7 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
             )}
         </AnimatePresence>
     );
+
+    if (!mounted || typeof document === 'undefined') return null;
+    return createPortal(modalContent, document.body);
 };
