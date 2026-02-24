@@ -151,7 +151,12 @@ export default function LoginPage() {
       // 3. Check Teacher
       const { data: teacher } = await supabase.from("teachers_auth").select("*").eq("teacher_id", id).maybeSingle();
       if (teacher && String(teacher.temp_password || teacher.password) === pw) {
-        completeLogin(id, "teacher");
+        if (teacher.must_change_password) {
+          router.replace(`/change-password?role=teacher&id=${id}`);
+        } else {
+          localStorage.setItem("dormichan_password_checked", "true");
+          completeLogin(id, "teacher");
+        }
         return;
       }
 

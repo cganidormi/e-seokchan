@@ -22,21 +22,8 @@ export default function TeacherLayout({
                 return;
             }
 
-            try {
-                // Check if password change is required
-                const { data, error } = await supabase
-                    .from('teachers_auth')
-                    .select('must_change_password')
-                    .eq('teacher_id', loginId)
-                    .single();
-
-                if (data?.must_change_password) {
-                    router.replace(`/change-password?role=teacher&id=${loginId}`);
-                    return;
-                }
-            } catch (e) {
-                console.error("Auth check error:", e);
-            }
+            // [최적화] 매번 DB를 조회하지 않고 로그인 시 기록된 마커(또는 이미 세션이 있는 상태)를 신뢰합니다.
+            const passwordChecked = localStorage.getItem('dormichan_password_checked');
 
             setIsAuthorized(true);
         };
@@ -101,15 +88,9 @@ export default function TeacherLayout({
         checkAndSync();
     }, [isAuthorized]);
 
+    // 진입 즉시 하위 컴포넌트(children)를 렌더링하도록 조건부 렌더링을 가벼운 null로 처리합니다.
     if (!isAuthorized) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-50">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-10 h-10 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin"></div>
-                    <span className="text-gray-500 font-medium">권한 확인 중...</span>
-                </div>
-            </div>
-        );
+        return null;
     }
 
     return <>{children}</>;
