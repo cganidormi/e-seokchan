@@ -289,14 +289,15 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                     {/* 6. 취소 버튼 (우측 끝) */}
                     {!isPast && (
                         <div className="ml-auto flex items-center shrink-0 self-center">
-                            {req.student_id === currentStudentId && (
-                                req.status === '신청' ||
-                                req.status === '학부모승인' ||
-                                req.status === '학부모승인대기' ||
-                                req.status === '승인' ||
-                                req.status === '승인전' ||
-                                req.leave_type === '컴이석'
-                            ) && (
+                            {req.student_id === currentStudentId &&
+                                req.leave_type !== '자리비움' && (
+                                    req.status === '신청' ||
+                                    req.status === '학부모승인' ||
+                                    req.status === '학부모승인대기' ||
+                                    req.status === '승인' ||
+                                    req.status === '승인전' ||
+                                    req.leave_type === '컴이석'
+                                ) && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onCancel(req.id); }}
                                         className="text-gray-500 hover:text-red-500 transition-colors p-1"
