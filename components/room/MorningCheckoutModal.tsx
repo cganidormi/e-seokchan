@@ -32,7 +32,16 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
             setSearchTerm('');
             setSelectedStudentIds([]);
             setCheckDate(new Date().toISOString().split('T')[0]);
+
+            // 배경 스크롤 방지 (모달이 잘리거나 화면이 따로 노는 현상 해결)
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
         }
+
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
     }, [isOpen]);
 
     const fetchStudents = async () => {
