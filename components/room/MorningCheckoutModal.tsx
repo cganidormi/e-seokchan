@@ -134,7 +134,7 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                             <div className="flex gap-2">
                                 <input
                                     type="date"
-                                    className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-orange-400"
+                                    className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium text-gray-900 focus:outline-none focus:border-orange-400"
                                     value={checkDate}
                                     onChange={e => setCheckDate(e.target.value)}
                                 />
@@ -143,7 +143,7 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                                     placeholder="이름/학번 검색..."
                                     value={searchTerm}
                                     onChange={(e) => { setSearchTerm(e.target.value); }}
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-orange-400 transition-colors"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium text-gray-900 placeholder:text-gray-500 focus:outline-none focus:border-orange-400 transition-colors"
                                 />
                             </div>
                         </div>
