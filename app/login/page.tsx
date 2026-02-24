@@ -139,7 +139,12 @@ export default function LoginPage() {
       // 2. Check Student
       const { data: student } = await supabase.from("students_auth").select("*").eq("student_id", id).maybeSingle();
       if (student && String(student.temp_password || student.password) === pw) {
-        completeLogin(id, "student");
+        if (student.must_change_password) {
+          router.replace(`/change-password?role=student&id=${id}`);
+        } else {
+          localStorage.setItem("dormichan_password_checked", "true"); // 비밀번호 확인 완료 마커
+          completeLogin(id, "student");
+        }
         return;
       }
 

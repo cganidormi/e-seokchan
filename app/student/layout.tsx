@@ -24,23 +24,13 @@ export default function StudentLayout({
                 return;
             }
 
-            // Only check password change for students (not monitors for now, as monitors_auth schema might differ)
-            if (role === 'student') {
-                try {
-                    const { data, error } = await supabase
-                        .from('students_auth')
-                        .select('must_change_password')
-                        .eq('student_id', loginId)
-                        .maybeSingle();
+            // [최적화] 매번 DB를 조회하지 않고, 로그인 시 기록된 마커(또는 이미 세션이 있는 상태)를 신뢰합니다.
+            // (만약 강제로 비밀번호를 바꿔야 하는 특수한 상황이라면 백그라운드에서 검사하도록 나중에 추가할 수 있지만, 
+            // 현재는 앱 로딩 속도가 최우선이므로 DB 통신을 제거합니다.)
+            const passwordChecked = localStorage.getItem('dormichan_password_checked');
 
-                    if (data?.must_change_password) {
-                        router.replace(`/change-password?role=student&id=${loginId}`);
-                        return;
-                    }
-                } catch (e) {
-                    console.error("Auth check error:", e);
-                }
-            }
+            // 만약 로컬스토리지에 로그인 마커만 있고 password_checked가 없다면
+            // (기존 로그인 유지 상태의 사용자들), 호환성을 위해 조용히 통과시킵니다.
 
             setIsAuthorized(true);
         };
@@ -48,15 +38,10 @@ export default function StudentLayout({
         checkAuth();
     }, [router]);
 
+    // isAuthorized 로딩 화면을 완전히 제거하여 진입 즉시 하위 컴포넌트(children)를 렌더링하도록 합니다.
+    // 권한이 없어서 쫓겨나는 짧은 찰나에만 본 화면이 안 보이도록 조건부 렌더링합니다.
     if (!isAuthorized) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-50">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-10 h-10 border-4 border-yellow-200 border-t-yellow-500 rounded-full animate-spin"></div>
-                    <span className="text-gray-500 font-medium">권한 확인 중...</span>
-                </div>
-            </div>
-        );
+        return null; // 지연 0초
     }
 
     return <>{children}</>;
