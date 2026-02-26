@@ -5,7 +5,7 @@ import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast, { Toaster } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import { StudentSelectModal } from '@/components/room/StudentSelectModal';
+import Select from 'react-select';
 import { Student } from '@/components/student/types';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 
@@ -178,6 +178,8 @@ export default function HeadcountPage() {
     }>>({});
     const router = useRouter();
 
+    const [students, setStudents] = useState<Student[]>([]);
+
     useEffect(() => {
         // Clock
         const timer = setInterval(() => {
@@ -190,18 +192,20 @@ export default function HeadcountPage() {
         const fetchData = async () => {
             try {
                 // Fetch Students
-                const { data: students, error } = await supabase
+                const { data: studentsData, error } = await supabase
                     .from('students')
-                    .select('*');
+                    .select('*')
+                    .order('name');
 
                 if (error) throw error;
+                if (studentsData) setStudents(studentsData);
 
                 // Initialize Status based on Rooms and Students
                 const initialStatus: any = {};
 
                 // Group students by room
                 const studentsByRoom: Record<number, Student[]> = {};
-                students?.forEach((s: any) => {
+                studentsData?.forEach((s: any) => {
                     const room = s.room_number || s.room; // Try both likely names
                     if (room) {
                         if (!studentsByRoom[room]) studentsByRoom[room] = [];
@@ -296,12 +300,6 @@ export default function HeadcountPage() {
 
     const handleBedClick = (roomNum: number, position: 'left' | 'right') => {
         if (mode === 'assign') {
-            const currentStudentName = roomStatus[roomNum][position].name;
-            if (currentStudentName) {
-                // Prompt to unassign if already occupied
-                handleRemoveStudent(roomNum, position);
-                return;
-            }
             setSelectedSlot({ room: roomNum, position });
             setIsModalOpen(true);
         } else if (mode === 'check') {
@@ -310,64 +308,25 @@ export default function HeadcountPage() {
         }
     };
 
-    const handleSelectStudent = async (student: Student) => {
+    const assignStudent = async (studentId: string | null) => {
         if (!selectedSlot) return;
         const { room, position } = selectedSlot;
 
-        // 1. Optimistic UI update
-        setRoomStatus(prev => ({
-            ...prev,
-            [room]: {
-                ...prev[room],
-                [position]: {
-                    ...prev[room][position],
-                    name: student.name,
-                    student_id: student.student_id,
-                    status: 'in', // Reset status on new assignment
-                    isWeekend: student.weekend || false
-                }
-            }
-        }));
-        setIsModalOpen(false);
+        const currentStudentId = roomStatus[room][position].student_id;
 
-        // 2. Auto-save to database immediately
-        const loading = toast.loading(`${student.name} 학생 배정 저장 중...`);
+        // Auto-save to database immediately
+        const loading = toast.loading(`${studentId ? '학생 배정 저장 중...' : '배정 해제 중...'}`);
         try {
-            // Need to save both left and right together for the room to maintain consistency via API 
-            // since the API expects { student_id, room_number } mapping.
-            // Actually, the easiest way is to push the single update directly to the students table.
+            // The API takes an array of { student_id, room_number }
+            // If studentId is null, it means we are unassigning the current student.
+            const updates: { student_id: string, room_number: number | null }[] = [];
 
-            // The API /api/teacher/save-room-assignments takes an array of { student_id, room_number }.
-            // However, assigning a student to a room_number implies we update their 'room_number' field.
-            // Wait, we need to handle "unassigning" the previous student in that slot if any.
-            // The existing handleSave does a bulk update of ALL students currently in the UI.
-            // Given the logic, it's safer to reconstruct the updates from the *new* state.
-
-            const newRoomStatus = {
-                ...roomStatus,
-                [room]: {
-                    ...roomStatus[room],
-                    [position]: {
-                        ...roomStatus[room][position],
-                        name: student.name,
-                        student_id: student.student_id,
-                        status: 'in',
-                        isWeekend: student.weekend || false
-                    }
-                }
-            };
-
-            const updates: { student_id: string, room_number: number }[] = [];
-            Object.keys(newRoomStatus).forEach(key => {
-                const roomNum = Number(key);
-                const roomData = newRoomStatus[roomNum];
-                if (roomData.left.student_id) {
-                    updates.push({ student_id: roomData.left.student_id, room_number: roomNum });
-                }
-                if (roomData.right.student_id) {
-                    updates.push({ student_id: roomData.right.student_id, room_number: roomNum });
-                }
-            });
+            if (studentId) {
+                updates.push({ student_id: studentId, room_number: room });
+            } else if (currentStudentId) {
+                // Unassign current student
+                updates.push({ student_id: currentStudentId, room_number: null });
+            }
 
             const res = await fetch('/api/teacher/save-room-assignments', {
                 method: 'POST',
@@ -380,53 +339,45 @@ export default function HeadcountPage() {
                 throw new Error(errorData.error || '저장 실패');
             }
 
-            toast.success('저장되었습니다.', { id: loading });
+            // Optimistic UI update
+            setRoomStatus(prev => {
+                const newStatus = { ...prev };
+                if (studentId) {
+                    const student = students.find(s => s.student_id === studentId);
+                    newStatus[room] = {
+                        ...newStatus[room],
+                        [position]: {
+                            ...newStatus[room][position],
+                            name: student?.name || '',
+                            student_id: student?.student_id || '',
+                            status: 'in',
+                            isWeekend: student?.weekend || false
+                        }
+                    };
+                } else {
+                    newStatus[room] = {
+                        ...newStatus[room],
+                        [position]: {
+                            ...newStatus[room][position],
+                            name: '',
+                            student_id: '',
+                            status: 'in',
+                            isWeekend: false
+                        }
+                    };
+                }
+                return newStatus;
+            });
+
+            setIsModalOpen(false);
+            toast.success(studentId ? '학생이 배정되었습니다.' : '배정이 해제되었습니다.', { id: loading });
         } catch (e: any) {
             console.error(e);
             toast.error(e.message || '저장 중 오류가 발생했습니다.', { id: loading });
-
-            // Optional: Revert optimistic update here if needed
         }
     };
 
-    const handleRemoveStudent = async (room: number, position: 'left' | 'right') => {
-        const studentToRemove = roomStatus[room][position];
-        if (!studentToRemove.student_id) return;
 
-        if (!confirm(`${studentToRemove.name} 학생을 ${room}호에서 배정 해제하시겠습니까?`)) return;
-
-        // 1. Optimistic UI update
-        setRoomStatus(prev => ({
-            ...prev,
-            [room]: {
-                ...prev[room],
-                [position]: {
-                    ...prev[room][position],
-                    name: '',
-                    student_id: '',
-                    status: 'in',
-                    isWeekend: false
-                }
-            }
-        }));
-
-        // 2. Auto-save to database immediately
-        const loading = toast.loading(`배정 해제 중...`);
-        try {
-            // Unassign specific student
-            const { error } = await supabase
-                .from('students')
-                .update({ room_number: null, room: null })
-                .eq('student_id', studentToRemove.student_id);
-
-            if (error) throw error;
-
-            toast.success('배정이 해제되었습니다.', { id: loading });
-        } catch (e: any) {
-            console.error(e);
-            toast.error('배정 해제 중 오류가 발생했습니다.', { id: loading });
-        }
-    };
 
     const handleResetAssignments = async () => {
         if (!confirm('현재 배정된 모든 학생 정보를 초기화하시겠습니까?')) return;
@@ -763,15 +714,72 @@ export default function HeadcountPage() {
                 </TransformWrapper>
             </div>
 
-            <StudentSelectModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSelect={handleSelectStudent}
-                assignedStudentIds={
-                    // Filter out ALL currently assigned ids to prevent duplicates
-                    Object.values(roomStatus).flatMap(r => [r.left.student_id, r.right.student_id]).filter(Boolean) as string[]
-                }
-            />
+            {/* Assignment Modal (Identical to seats/page.tsx) */}
+            {isModalOpen && selectedSlot && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsModalOpen(false)}>
+                    <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-extrabold text-gray-800">
+                                {selectedSlot.room}호 {selectedSlot.position === 'left' ? '왼쪽 침대' : '오른쪽 침대'} 배정
+                            </h2>
+                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-xs font-bold text-gray-400 mb-2">학생 선택 검색</label>
+                            <Select
+                                autoFocus
+                                menuPlacement="auto"
+                                options={students
+                                    .filter(s => !Object.values(roomStatus).some(r => r.left.student_id === s.student_id || r.right.student_id === s.student_id))
+                                    .map(s => ({
+                                        value: s.student_id,
+                                        label: `${s.student_id} ${s.name}`,
+                                        student: s
+                                    }))}
+                                onChange={(option: any) => {
+                                    assignStudent(option.value);
+                                }}
+                                placeholder="이름 또는 학번 검색..."
+                                styles={{
+                                    control: (base) => ({
+                                        ...base,
+                                        borderRadius: '1rem',
+                                        padding: '4px',
+                                        borderColor: '#e5e7eb',
+                                        boxShadow: 'none',
+                                        '&:hover': { borderColor: '#fbbf24' }
+                                    }),
+                                    option: (base, state) => ({
+                                        ...base,
+                                        backgroundColor: state.isFocused ? '#fefce8' : 'white',
+                                        color: '#1f2937',
+                                        fontWeight: '500',
+                                        cursor: 'pointer'
+                                    })
+                                }}
+                            />
+                        </div>
+
+                        <div className="flex gap-2">
+                            {roomStatus[selectedSlot.room][selectedSlot.position].student_id && (
+                                <button
+                                    onClick={() => assignStudent(null)}
+                                    className="px-3 py-1.5 flex-1 bg-red-50 text-red-500 font-bold text-sm rounded-xl hover:bg-red-100 border border-red-100 transition-colors"
+                                >
+                                    현재 배정 해제
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="px-3 py-1.5 flex-1 bg-gray-100 text-gray-600 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Student History Modal */}
             {
