@@ -322,6 +322,38 @@ export default function StudentPage() {
 
   const currentStudent = students.find(s => s.student_id === studentId) || null;
 
+  // Compute Room and Bed Position
+  let bedInfoText = '배정중';
+  if (currentStudent && currentStudent.room_number) {
+    const roomNum = currentStudent.room_number;
+
+    // Find all students in this room and sort them to match headcount page logic
+    const roommates = students.filter(s => s.room_number === roomNum).sort((a, b) => a.name.localeCompare(b.name));
+
+    // Find index of current student (0 = Left, 1 = Right, normally)
+    const myIndex = roommates.findIndex(s => s.student_id === studentId);
+
+    if (myIndex !== -1) {
+      // Determine if this room is visually flipped.
+      // 120-123, 222-227, 420-425 are flipped.
+      const FLIPPED_ROOMS = [120, 121, 122, 123, 222, 223, 224, 225, 226, 227, 420, 421, 422, 423, 424, 425];
+      const isFlipped = FLIPPED_ROOMS.includes(roomNum);
+
+      const floor = Math.floor(roomNum / 100);
+
+      let positionText = '';
+      if (myIndex === 0) {
+        positionText = isFlipped ? '우(R)' : '좌(L)';
+      } else if (myIndex === 1) {
+        positionText = isFlipped ? '좌(L)' : '우(R)';
+      } else {
+        positionText = '?'; // Fallback if more than 2
+      }
+
+      bedInfoText = `${floor}층 ${roomNum}호 ${positionText}`;
+    }
+  }
+
   const handleCopyRequest = (req: LeaveRequest) => {
     setInitialFormData(req);
     // Scroll to top to see form
@@ -340,8 +372,11 @@ export default function StudentPage() {
 
       {/* Header with Logout */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold text-gray-800">
-          {currentStudent?.name || studentId} 학생
+        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+          <span>{currentStudent?.name || studentId} 학생</span>
+          <span className="text-sm font-medium px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-lg border border-yellow-200">
+            {bedInfoText}
+          </span>
         </h1>
       </div>
 

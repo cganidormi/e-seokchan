@@ -5,6 +5,8 @@ export interface Student {
     class: number;
     parent_token?: string;
     weekend?: boolean;
+    room_number?: number;
+    room?: number;
 }
 
 export interface Teacher {
