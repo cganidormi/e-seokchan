@@ -513,15 +513,15 @@ export default function SeatManagementPage() {
                 {/* Header & Controls */}
                 {/* Header & Controls */}
                 <div className="flex flex-col gap-4 mb-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
-                            <h1 className="text-xl font-extrabold text-gray-800 flex items-center gap-2">
-                                제 {selectedRoom} 실 현황 모니터
+                    <div className="flex items-center justify-between gap-2 overflow-hidden">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="w-1.5 h-5 sm:h-6 bg-yellow-400 rounded-full shrink-0"></div>
+                            <h1 className="text-base sm:text-xl font-extrabold text-gray-800 flex items-center gap-1 sm:gap-2 truncate">
+                                제{selectedRoom}실 현황모니터
                                 <select
                                     value={selectedRoom}
                                     onChange={(e) => setSelectedRoom(Number(e.target.value))}
-                                    className="ml-2 bg-transparent text-sm font-bold text-gray-400 focus:outline-none cursor-pointer hover:text-gray-600 transition-colors"
+                                    className="ml-1 sm:ml-2 bg-transparent text-xs sm:text-sm font-bold text-gray-400 focus:outline-none cursor-pointer hover:text-gray-600 transition-colors"
                                 >
                                     <option value={1}>(1실 변경)</option>
                                     <option value={2}>(2실 변경)</option>
@@ -535,7 +535,7 @@ export default function SeatManagementPage() {
                             <button
                                 onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
                                 className={clsx(
-                                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1",
+                                    "px-2 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-colors flex items-center gap-1 whitespace-nowrap shrink-0",
                                     mode === 'edit' ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                                 )}
                             >
