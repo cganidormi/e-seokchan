@@ -544,6 +544,16 @@ export default function HeadcountPage() {
                                 // Floor 4: Inner is 20-25. Vertical.
                                 const isReverseVertical = (idx >= 1 && idx <= 5) || (currentFloor !== 1 && currentFloor !== 2 && currentFloor !== 4 && idx >= 21 && idx <= 25);
 
+                                const FLIPPED_ROOMS = [120, 121, 122, 123, 222, 223, 224, 225, 226, 227, 420, 421, 422, 423, 424, 425];
+                                const isFlipped = FLIPPED_ROOMS.includes(roomNum);
+
+                                let flexDirClass = isSideBySide ? "flex-row" : (isReverseVertical ? "flex-col-reverse" : "flex-col");
+                                if (isFlipped) {
+                                    if (flexDirClass === "flex-row") flexDirClass = "flex-row-reverse";
+                                    else if (flexDirClass === "flex-col") flexDirClass = "flex-col-reverse";
+                                    else if (flexDirClass === "flex-col-reverse") flexDirClass = "flex-col";
+                                }
+
                                 return (
                                     <div
                                         key={roomNum}
@@ -568,7 +578,7 @@ export default function HeadcountPage() {
 
                                         <div className={clsx(
                                             "flex flex-1 gap-1 h-full",
-                                            isSideBySide ? "flex-row" : (isReverseVertical ? "flex-col-reverse" : "flex-col")
+                                            flexDirClass
                                         )}>
                                             {/* Left Bed */}
                                             <button
