@@ -304,10 +304,11 @@ export default function HeadcountPage() {
         }
     };
 
-    const handleSelectStudent = (student: Student) => {
+    const handleSelectStudent = async (student: Student) => {
         if (!selectedSlot) return;
         const { room, position } = selectedSlot;
 
+        // 1. Optimistic UI update
         setRoomStatus(prev => ({
             ...prev,
             [room]: {
@@ -322,18 +323,38 @@ export default function HeadcountPage() {
             }
         }));
         setIsModalOpen(false);
-    };
 
-    const handleSave = async () => {
-        const loading = toast.loading('배정 현황 저장 중...');
+        // 2. Auto-save to database immediately
+        const loading = toast.loading(`${student.name} 학생 배정 저장 중...`);
         try {
-            // 1. Gather all students currently assigned in UI
+            // Need to save both left and right together for the room to maintain consistency via API 
+            // since the API expects { student_id, room_number } mapping.
+            // Actually, the easiest way is to push the single update directly to the students table.
+
+            // The API /api/teacher/save-room-assignments takes an array of { student_id, room_number }.
+            // However, assigning a student to a room_number implies we update their 'room_number' field.
+            // Wait, we need to handle "unassigning" the previous student in that slot if any.
+            // The existing handleSave does a bulk update of ALL students currently in the UI.
+            // Given the logic, it's safer to reconstruct the updates from the *new* state.
+
+            const newRoomStatus = {
+                ...roomStatus,
+                [room]: {
+                    ...roomStatus[room],
+                    [position]: {
+                        ...roomStatus[room][position],
+                        name: student.name,
+                        student_id: student.student_id,
+                        status: 'in',
+                        isWeekend: student.weekend || false
+                    }
+                }
+            };
+
             const updates: { student_id: string, room_number: number }[] = [];
-
-            Object.keys(roomStatus).forEach(key => {
+            Object.keys(newRoomStatus).forEach(key => {
                 const roomNum = Number(key);
-                const roomData = roomStatus[roomNum];
-
+                const roomData = newRoomStatus[roomNum];
                 if (roomData.left.student_id) {
                     updates.push({ student_id: roomData.left.student_id, room_number: roomNum });
                 }
@@ -342,7 +363,6 @@ export default function HeadcountPage() {
                 }
             });
 
-            // Call API to bypass RLS
             const res = await fetch('/api/teacher/save-room-assignments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -354,26 +374,101 @@ export default function HeadcountPage() {
                 throw new Error(errorData.error || '저장 실패');
             }
 
-            toast.success('서버에 저장되었습니다.', { id: loading });
+            toast.success('저장되었습니다.', { id: loading });
         } catch (e: any) {
             console.error(e);
             toast.error(e.message || '저장 중 오류가 발생했습니다.', { id: loading });
+
+            // Optional: Revert optimistic update here if needed
         }
     };
 
-    const handleResetAssignments = () => {
-        // if (!confirm('현재 배정된 모든 학생 정보를 초기화하시겠습니까?')) return;
+    const handleRemoveStudent = async (room: number, position: 'left' | 'right') => {
+        const studentToRemove = roomStatus[room][position];
+        if (!studentToRemove.student_id) return;
 
-        const resetData: any = {};
-        ALL_ROOMS.forEach(r => {
-            resetData[r] = {
-                left: { status: 'in', name: '', student_id: '' },
-                right: { status: 'in', name: '', student_id: '' }
-            };
-        });
-        setRoomStatus(resetData);
-        localStorage.setItem('dormichan_assignments', JSON.stringify({}));
-        toast.success('초기화되었습니다. (저장 버튼을 눌러 확정하세요)');
+        if (!confirm(`${studentToRemove.name} 학생을 ${room}호에서 배정 해제하시겠습니까?`)) return;
+
+        // 1. Optimistic UI update
+        setRoomStatus(prev => ({
+            ...prev,
+            [room]: {
+                ...prev[room],
+                [position]: {
+                    ...prev[room][position],
+                    name: '',
+                    student_id: '',
+                    status: 'in',
+                    isWeekend: false
+                }
+            }
+        }));
+
+        // 2. Auto-save to database immediately
+        const loading = toast.loading(`배정 해제 중...`);
+        try {
+            // Unassign specific student
+            const { error } = await supabase
+                .from('students')
+                .update({ room_number: null, room: null })
+                .eq('student_id', studentToRemove.student_id);
+
+            if (error) throw error;
+
+            toast.success('배정이 해제되었습니다.', { id: loading });
+        } catch (e: any) {
+            console.error(e);
+            toast.error('배정 해제 중 오류가 발생했습니다.', { id: loading });
+        }
+    };
+
+    const handleResetAssignments = async () => {
+        if (!confirm('현재 배정된 모든 학생 정보를 초기화하시겠습니까?')) return;
+
+        const loading = toast.loading('초기화 중...');
+        try {
+            const updates: { student_id: string, room_number: null }[] = [];
+
+            Object.keys(roomStatus).forEach(key => {
+                const roomNum = Number(key);
+                const roomData = roomStatus[roomNum];
+                if (roomData.left.student_id) {
+                    updates.push({ student_id: roomData.left.student_id, room_number: null });
+                }
+                if (roomData.right.student_id) {
+                    updates.push({ student_id: roomData.right.student_id, room_number: null });
+                }
+            });
+
+            // Use API to clear assignments (we can just pass an empty updates list to save-room-assignments, 
+            // but that API expects all students to be assigned to what's in the list, and sets others to null.
+            // Let's just call the API with empty updates to clear everything).
+            const res = await fetch('/api/teacher/save-room-assignments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ updates: [] })
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || '초기화 실패');
+            }
+
+            const resetData: any = {};
+            ALL_ROOMS.forEach(r => {
+                resetData[r] = {
+                    left: { status: 'in', name: '', student_id: '' },
+                    right: { status: 'in', name: '', student_id: '' }
+                };
+            });
+            setRoomStatus(resetData);
+            localStorage.setItem('dormichan_assignments', JSON.stringify({}));
+
+            toast.success('초기화되었습니다.', { id: loading });
+        } catch (e: any) {
+            console.error(e);
+            toast.error('초기화 중 오류가 발생했습니다.', { id: loading });
+        }
     };
 
     return (
@@ -453,13 +548,7 @@ export default function HeadcountPage() {
                                 onClick={handleResetAssignments}
                                 className="px-3 py-1.5 text-red-400 font-bold text-xs bg-gray-800 rounded-lg border border-red-900/30 hover:bg-red-900/20 transition-all whitespace-nowrap"
                             >
-                                초기화
-                            </button>
-                            <button
-                                onClick={handleSave}
-                                className="px-4 py-1.5 bg-green-600 text-white font-bold text-xs rounded-lg hover:bg-green-500 shadow-lg shadow-green-900/20 transition-all whitespace-nowrap"
-                            >
-                                저장
+                                ⚠️ 전체 초기화
                             </button>
                         </div>
                     )}
@@ -581,9 +670,15 @@ export default function HeadcountPage() {
                                                     mode === 'assign' && !roomData.left.name && "text-gray-600 text-[10px]"
                                                 )}>
                                                     {roomData.left.name ? (
-                                                        <div className="flex items-baseline gap-0.5 w-full justify-center">
+                                                        <div className="flex items-baseline gap-0.5 w-full justify-center relative">
                                                             <span className="text-[9px] sm:text-[10px] opacity-80 font-normal">{(roomData.left.student_id || roomData.left.name).match(/^\d+/)?.[0]}</span>
                                                             <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.left.student_id || roomData.left.name).replace(/^\d+/, '').trim()}</span>
+                                                            {mode === 'assign' && (
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleRemoveStudent(roomNum, 'left'); }}
+                                                                    className="absolute -top-3 -right-3 sm:-right-4 text-red-400 hover:text-red-500 bg-[#1f2937] hover:bg-gray-700 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center font-bold text-[10px] shadow border border-gray-600"
+                                                                >✕</button>
+                                                            )}
                                                         </div>
                                                     ) : (mode === 'assign' ? '빈 침대' : '-')}
                                                     {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.left.isWeekend && (
@@ -649,9 +744,15 @@ export default function HeadcountPage() {
                                                     mode === 'assign' && !roomData.right.name && "text-gray-600 text-[10px]"
                                                 )}>
                                                     {roomData.right.name ? (
-                                                        <div className="flex items-baseline gap-0.5 w-full justify-center">
+                                                        <div className="flex items-baseline gap-0.5 w-full justify-center relative">
                                                             <span className="text-[9px] sm:text-[10px] opacity-80 font-normal">{(roomData.right.student_id || roomData.right.name).match(/^\d+/)?.[0]}</span>
                                                             <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.right.student_id || roomData.right.name).replace(/^\d+/, '').trim()}</span>
+                                                            {mode === 'assign' && (
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleRemoveStudent(roomNum, 'right'); }}
+                                                                    className="absolute -top-3 -right-3 sm:-right-4 text-red-400 hover:text-red-500 bg-[#1f2937] hover:bg-gray-700 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center font-bold text-[10px] shadow border border-gray-600"
+                                                                >✕</button>
+                                                            )}
                                                         </div>
                                                     ) : (mode === 'assign' ? '빈 침대' : '-')}
                                                     {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.right.isWeekend && (
