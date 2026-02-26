@@ -296,6 +296,12 @@ export default function HeadcountPage() {
 
     const handleBedClick = (roomNum: number, position: 'left' | 'right') => {
         if (mode === 'assign') {
+            const currentStudentName = roomStatus[roomNum][position].name;
+            if (currentStudentName) {
+                // Prompt to unassign if already occupied
+                handleRemoveStudent(roomNum, position);
+                return;
+            }
             setSelectedSlot({ room: roomNum, position });
             setIsModalOpen(true);
         } else if (mode === 'check') {
@@ -673,12 +679,6 @@ export default function HeadcountPage() {
                                                         <div className="flex items-baseline gap-0.5 w-full justify-center relative">
                                                             <span className="text-[9px] sm:text-[10px] opacity-80 font-normal">{(roomData.left.student_id || roomData.left.name).match(/^\d+/)?.[0]}</span>
                                                             <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.left.student_id || roomData.left.name).replace(/^\d+/, '').trim()}</span>
-                                                            {mode === 'assign' && (
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleRemoveStudent(roomNum, 'left'); }}
-                                                                    className="absolute -top-3 -right-3 sm:-right-4 text-red-400 hover:text-red-500 bg-[#1f2937] hover:bg-gray-700 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center font-bold text-[10px] shadow border border-gray-600"
-                                                                >✕</button>
-                                                            )}
                                                         </div>
                                                     ) : (mode === 'assign' ? '빈 침대' : '-')}
                                                     {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.left.isWeekend && (
@@ -747,12 +747,6 @@ export default function HeadcountPage() {
                                                         <div className="flex items-baseline gap-0.5 w-full justify-center relative">
                                                             <span className="text-[9px] sm:text-[10px] opacity-80 font-normal">{(roomData.right.student_id || roomData.right.name).match(/^\d+/)?.[0]}</span>
                                                             <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.right.student_id || roomData.right.name).replace(/^\d+/, '').trim()}</span>
-                                                            {mode === 'assign' && (
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleRemoveStudent(roomNum, 'right'); }}
-                                                                    className="absolute -top-3 -right-3 sm:-right-4 text-red-400 hover:text-red-500 bg-[#1f2937] hover:bg-gray-700 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center font-bold text-[10px] shadow border border-gray-600"
-                                                                >✕</button>
-                                                            )}
                                                         </div>
                                                     ) : (mode === 'assign' ? '빈 침대' : '-')}
                                                     {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.right.isWeekend && (
