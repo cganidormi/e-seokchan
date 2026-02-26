@@ -350,7 +350,7 @@ export default function StudentPage() {
         positionText = '?'; // Fallback if more than 2
       }
 
-      bedInfoText = `${floor}층 ${roomNum}호 ${positionText}`;
+      bedInfoText = `호실 : ${floor}층 ${roomNum}호 ${positionText}`;
     }
   }
 
@@ -374,7 +374,7 @@ export default function StudentPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold text-gray-800 flex items-center gap-3">
           <span>{currentStudent?.name || studentId} 학생</span>
-          <span className="text-sm font-medium px-2.5 py-1 bg-yellow-100 text-yellow-800 rounded-lg border border-yellow-200">
+          <span className="text-xl font-bold px-3 py-1 bg-yellow-100 text-yellow-800 rounded-xl border border-yellow-200 shadow-sm">
             {bedInfoText}
           </span>
         </h1>
