@@ -370,14 +370,21 @@ export default function StudentPage() {
         <NotificationPermissionBanner userId={studentId} userType="student" />
       )}
 
-      {/* Header with Logout */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-3">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row items-start md:items-center mb-6 gap-3 md:gap-5 w-full">
+        <h1 className="text-xl font-bold text-gray-800 shrink-0">
           <span>{currentStudent?.name || studentId} 학생</span>
-          <span className="text-xl font-bold px-3 py-1 bg-yellow-100 text-yellow-800 rounded-xl border border-yellow-200 shadow-sm">
-            {bedInfoText}
-          </span>
         </h1>
+        <div className="bg-white border-2 border-amber-300 rounded-xl p-3 shadow-sm w-full md:w-auto md:max-w-2xl">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-xs font-bold text-white bg-amber-500 px-2 py-0.5 rounded shadow-sm">기숙사 입실 안내</span>
+            <span className="text-sm md:text-base font-extrabold text-amber-900">{bedInfoText}</span>
+          </div>
+          <p className="text-xs md:text-sm text-gray-700 break-keep leading-relaxed font-medium">
+            기숙사 입구에 있는 <strong className="text-amber-700">호실점검 체크리스트</strong>를 가지고 입실하세요. <br className="hidden sm:block" />
+            체크리스트를 채워 기록하고 <strong className="text-amber-700">사감선생님께 제출</strong>하세요.
+          </p>
+        </div>
       </div>
 
       <PullToRefresh onRefresh={() => studentId ? fetchLeaveRequests(studentId) : Promise.resolve()}>
