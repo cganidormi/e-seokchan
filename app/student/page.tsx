@@ -381,8 +381,8 @@ export default function StudentPage() {
             <span className="text-sm md:text-base font-extrabold text-amber-900">{bedInfoText}</span>
           </div>
           <p className="text-xs md:text-sm text-gray-700 break-keep leading-relaxed font-medium">
-            기숙사 입구에 있는 <strong className="text-amber-700">호실점검 체크리스트</strong>를 가지고 입실하세요. <br className="hidden sm:block" />
-            체크리스트를 채워 기록하고 <strong className="text-amber-700">사감선생님께 제출</strong>하세요.
+            각 호실에 <strong className="text-amber-700">호실점검 체크리스트</strong>가 있습니다. <br className="hidden sm:block" />
+            호실의 시설물을 꼭 직접 확인 하시고 체크리스트를 채운 후 <strong className="text-amber-700">사감선생님께 제출</strong>하세요.
           </p>
         </div>
       </div>
