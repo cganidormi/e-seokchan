@@ -11,6 +11,7 @@ import { LeaveStatusList } from '@/components/student/LeaveStatusList';
 import WeeklyReturnApplicationCard from '@/components/student/WeeklyReturnApplicationCard';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import PullToRefresh from '@/components/PullToRefresh';
+import { MdLockReset } from 'react-icons/md';
 
 export default function StudentPage() {
   const [studentId, setStudentId] = useState('');
@@ -372,9 +373,19 @@ export default function StudentPage() {
 
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center mb-6 gap-3 md:gap-5 w-full">
-        <h1 className="text-xl font-bold text-gray-800 shrink-0">
-          <span>{currentStudent?.name || studentId} 학생</span>
-        </h1>
+        <div className="flex items-center justify-between w-full md:w-auto shrink-0 gap-3">
+          <h1 className="text-xl font-bold text-gray-800">
+            <span>{currentStudent?.name || studentId} 학생</span>
+          </h1>
+          <button
+            onClick={() => router.push(`/change-password?role=student&id=${studentId}`)}
+            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1 px-3 rounded-xl shadow-sm transition-all flex items-center justify-center text-sm"
+            title="비밀번호 변경"
+          >
+            <MdLockReset className="w-5 h-5 text-gray-700" />
+            <span className="ml-1 text-sm font-semibold text-gray-700">비밀번호 변경</span>
+          </button>
+        </div>
         <div className="bg-white border-2 border-amber-300 rounded-xl p-3 shadow-sm w-full md:w-auto md:max-w-2xl">
           <div className="flex items-center gap-2 mb-1.5">
             <span className="text-xs font-bold text-white bg-amber-500 px-2 py-0.5 rounded shadow-sm">기숙사 입실 안내</span>
