@@ -30,15 +30,23 @@ function ChangePasswordContent() {
       return;
     }
 
-    const { data, error: updateError } = await supabase.rpc('change_user_password', {
-      p_role: role,
-      p_user_id: loginId,
-      p_new_password: newPassword
+    const response = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: loginId,
+        role: role,
+        newPassword: newPassword
+      })
     });
 
-    if (updateError || !data?.success) {
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
       setError("비밀번호 변경 중 오류가 발생했습니다.");
-      console.error(updateError || data?.error);
+      console.error(data.error);
       return;
     }
 

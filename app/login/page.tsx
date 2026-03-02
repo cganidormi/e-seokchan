@@ -122,45 +122,60 @@ export default function LoginPage() {
         return;
       }
 
-      // 1. Check Monitor (Highest priority for this fix)
-      const { data: monitorData, error: monitorErr } = await supabase.rpc('validate_monitor_login', {
-        p_monitor_id: id,
-        p_password: pw
+      // Check Monitor, Student, and Teacher via the unified API endpoint
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: id,
+          password: pw,
+          role: 'monitor' // We try monitor first as a fallback for the old highest priority fix
+        })
       });
 
-      if (monitorData?.success) {
+      let data = await response.json();
+
+      if (data.success) {
         completeLogin(id, "monitor");
         return;
       }
-      if (monitorErr && monitorErr.message && !monitorErr.message.includes("Could not find the function")) {
-        // If the RPC fails with a real error, we might log it, but we still continue to check students and teachers just in case
-        console.error("Monitor RPC error:", monitorErr);
-      }
 
-      // 2. Check Student
-      const { data: studentData, error: studentErr } = await supabase.rpc('validate_student_login', {
-        p_student_id: id,
-        p_password: pw
+      // If monitor failed, check student
+      const studentResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, password: pw, role: 'student' })
       });
 
-      if (studentData?.success) {
-        if (studentData.must_change_password) {
+      data = await studentResponse.json();
+
+      if (data.success) {
+        if (data.must_change_password) {
           router.replace(`/change-password?role=student&id=${id}`);
         } else {
-          localStorage.setItem("dormichan_password_checked", "true"); // 비밀번호 확인 완료 마커
+          localStorage.setItem("dormichan_password_checked", "true");
           completeLogin(id, "student");
         }
         return;
       }
 
-      // 3. Check Teacher
-      const { data: teacherData, error: teacherErr } = await supabase.rpc('validate_teacher_login', {
-        p_teacher_id: id,
-        p_password: pw
+      // If student failed, check teacher
+      const teacherResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, password: pw, role: 'teacher' })
       });
 
-      if (teacherData?.success) {
-        if (teacherData.must_change_password) {
+      data = await teacherResponse.json();
+
+      if (data.success) {
+        if (data.must_change_password) {
           router.replace(`/change-password?role=teacher&id=${id}`);
         } else {
           localStorage.setItem("dormichan_password_checked", "true");
