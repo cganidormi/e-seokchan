@@ -487,9 +487,25 @@ export default function StudentSeatPage() {
                                                             "flex-1 flex items-center px-1.5 border-b border-gray-100 transition-colors",
                                                             activeLeaveReq?.leave_type === '자리비움' ? (isAwayBlinking ? "bg-red-600" : "bg-red-500") : headerBgClass
                                                         )}>
-                                                            <span className={clsx("font-medium flex-1 flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-1 break-keep leading-none overflow-hidden py-0.5", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
-                                                                <span className="text-[10px] sm:text-[10px] opacity-90 tracking-tighter shrink-0">{assignment.student?.student_id?.match(/^\d+/)?.[0]}</span>
-                                                                <span className="text-[11px] sm:text-[12px] whitespace-nowrap">{assignment.student?.student_id?.replace(/^\d+/, '').trim()}</span>
+                                                            <span className={clsx(
+                                                                "font-medium flex-1 flex gap-0.5",
+                                                                selectedRoom === 3
+                                                                    ? "flex-col sm:flex-row sm:items-baseline sm:gap-1 break-keep leading-none overflow-hidden py-0.5"
+                                                                    : "items-baseline truncate",
+                                                                activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor
+                                                            )}>
+                                                                <span className={clsx(
+                                                                    "opacity-90",
+                                                                    selectedRoom === 3 ? "text-[10px] sm:text-[10px] tracking-tighter shrink-0" : "text-[9px] sm:text-[10px]"
+                                                                )}>
+                                                                    {assignment.student?.student_id?.match(/^\d+/)?.[0]}
+                                                                </span>
+                                                                <span className={clsx(
+                                                                    "text-[11px] sm:text-[12px]",
+                                                                    selectedRoom === 3 ? "whitespace-nowrap" : ""
+                                                                )}>
+                                                                    {assignment.student?.student_id?.replace(/^\d+/, '').trim()}
+                                                                </span>
                                                                 {activeLeaveReq?.leave_type === '자리비움' && <span className="text-[8px] sm:text-[9px] ml-0.5 sm:ml-1 font-normal hidden sm:inline">자리비움</span>}
                                                                 {isWeeklyHome && <span className="text-[8px] sm:text-[9px] ml-auto font-normal text-white/90">귀가</span>}
                                                             </span>
