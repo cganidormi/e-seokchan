@@ -122,39 +122,28 @@ export default function LoginPage() {
         return;
       }
 
-      // Check Monitor, Student, and Teacher via the unified API endpoint
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: id,
-          password: pw,
-          role: 'monitor' // We try monitor first as a fallback for the old highest priority fix
-        })
+      // 1. Check Monitor (Highest priority for this fix)
+      const { data: monitorData, error: monitorErr } = await supabase.rpc('validate_monitor_login', {
+        p_monitor_id: id,
+        p_password: pw
       });
 
-      let data = await response.json();
-
-      if (data.success) {
+      if (monitorData?.success) {
         completeLogin(id, "monitor");
         return;
       }
+      if (monitorErr && monitorErr.message && !monitorErr.message.includes("Could not find the function")) {
+        console.error("Monitor RPC error:", monitorErr);
+      }
 
-      // If monitor failed, check student
-      const studentResponse = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id, password: pw, role: 'student' })
+      // 2. Check Student
+      const { data: studentData, error: studentErr } = await supabase.rpc('validate_student_login', {
+        p_student_id: id,
+        p_password: pw
       });
 
-      data = await studentResponse.json();
-
-      if (data.success) {
-        if (data.must_change_password) {
+      if (studentData?.success) {
+        if (studentData.must_change_password) {
           router.replace(`/change-password?role=student&id=${id}`);
         } else {
           localStorage.setItem("dormichan_password_checked", "true");
@@ -163,19 +152,14 @@ export default function LoginPage() {
         return;
       }
 
-      // If student failed, check teacher
-      const teacherResponse = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id, password: pw, role: 'teacher' })
+      // 3. Check Teacher
+      const { data: teacherData, error: teacherErr } = await supabase.rpc('validate_teacher_login', {
+        p_teacher_id: id,
+        p_password: pw
       });
 
-      data = await teacherResponse.json();
-
-      if (data.success) {
-        if (data.must_change_password) {
+      if (teacherData?.success) {
+        if (teacherData.must_change_password) {
           router.replace(`/change-password?role=teacher&id=${id}`);
         } else {
           localStorage.setItem("dormichan_password_checked", "true");
