@@ -123,23 +123,28 @@ export default function LoginPage() {
       }
 
       // 1. Check Monitor (Highest priority for this fix)
-      const { data: monitor, error: mErr } = await supabase.from("monitors_auth").select("*").eq("monitor_id", id).maybeSingle();
+      const { data: monitorData, error: monitorErr } = await supabase.rpc('validate_monitor_login', {
+        p_monitor_id: id,
+        p_password: pw
+      });
 
-      if (monitor) {
-        if (String(monitor.password || monitor.temp_password) === pw) {
-          completeLogin(id, "monitor");
-          return;
-        } else {
-          setError("비밀번호가 틀렸습니다.");
-          setIsLoggingIn(false);
-          return;
-        }
+      if (monitorData?.success) {
+        completeLogin(id, "monitor");
+        return;
+      }
+      if (monitorErr && monitorErr.message && !monitorErr.message.includes("Could not find the function")) {
+        // If the RPC fails with a real error, we might log it, but we still continue to check students and teachers just in case
+        console.error("Monitor RPC error:", monitorErr);
       }
 
       // 2. Check Student
-      const { data: student } = await supabase.from("students_auth").select("*").eq("student_id", id).maybeSingle();
-      if (student && String(student.temp_password || student.password) === pw) {
-        if (student.must_change_password) {
+      const { data: studentData, error: studentErr } = await supabase.rpc('validate_student_login', {
+        p_student_id: id,
+        p_password: pw
+      });
+
+      if (studentData?.success) {
+        if (studentData.must_change_password) {
           router.replace(`/change-password?role=student&id=${id}`);
         } else {
           localStorage.setItem("dormichan_password_checked", "true"); // 비밀번호 확인 완료 마커
@@ -149,9 +154,13 @@ export default function LoginPage() {
       }
 
       // 3. Check Teacher
-      const { data: teacher } = await supabase.from("teachers_auth").select("*").eq("teacher_id", id).maybeSingle();
-      if (teacher && String(teacher.temp_password || teacher.password) === pw) {
-        if (teacher.must_change_password) {
+      const { data: teacherData, error: teacherErr } = await supabase.rpc('validate_teacher_login', {
+        p_teacher_id: id,
+        p_password: pw
+      });
+
+      if (teacherData?.success) {
+        if (teacherData.must_change_password) {
           router.replace(`/change-password?role=teacher&id=${id}`);
         } else {
           localStorage.setItem("dormichan_password_checked", "true");

@@ -30,19 +30,15 @@ function ChangePasswordContent() {
       return;
     }
 
-    const table = role === "teacher" ? "teachers_auth" : "students_auth";
-    const idField = role === "teacher" ? "teacher_id" : "student_id";
+    const { data, error: updateError } = await supabase.rpc('change_user_password', {
+      p_role: role,
+      p_user_id: loginId,
+      p_new_password: newPassword
+    });
 
-    const { error: updateError } = await supabase
-      .from(table)
-      .update({
-        temp_password: newPassword,
-        must_change_password: false,
-      })
-      .eq(idField, loginId);
-
-    if (updateError) {
+    if (updateError || !data?.success) {
       setError("비밀번호 변경 중 오류가 발생했습니다.");
+      console.error(updateError || data?.error);
       return;
     }
 
