@@ -10,23 +10,19 @@ if (!supabaseUrl || !supabaseServiceKey) {
     process.exit(1);
 }
 
-// We must use the service role key to bypass RLS
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-async function hashPasswordsForTable(tableName, idColumn) {
+async function hashPasswordsForTable(tableName, idColumn, passwordColumns) {
     console.log(`\n--- Processing table: ${tableName} ---`);
 
-    // 1. Fetch all records. Note: fetching password and temp_password directly from main table
+    const selectColumns = [idColumn, ...passwordColumns].join(', ');
+
     const { data: records, error: fetchError } = await supabaseAdmin
         .from(tableName)
-        .select(`${idColumn}, password, temp_password`);
+        .select(selectColumns);
 
     if (fetchError) {
-        if (fetchError.code === '42703') {
-            console.warn(`[SKIP] Columns might not exist in ${tableName} - ${fetchError.message}`);
-        } else {
-            console.error(`Error fetching records from ${tableName}:`, fetchError);
-        }
+        console.error(`Error fetching records from ${tableName}:`, fetchError);
         return;
     }
 
@@ -40,23 +36,15 @@ async function hashPasswordsForTable(tableName, idColumn) {
         let needsUpdate = false;
         const updates = {};
 
-        // Check main password
-        if (record.password) {
-            if (typeof record.password === 'string' && (record.password.startsWith('$2a$') || record.password.startsWith('$2b$'))) {
-                // Already hashed
-            } else {
-                updates.password = await bcrypt.hash(String(record.password), 10);
-                needsUpdate = true;
-            }
-        }
-
-        // Check temp password
-        if (record.temp_password) {
-            if (typeof record.temp_password === 'string' && (record.temp_password.startsWith('$2a$') || record.temp_password.startsWith('$2b$'))) {
-                // Already hashed
-            } else {
-                updates.temp_password = await bcrypt.hash(String(record.temp_password), 10);
-                needsUpdate = true;
+        for (const pwCol of passwordColumns) {
+            const pwValue = record[pwCol];
+            if (pwValue && typeof pwValue === 'string') {
+                if (pwValue.startsWith('$2a$') || pwValue.startsWith('$2b$')) {
+                    // Already hashed
+                } else {
+                    updates[pwCol] = await bcrypt.hash(pwValue, 10);
+                    needsUpdate = true;
+                }
             }
         }
 
@@ -80,12 +68,12 @@ async function hashPasswordsForTable(tableName, idColumn) {
 }
 
 async function runMigration() {
-    console.log('Starting password hash migration (targeting MAIN tables)...');
+    console.log('Starting password hash migration...');
 
-    // The schema stores credentials directly on the main tables, not on _auth tables
-    await hashPasswordsForTable('students', 'student_id');
-    await hashPasswordsForTable('teachers', 'teacher_id');
-    await hashPasswordsForTable('monitors', 'monitor_id');
+    // As discovered, students/teachers use temp_password as the main password column. Monitors use password.
+    await hashPasswordsForTable('students_auth', 'student_id', ['temp_password']);
+    await hashPasswordsForTable('teachers_auth', 'teacher_id', ['temp_password']);
+    await hashPasswordsForTable('monitors_auth', 'monitor_id', ['password']);
 
     console.log('\nMigration entirely complete!\n🚨 PLEASE ENSURE THE FRONTEND IS DEPLOYED BEFORE DOING THIS OR NO ONE WILL BE ABLE TO LOG IN 🚨');
 }

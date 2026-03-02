@@ -54,25 +54,20 @@ export async function POST(request: Request) {
         // 2. Verify password
         let isValid = false;
 
-        // Check if it's the temporary password (which might be plain text temporarily due to the reset script)
-        if (user.temp_password) {
-            if (password === user.temp_password) {
-                isValid = true;
+        // Due to the database schema, 'monitors_auth' uses the 'password' column
+        // while 'students_auth' and 'teachers_auth' exclusively use the 'temp_password' column for passwords.
+
+        let dbPassword = user.password || user.temp_password;
+
+        if (dbPassword) {
+            // Check if it's already a bcrypt hash
+            if (dbPassword.startsWith('$2a$') || dbPassword.startsWith('$2b$')) {
+                isValid = await bcrypt.compare(password, dbPassword).catch(() => false);
             } else {
-                // Maybe temp password was already hashed?
-                isValid = await bcrypt.compare(password, user.temp_password).catch(() => false);
-            }
-        }
-
-        // Check main password hash
-        if (!isValid && user.password) {
-            // We assume user.password is a bcrypt hash starting with $2a$ or $2b$
-            isValid = await bcrypt.compare(password, user.password).catch(() => false);
-
-            // Fallback for plain text just in case the migration script hasn't run yet, 
-            // to prevent total lockouts during transition. (Remove this in strict production)
-            if (!isValid && password === user.password) {
-                isValid = true;
+                // Fallback for plain text until the migration script is run
+                if (password === dbPassword) {
+                    isValid = true;
+                }
             }
         }
 

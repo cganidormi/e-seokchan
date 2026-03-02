@@ -37,14 +37,21 @@ export async function POST(request: Request) {
             process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
         );
 
-        // Update the record with the new hashed password, clear temp_password
+        // Update the record with the new hashed password
+        // Because of the schema, students/teachers use temp_password, monitors use password
+        const updates: any = {
+            must_change_password: false,
+        };
+
+        if (role === 'monitor') {
+            updates.password = hashedPassword;
+        } else {
+            updates.temp_password = hashedPassword;
+        }
+
         const { data, error } = await supabaseAdmin
             .from(tableName)
-            .update({
-                password: hashedPassword,
-                temp_password: null, // Clear the temporary password once changed
-                must_change_password: false,
-            })
+            .update(updates)
             .eq(idColumn, id);
 
         if (error) {
