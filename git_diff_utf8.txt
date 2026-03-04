@@ -1,0 +1,4 @@
+﻿M	app/admin/students/page.tsx
+A	app/api/admin/reset-student-password/route.ts
+M	app/parent/page.tsx
+A	fix_students_auth_rls.sql

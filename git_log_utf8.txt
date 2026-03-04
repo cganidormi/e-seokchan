@@ -1,0 +1,17 @@
+﻿commit 7b5a80dee8048aae3b6256e02336e49b050c0fc6
+Author: Antigravity <antigravity@example.com>
+Date:   Wed Mar 4 14:14:20 2026 +0900
+
+    feat(admin): implement secure server-side password reset API for students
+
+commit abda22447f5703c78b2052b1a45ab0ae3d4f5e19
+Author: Antigravity <antigravity@example.com>
+Date:   Wed Mar 4 13:48:33 2026 +0900
+
+    fix(admin): set student temp password to fixed '1234'
+
+commit 05a1a9c0534852ec81142bf139a7a04e46b71bbb
+Author: Antigravity <antigravity@example.com>
+Date:   Wed Mar 4 10:56:54 2026 +0900
+
+    style(parent): reduce emblem size and add leave request notification board

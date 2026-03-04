@@ -450,7 +450,7 @@ export default function StudentPage() {
         <div className="bg-white border-2 border-amber-300 rounded-xl p-3 shadow-sm w-full md:w-auto md:max-w-2xl relative">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-white bg-amber-500 px-2 py-0.5 rounded shadow-sm">기숙사 입실 안내</span>
+              <span className="text-xs font-bold text-white bg-amber-500 px-2 py-0.5 rounded shadow-sm">홍지관 안내문</span>
               <span className="text-sm md:text-base font-extrabold text-amber-900">{bedInfoText}</span>
             </div>
             {isNoticeAdmin && !isEditingNotice && (

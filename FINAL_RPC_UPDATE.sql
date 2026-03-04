@@ -1,8 +1,9 @@
 -- ==============================================================================
--- 🚨 FINAL SECURITY UPDATE: HASH-AWARE AUTHENTICATION RPCs 🚨
+-- 🚨 FINAL SECURITY UPDATE: HASH-AWARE AUTHENTICATION RPCs (BUGFIX) 🚨
 -- ==============================================================================
--- Now that the database passwords are encrypted (hashed) with pgcrypto,
--- we must update the login check functions to use the crypt() comparison.
+-- Fixed runtime error where RPCs attempted to access non-existent columns.
+-- students_auth and teachers_auth ONLY have temp_password.
+-- monitors_auth ONLY has password.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
@@ -10,7 +11,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE OR REPLACE FUNCTION validate_student_login(p_student_id TEXT, p_password TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql
-SECURITY DEFINER -- Allows the function to bypass RLS to check the password
+SECURITY DEFINER
 AS $$
 DECLARE
     v_auth_record RECORD;
@@ -20,13 +21,19 @@ BEGIN
     WHERE student_id = p_student_id;
 
     IF FOUND THEN
-        -- Check if password matches the hash stored in temp_password OR password
-        IF (v_auth_record.temp_password IS NOT NULL AND v_auth_record.temp_password = crypt(p_password, v_auth_record.temp_password)) OR
-           (v_auth_record.password IS NOT NULL AND v_auth_record.password = crypt(p_password, v_auth_record.password)) THEN
-            RETURN jsonb_build_object(
-                'success', true,
-                'must_change_password', v_auth_record.must_change_password
-            );
+        -- Safely check if temp_password matches
+        -- We also check if it looks like a bcrypt hash to prevent "invalid salt" crashes
+        IF v_auth_record.temp_password IS NOT NULL THEN
+            IF v_auth_record.temp_password LIKE '$2a$%' OR v_auth_record.temp_password LIKE '$2b$%' THEN
+                IF v_auth_record.temp_password = crypt(p_password, v_auth_record.temp_password) THEN
+                    RETURN jsonb_build_object('success', true, 'must_change_password', v_auth_record.must_change_password);
+                END IF;
+            ELSE
+                -- Fallback for unhashed plain text passwords (added by admin recently)
+                IF v_auth_record.temp_password = p_password THEN
+                    RETURN jsonb_build_object('success', true, 'must_change_password', true);
+                END IF;
+            END IF;
         END IF;
     END IF;
     
@@ -48,12 +55,16 @@ BEGIN
     WHERE teacher_id = p_teacher_id;
 
     IF FOUND THEN
-        IF (v_auth_record.temp_password IS NOT NULL AND v_auth_record.temp_password = crypt(p_password, v_auth_record.temp_password)) OR
-           (v_auth_record.password IS NOT NULL AND v_auth_record.password = crypt(p_password, v_auth_record.password)) THEN
-            RETURN jsonb_build_object(
-                'success', true,
-                'must_change_password', v_auth_record.must_change_password
-            );
+        IF v_auth_record.temp_password IS NOT NULL THEN
+            IF v_auth_record.temp_password LIKE '$2a$%' OR v_auth_record.temp_password LIKE '$2b$%' THEN
+                IF v_auth_record.temp_password = crypt(p_password, v_auth_record.temp_password) THEN
+                    RETURN jsonb_build_object('success', true, 'must_change_password', v_auth_record.must_change_password);
+                END IF;
+            ELSE
+                IF v_auth_record.temp_password = p_password THEN
+                    RETURN jsonb_build_object('success', true, 'must_change_password', true);
+                END IF;
+            END IF;
         END IF;
     END IF;
     
@@ -75,9 +86,16 @@ BEGIN
     WHERE monitor_id = p_monitor_id;
 
     IF FOUND THEN
-        IF (v_auth_record.password IS NOT NULL AND v_auth_record.password = crypt(p_password, v_auth_record.password)) OR
-           (v_auth_record.temp_password IS NOT NULL AND v_auth_record.temp_password = crypt(p_password, v_auth_record.temp_password)) THEN
-            RETURN jsonb_build_object('success', true);
+        IF v_auth_record.password IS NOT NULL THEN
+            IF v_auth_record.password LIKE '$2a$%' OR v_auth_record.password LIKE '$2b$%' THEN
+                IF v_auth_record.password = crypt(p_password, v_auth_record.password) THEN
+                    RETURN jsonb_build_object('success', true);
+                END IF;
+            ELSE
+                IF v_auth_record.password = p_password THEN
+                    RETURN jsonb_build_object('success', true);
+                END IF;
+            END IF;
         END IF;
     END IF;
     
