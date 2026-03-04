@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
 
+import { FaTrash } from "react-icons/fa";
+
 interface Student {
   grade: number;
   class: number;
@@ -171,6 +173,56 @@ export default function StudentsPage() {
   };
 
   // -------------------------
+  // 학생 단일 삭제
+  // -------------------------
+  const handleDeleteStudent = async (grade: number, cls: number, num: number, name: string, student_id?: string | null) => {
+    if (!name && !student_id) return; // 빈칸이면 무시
+
+    if (!confirm(`정말 ${grade}학년 ${cls}반 ${num}번 (${name}) 학생을 삭제하시겠습니까?\n이 학생의 계정과 좌석 배정, 외출/외박 기록도 모두 삭제됩니다.`)) {
+      return;
+    }
+
+    // 1. leave_requests 삭제
+    if (student_id) {
+      await supabase.from("leave_requests").delete().eq("student_id", student_id);
+    }
+
+    // 2. seat_assignments 삭제
+    if (student_id) {
+      await supabase.from("seat_assignments").delete().eq("student_id", student_id);
+    }
+
+    // 3. monthly_return_applications 삭제
+    if (student_id) {
+      await supabase.from("monthly_return_applications").delete().eq("student_id", student_id);
+    }
+
+    // 4. students_auth 삭제
+    if (student_id) {
+      await supabase.from("students_auth").delete().eq("student_id", student_id);
+    }
+
+    // 5. legacy students_auth 삭제 (더블 체크)
+    const legacy_id = `${grade}${String(cls).padStart(2, "0")}${String(num).padStart(2, "0")}`;
+    await supabase.from("students_auth").delete().eq("student_id", legacy_id);
+
+    // 6. students 테이블에서 삭제
+    const { error: stuError } = await supabase
+      .from("students")
+      .delete()
+      .match({ grade, class: cls, number: num });
+
+    if (stuError) {
+      console.error(stuError);
+      toast.error("학생 정보 삭제 실패");
+      return;
+    }
+
+    toast.success("학생이 완전히 삭제되었습니다.");
+    fetchStudents();
+  };
+
+  // -------------------------
   // 저장 (특정 학년의 students + students_auth)
   // -------------------------
   const handleSave = async (targetGrade: number) => {
@@ -203,9 +255,9 @@ export default function StudentsPage() {
         : null;
 
     // -------------------------
-    // students 업데이트
+    // students 업데이트 (이름이 없는 경우는 삭제로 처리)
     // -------------------------
-    const studentsUpserts = changed.map((s) => ({
+    const studentsToUpsert = changed.filter(s => s.name && s.name.trim().length > 0).map((s) => ({
       grade: s.grade,
       class: s.class,
       number: s.number,
@@ -213,17 +265,39 @@ export default function StudentsPage() {
       weekend: s.weekend,
       student_id: toStudentId(s),
       // Generate Token if missing and has valid info
-      parent_token: s.parent_token || (s.name ? generateUUID() : null)
+      parent_token: s.parent_token || generateUUID()
     }));
 
-    const { error: studentsErr } = await supabase
-      .from("students")
-      .upsert(studentsUpserts, { onConflict: "grade,class,number" });
+    // 이름이 비어있는(지워진) 학생들 찾아서 삭제
+    const studentsToDelete = changed.filter(s => !s.name || s.name.trim().length === 0);
+    for (const s of studentsToDelete) {
+      const o = originalStudents.find(
+        (os) => os.grade === s.grade && os.class === s.class && os.number === s.number
+      );
+      if (o && o.student_id) {
+        // 관련된 정보들을 순차적으로 삭제
+        await supabase.from("leave_requests").delete().eq("student_id", o.student_id);
+        await supabase.from("seat_assignments").delete().eq("student_id", o.student_id);
+        await supabase.from("monthly_return_applications").delete().eq("student_id", o.student_id);
+        await supabase.from("students_auth").delete().eq("student_id", o.student_id);
+      }
 
-    if (studentsErr) {
-      console.error(studentsErr);
-      toast.error(`${targetGrade}학년 정보 저장 실패`);
-      return;
+      const legacy_id = `${s.grade}${String(s.class).padStart(2, "0")}${String(s.number).padStart(2, "0")}`;
+      await supabase.from("students_auth").delete().eq("student_id", legacy_id);
+
+      await supabase.from("students").delete().match({ grade: s.grade, class: s.class, number: s.number });
+    }
+
+    if (studentsToUpsert.length > 0) {
+      const { error: studentsErr } = await supabase
+        .from("students")
+        .upsert(studentsToUpsert, { onConflict: "grade,class,number" });
+
+      if (studentsErr) {
+        console.error(studentsErr);
+        toast.error(`${targetGrade}학년 정보 저장 실패`);
+        return;
+      }
     }
 
     // [New] Sync with Monthly Return Applications
@@ -232,14 +306,14 @@ export default function StudentsPage() {
     const currentMonth = now.getMonth() + 1;
 
     // Separate lists for Add/Remove
-    const toAdd = studentsUpserts.filter(s => s.weekend && s.student_id).map(s => ({
+    const toAdd = studentsToUpsert.filter(s => s.weekend && s.student_id).map(s => ({
       student_id: s.student_id,
       target_year: currentYear,
       target_month: currentMonth
     }));
 
     // For deletion, we need student_ids of those unchecked
-    const toRemoveIds = studentsUpserts.filter(s => !s.weekend && s.student_id).map(s => s.student_id);
+    const toRemoveIds = studentsToUpsert.filter(s => !s.weekend && s.student_id).map(s => s.student_id);
 
     if (toAdd.length > 0) {
       await supabase.from('monthly_return_applications').upsert(toAdd, { onConflict: 'student_id, target_year, target_month' as any });
@@ -600,6 +674,16 @@ export default function StudentsPage() {
                           onPaste={(e) => handlePaste(grade, cls, num, e)}
                           className="flex-1 max-w-[80px] px-2 py-1 rounded-lg border border-gray-300 text-sm shadow-inner text-gray-900 bg-white"
                         />
+
+                        {isSaved && s.name && (
+                          <button
+                            onClick={() => handleDeleteStudent(grade, cls, num, s.name, s.student_id)}
+                            className="w-7 h-7 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white border border-red-100 transition-colors flex items-center justify-center shrink-0"
+                            title="학생 삭제"
+                          >
+                            <FaTrash size={10} />
+                          </button>
+                        )}
 
                         {isSaved && s.name && (
                           <button
