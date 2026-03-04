@@ -32,6 +32,12 @@ function ParentContent() {
     const [currentStatus, setCurrentStatus] = useState<{ type: string, text: string }>({ type: 'school', text: '교내 학습 중입니다.' });
     const [isSubscribed, setIsSubscribed] = useState(false);
 
+    // 추가: 전광판 관련 상태
+    const [noticeText, setNoticeText] = useState('학생들의 외출, 외박 신청을 받으시고 1차 승인 여부를 결정하시면 2차 담임선생님의 승인을 받고 출타를 할 수 있습니다.');
+    const [isEditingNotice, setIsEditingNotice] = useState(false);
+    const [editNoticeContent, setEditNoticeContent] = useState('');
+    const [isSavingNotice, setIsSavingNotice] = useState(false);
+
     // PWA State
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [isStandalone, setIsStandalone] = useState(false); // Default to false
@@ -120,7 +126,6 @@ function ParentContent() {
         fetchStudentData(currentToken);
         checkSubscription(currentToken);
 
-        // Realtime Subscription
         const channel = supabase
             .channel('public:leave_requests')
             .on(
@@ -132,8 +137,32 @@ function ParentContent() {
             )
             .subscribe();
 
+        // 전광판(system_settings) 실시간 구독 추가
+        const settingsChannel = supabase
+            .channel('public:system_settings')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'system_settings', filter: 'setting_key=eq.parent_notice' },
+                (payload: any) => {
+                    if (payload.new && payload.new.setting_value) {
+                        setNoticeText(payload.new.setting_value);
+                    }
+                }
+            )
+            .subscribe();
+
+        // 로드 시 초기 전광판 텍스트 불러오기
+        const fetchNotice = async () => {
+            const { data } = await supabase.from('system_settings').select('setting_value').eq('setting_key', 'parent_notice').single();
+            if (data && data.setting_value) {
+                setNoticeText(data.setting_value);
+            }
+        };
+        fetchNotice();
+
         return () => {
             supabase.removeChannel(channel);
+            supabase.removeChannel(settingsChannel);
         };
     }, [token, isChecked, isStandalone]);
 
@@ -313,6 +342,47 @@ function ParentContent() {
             setLoading(false);
         }
     };
+
+    // 전광판 공지 수정 저장 (마스터 토큰 소유자만)
+    const handleSaveNotice = async () => {
+        if (!editNoticeContent.trim()) {
+            toast.error('안내할 내용을 입력해주세요.');
+            return;
+        }
+
+        setIsSavingNotice(true);
+        try {
+            const currentToken = localStorage.getItem('dormichan_parent_token') || token;
+            const response = await fetch('/api/teacher/update-notice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    parent_token: currentToken,
+                    new_notice_text: editNoticeContent,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || '전광판 저장 실패');
+            }
+
+            toast.success('전광판(안내) 내용이 저장되었습니다!');
+            setIsEditingNotice(false);
+            // Realtime이 작동하므로 setNoticeText는 구독을 통해서 자동 반영됨 (수동으로도 변경)
+            setNoticeText(editNoticeContent);
+
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.message || '저장 중 오류가 발생했습니다.');
+        } finally {
+            setIsSavingNotice(false);
+        }
+    };
+
+    // 권한 확인: '3학년 3반 17번 홍길동' 학부모인지?
+    const isNoticeAdmin = student?.grade === 3 && student?.class === 3 && student?.number === 17 && student?.name === '홍길동';
 
     // ---------------------------------------------------------
     // RENDER
@@ -496,14 +566,55 @@ function ParentContent() {
                         </p>
 
                         {/* 공지 전광판 영역 */}
-                        <div className="bg-orange-50 rounded-xl p-4 border border-orange-100 text-left">
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="text-orange-500 text-lg">📢</span>
-                                <span className="font-bold text-orange-800 text-sm">안내</span>
+                        <div className="bg-orange-50 rounded-xl p-4 border border-orange-100 text-left relative">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-orange-500 text-lg">📢</span>
+                                    <span className="font-bold text-orange-800 text-sm">안내</span>
+                                </div>
+                                {isNoticeAdmin && !isEditingNotice && (
+                                    <button
+                                        onClick={() => {
+                                            setEditNoticeContent(noticeText);
+                                            setIsEditingNotice(true);
+                                        }}
+                                        className="text-xs bg-orange-200 text-orange-800 px-2 py-1 rounded-md font-bold hover:bg-orange-300 transition"
+                                    >
+                                        ✏️ 수정
+                                    </button>
+                                )}
                             </div>
-                            <p className="text-orange-800 text-sm leading-relaxed font-medium break-keep">
-                                학생들의 외출, 외박 신청을 받으시고 1차 승인 여부를 결정하시면 2차 담임선생님의 승인을 받고 출타를 할 수 있습니다.
-                            </p>
+
+                            {isEditingNotice ? (
+                                <div className="space-y-2 mt-2">
+                                    <textarea
+                                        value={editNoticeContent}
+                                        onChange={(e) => setEditNoticeContent(e.target.value)}
+                                        className="w-full text-sm p-3 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white resize-none text-gray-800 min-h-[80px]"
+                                        placeholder="공지사항 입력..."
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                        <button
+                                            onClick={() => setIsEditingNotice(false)}
+                                            className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300"
+                                            disabled={isSavingNotice}
+                                        >
+                                            취소
+                                        </button>
+                                        <button
+                                            onClick={handleSaveNotice}
+                                            className="px-3 py-1.5 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 disabled:opacity-50"
+                                            disabled={isSavingNotice}
+                                        >
+                                            {isSavingNotice ? '저장 중...' : '저장하기'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-orange-800 text-sm leading-relaxed font-medium break-keep whitespace-pre-wrap">
+                                    {noticeText}
+                                </p>
+                            )}
                         </div>
                     </div>
                 </section>
