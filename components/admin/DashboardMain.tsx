@@ -143,7 +143,9 @@ export default function DashboardMain() {
             ]);
 
             // --- Process 1: Students & Weekly Returnees ---
-            const students = studentsRes.data || [];
+            const rawStudents = studentsRes.data || [];
+            // "3317 홍길동" (테스트 계정) 제외
+            const students = rawStudents.filter((s: any) => !(s.grade === 3 && s.class === 3 && s.number === 17 && s.name === '홍길동'));
             const totalStudents = students.length;
 
             const weekly = students.filter((s: any) => s.weekend).sort((a: any, b: any) => {
