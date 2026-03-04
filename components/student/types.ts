@@ -3,6 +3,7 @@ export interface Student {
     name: string;
     grade: number;
     class: number;
+    number?: number;
     parent_token?: string;
     weekend?: boolean;
     room_number?: number;

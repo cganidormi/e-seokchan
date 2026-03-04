@@ -21,6 +21,13 @@ export default function StudentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [initialFormData, setInitialFormData] = useState<any>(null); // State for Copy functionality
   const [unreadSummonCount, setUnreadSummonCount] = useState(0); // App Badge state
+
+  // Student Notice Board State
+  const [noticeText, setNoticeText] = useState('각 호실에 호실점검 체크리스트가 있습니다. \n호실의 시설물을 꼭 직접 확인 하시고 체크리스트를 채운 후 사감선생님께 제출하세요.');
+  const [isEditingNotice, setIsEditingNotice] = useState(false);
+  const [editNoticeContent, setEditNoticeContent] = useState('');
+  const [isSavingNotice, setIsSavingNotice] = useState(false);
+
   const router = useRouter(); // Initialized useRouter
 
   useEffect(() => {
@@ -77,6 +84,34 @@ export default function StudentPage() {
       window.removeEventListener('online', handleOnline);
     };
   }, [studentId]);
+
+  // 1-2. Fetch and Subscribe to Student Notice Board
+  useEffect(() => {
+    const fetchNotice = async () => {
+      const { data } = await supabase.from('system_settings').select('setting_value').eq('setting_key', 'student_notice').single();
+      if (data && data.setting_value) {
+        setNoticeText(data.setting_value);
+      }
+    };
+    fetchNotice();
+
+    const noticeChannel = supabase
+      .channel('public:system_settings:student')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'system_settings', filter: 'setting_key=eq.student_notice' },
+        (payload: any) => {
+          if (payload.new && payload.new.setting_value) {
+            setNoticeText(payload.new.setting_value);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(noticeChannel);
+    };
+  }, []);
 
   const searchParams = useSearchParams();
 
@@ -303,6 +338,31 @@ export default function StudentPage() {
     }
   };
 
+  const handleSaveNotice = async () => {
+    if (!editNoticeContent.trim()) {
+      toast.error('안내 내용을 입력해주세요.');
+      return;
+    }
+    setIsSavingNotice(true);
+    try {
+      const res = await fetch('/api/student/update-notice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId, new_notice_text: editNoticeContent })
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.error || '저장 실패');
+
+      toast.success('학생 안내 전광판이 업데이트되었습니다.');
+      setIsEditingNotice(false);
+      setNoticeText(editNoticeContent);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setIsSavingNotice(false);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('dormichan_login_id');
     localStorage.removeItem('dormichan_role');
@@ -322,6 +382,7 @@ export default function StudentPage() {
   }
 
   const currentStudent = students.find(s => s.student_id === studentId) || null;
+  const isNoticeAdmin = currentStudent?.grade === 3 && currentStudent?.class === 3 && currentStudent?.number === 17 && currentStudent?.name === '홍길동';
 
   // Compute Room and Bed Position
   let bedInfoText = '배정중';
@@ -386,15 +447,45 @@ export default function StudentPage() {
             <span className="ml-1 text-sm font-semibold text-gray-700">비밀번호 변경</span>
           </button>
         </div>
-        <div className="bg-white border-2 border-amber-300 rounded-xl p-3 shadow-sm w-full md:w-auto md:max-w-2xl">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-xs font-bold text-white bg-amber-500 px-2 py-0.5 rounded shadow-sm">기숙사 입실 안내</span>
-            <span className="text-sm md:text-base font-extrabold text-amber-900">{bedInfoText}</span>
+        <div className="bg-white border-2 border-amber-300 rounded-xl p-3 shadow-sm w-full md:w-auto md:max-w-2xl relative">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white bg-amber-500 px-2 py-0.5 rounded shadow-sm">기숙사 입실 안내</span>
+              <span className="text-sm md:text-base font-extrabold text-amber-900">{bedInfoText}</span>
+            </div>
+            {isNoticeAdmin && !isEditingNotice && (
+              <button
+                onClick={() => {
+                  setEditNoticeContent(noticeText);
+                  setIsEditingNotice(true);
+                }}
+                className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold hover:bg-amber-200 transition whitespace-nowrap ml-2"
+              >
+                ✏️ 수정
+              </button>
+            )}
           </div>
-          <p className="text-xs md:text-sm text-gray-700 break-keep leading-relaxed font-medium">
-            각 호실에 <strong className="text-amber-700">호실점검 체크리스트</strong>가 있습니다. <br className="hidden sm:block" />
-            호실의 시설물을 꼭 직접 확인 하시고 체크리스트를 채운 후 <strong className="text-amber-700">사감선생님께 제출</strong>하세요.
-          </p>
+
+          {isEditingNotice ? (
+            <div className="space-y-2 mt-2">
+              <textarea
+                value={editNoticeContent}
+                onChange={(e) => setEditNoticeContent(e.target.value)}
+                className="w-full text-sm p-2 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-400 min-h-[60px] resize-none"
+                placeholder="공지내용 입력..."
+              />
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setIsEditingNotice(false)} className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-bold rounded hover:bg-gray-300">취소</button>
+                <button onClick={handleSaveNotice} disabled={isSavingNotice} className="px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded hover:bg-amber-600 disabled:opacity-50">
+                  {isSavingNotice ? '저장 중...' : '저장하기'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs md:text-sm text-gray-700 break-keep leading-relaxed font-medium whitespace-pre-wrap">
+              {noticeText}
+            </p>
+          )}
         </div>
       </div>
 
