@@ -569,8 +569,8 @@ function ParentContent() {
                         <div className="bg-orange-50 rounded-xl p-4 border border-orange-100 text-left relative">
                             <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-orange-500 text-lg">📢</span>
-                                    <span className="font-bold text-orange-800 text-sm">안내</span>
+                                    <span className="text-orange-500 text-lg">💌</span>
+                                    <span className="font-bold text-orange-800 text-sm">안내 말씀</span>
                                 </div>
                                 {isNoticeAdmin && !isEditingNotice && (
                                     <button
