@@ -473,27 +473,38 @@ function ParentContent() {
                 {/* Current Status Card */}
                 <section className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
                     <div className="text-center">
-                        <div className={`inline-block rounded-full mb-4 ${currentStatus.type === 'school' ? '' :
-                            (currentStatus.type === 'outing' ? 'bg-blue-50 p-4' : 'bg-purple-50 p-4')
+                        <div className={`inline-block rounded-full mb-3 ${currentStatus.type === 'school' ? '' :
+                            (currentStatus.type === 'outing' ? 'bg-blue-50 p-3' : 'bg-purple-50 p-3')
                             }`}>
-                            <div className="flex justify-center items-center w-24 h-24">
+                            <div className="flex justify-center items-center w-16 h-16">
                                 {currentStatus.type === 'school' ? (
                                     <img src="/images/school_emblem.png" alt="강원과학고" className="w-full h-full object-contain" />
                                 ) : (
-                                    <span className="text-4xl">
+                                    <span className="text-3xl">
                                         {currentStatus.type === 'outing' ? '🏃' : '🌙'}
                                     </span>
                                 )}
                             </div>
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-800 mb-1">
+                        <h2 className="text-xl font-bold text-gray-800 mb-1">
                             {currentStatus.text}
                         </h2>
-                        <p className="text-gray-500 text-sm">
+                        <p className="text-gray-500 text-sm mb-4">
                             {currentStatus.type === 'school'
                                 ? `${new Date().getMonth() + 1}월의 매주귀가 상태 : ${student?.weekend ? '매주귀가' : '격주귀가'}`
                                 : '귀가 예정: 확인 필요'}
                         </p>
+
+                        {/* 공지 전광판 영역 */}
+                        <div className="bg-orange-50 rounded-xl p-4 border border-orange-100 text-left">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-orange-500 text-lg">📢</span>
+                                <span className="font-bold text-orange-800 text-sm">안내</span>
+                            </div>
+                            <p className="text-orange-800 text-sm leading-relaxed font-medium break-keep">
+                                학생들의 외출, 외박 신청을 받으시고 1차 승인 여부를 결정하시면 2차 담임선생님의 승인을 받고 출타를 할 수 있습니다.
+                            </p>
+                        </div>
                     </div>
                 </section>
 
