@@ -479,7 +479,7 @@ export default function StudentsPage() {
   };
 
   // -------------------------
-  // 비밀번호 초기화
+  // 비밀번호 초기화 (Server-side API 호출)
   // -------------------------
   const handlePasswordReset = async (s: Student) => {
     if (!s.name) return;
@@ -499,18 +499,29 @@ export default function StudentsPage() {
     const student_id = `${s.grade}${s.class}${String(s.number).padStart(2, "0")}${s.name}`;
     const newPw = generateTempPassword();
 
-    const { error } = await supabase.from('students_auth').upsert({
-      student_id,
-      username: student_id,
-      temp_password: newPw,
-      must_change_password: true
-    }, { onConflict: 'student_id' });
+    try {
+      const response = await fetch('/api/admin/reset-student-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          student_id,
+          new_password: newPw,
+        }),
+      });
 
-    if (error) {
-      console.error(error);
-      toast.error('초기화 실패');
-    } else {
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || '초기화 실패');
+      }
+
       alert(`[비밀번호 초기화 완료]\n\n학생: ${s.name}\n아이디: ${student_id}\n임시 비밀번호: ${newPw}`);
+
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || '초기화 중 오류가 발생했습니다.');
     }
   };
 
