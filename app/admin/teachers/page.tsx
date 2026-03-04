@@ -460,14 +460,29 @@ export default function TeachersPage() {
                     onClick={async () => {
                       if (!confirm(`'${t.name}' 선생님의 비밀번호를 초기화하시겠습니까?`)) return;
                       const newPw = generateTempPassword();
-                      const { error } = await supabase.from('teachers_auth').update({
-                        temp_password: newPw,
-                        must_change_password: true
-                      }).eq('teacher_id', t.teacher_id);
 
-                      if (error) toast.error('초기화 실패');
-                      else {
+                      try {
+                        const response = await fetch('/api/admin/reset-teacher-password', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            teacher_id: t.teacher_id,
+                            new_password: newPw,
+                          }),
+                        });
+
+                        const result = await response.json();
+
+                        if (!response.ok || !result.success) {
+                          throw new Error(result.error || '초기화 실패');
+                        }
+
                         alert(`[비밀번호 초기화 완료]\n\n선생님: ${t.name}\n임시 비밀번호: ${newPw}\n\n이 정보를 선생님께 전달해주세요.`);
+                      } catch (error: any) {
+                        console.error(error);
+                        toast.error(error.message || '초기화 중 오류가 발생했습니다.');
                       }
                     }}
                     className="h-8 md:h-auto px-2 md:px-2.5 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 active:scale-95 transition flex items-center justify-center whitespace-nowrap"
