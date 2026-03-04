@@ -27,6 +27,7 @@ export default function StudentPage() {
   const [isEditingNotice, setIsEditingNotice] = useState(false);
   const [editNoticeContent, setEditNoticeContent] = useState('');
   const [isSavingNotice, setIsSavingNotice] = useState(false);
+  const [targetStudentId, setTargetStudentId] = useState('all');
 
   const router = useRouter(); // Initialized useRouter
 
@@ -69,7 +70,25 @@ export default function StudentPage() {
           fetchLeaveRequests(loginId);
         })
         .subscribe();
-      return () => { supabase.removeChannel(channel); };
+
+      // Subscribe to students table for personal notice updates
+      const studentsChannel = supabase
+        .channel('public:students_notice')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, (payload: any) => {
+          if (payload.new && payload.new.student_id) {
+            setStudents(prev => prev.map(s =>
+              s.student_id === payload.new.student_id
+                ? { ...s, personal_notice: payload.new.personal_notice }
+                : s
+            ));
+          }
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+        supabase.removeChannel(studentsChannel);
+      };
     }
   }, []);
 
@@ -348,14 +367,29 @@ export default function StudentPage() {
       const res = await fetch('/api/student/update-notice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_id: studentId, new_notice_text: editNoticeContent })
+        body: JSON.stringify({
+          student_id: studentId,
+          target_student_id: targetStudentId,
+          new_notice_text: editNoticeContent
+        })
       });
       const result = await res.json();
       if (!res.ok || !result.success) throw new Error(result.error || '저장 실패');
 
-      toast.success('학생 안내 전광판이 업데이트되었습니다.');
+      toast.success(targetStudentId === 'all' ? '전체 전광판이 업데이트되었습니다.' : '개별 학생에게 알림을 보냈습니다.');
       setIsEditingNotice(false);
-      setNoticeText(editNoticeContent);
+
+      if (targetStudentId === 'all') {
+        setNoticeText(editNoticeContent);
+        setStudents(prev => prev.map(s => ({ ...s, personal_notice: undefined } as any)));
+      } else {
+        setStudents(prev => prev.map(s =>
+          s.student_id === targetStudentId
+            ? { ...s, personal_notice: editNoticeContent } as any
+            : s
+        ));
+      }
+      setTargetStudentId('all');
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -383,6 +417,9 @@ export default function StudentPage() {
 
   const currentStudent = students.find(s => s.student_id === studentId) || null;
   const isNoticeAdmin = currentStudent?.grade === 3 && currentStudent?.class === 3 && currentStudent?.number === 17 && currentStudent?.name === '홍길동';
+
+  const isPersonalNotice = !!(currentStudent as any)?.personal_notice;
+  const displayNoticeText = isPersonalNotice ? (currentStudent as any).personal_notice : noticeText;
 
   // Compute Room and Bed Position
   let bedInfoText = '배정중';
@@ -450,12 +487,15 @@ export default function StudentPage() {
         <div className="bg-white border-2 border-amber-300 rounded-xl p-3 shadow-sm w-full md:w-auto md:max-w-2xl relative">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-white bg-amber-500 px-2 py-0.5 rounded shadow-sm">홍지관 안내문</span>
+              <span className={`text-xs font-bold text-white px-2 py-0.5 rounded shadow-sm ${isPersonalNotice ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`}>
+                {isPersonalNotice ? '💌 개인 편지' : '홍지관 안내문'}
+              </span>
               <span className="text-sm md:text-base font-extrabold text-amber-900">{bedInfoText}</span>
             </div>
             {isNoticeAdmin && !isEditingNotice && (
               <button
                 onClick={() => {
+                  setTargetStudentId('all');
                   setEditNoticeContent(noticeText);
                   setIsEditingNotice(true);
                 }}
@@ -468,6 +508,27 @@ export default function StudentPage() {
 
           {isEditingNotice ? (
             <div className="space-y-2 mt-2">
+              <select
+                value={targetStudentId}
+                onChange={(e) => {
+                  setTargetStudentId(e.target.value);
+                  if (e.target.value !== 'all') {
+                    setEditNoticeContent('');
+                  } else {
+                    setEditNoticeContent(noticeText);
+                  }
+                }}
+                className="w-full text-sm p-2 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+              >
+                <option value="all">📢 전체 학생</option>
+                <optgroup label="개별 학생 선택">
+                  {students.sort((a, b) => `${a.grade}${a.class}${a.number}`.localeCompare(`${b.grade}${b.class}${b.number}`)).map(s => (
+                    <option key={s.student_id} value={s.student_id}>
+                      {s.grade}-{s.class} {s.name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
               <textarea
                 value={editNoticeContent}
                 onChange={(e) => setEditNoticeContent(e.target.value)}
@@ -482,8 +543,8 @@ export default function StudentPage() {
               </div>
             </div>
           ) : (
-            <p className="text-xs md:text-sm text-gray-700 break-keep leading-relaxed font-medium whitespace-pre-wrap">
-              {noticeText}
+            <p className={`text-xs md:text-sm break-keep leading-relaxed font-medium whitespace-pre-wrap ${isPersonalNotice ? 'text-red-700 font-bold' : 'text-gray-700'}`}>
+              {displayNoticeText}
             </p>
           )}
         </div>
