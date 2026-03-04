@@ -27,15 +27,9 @@ export default function StudentsPage() {
   }, []);
 
   // -------------------------
-  // 임시 비밀번호 (4숫자 + 2영문)
+  // 임시 비밀번호 (고정 1234)
   // -------------------------
-  const generateTempPassword = () => {
-    const num = Math.floor(1000 + Math.random() * 9000).toString();
-    const letters = Array.from({ length: 2 }, () =>
-      String.fromCharCode(97 + Math.floor(Math.random() * 26))
-    ).join("");
-    return num + letters;
-  };
+  const generateTempPassword = () => "1234";
 
   // ----------------------------------------
   // UUID 생성 (브라우저 호환성용)
