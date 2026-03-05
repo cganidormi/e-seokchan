@@ -300,6 +300,35 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                             )}
                         </div>
 
+                        {/* 함께하는 학생들 (Companion students) - Moved to top of expanded view for visibility */}
+                        {additionalIds.length > 0 && (
+                            <div className="flex flex-col gap-2 p-3 bg-blue-500/5 rounded-2xl border border-blue-500/20 mb-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-1 h-3 bg-blue-500 rounded-full"></span>
+                                    <span className="text-blue-400 font-bold text-[11px]">함께하는 학생들 ({allStudents.length}명)</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5 items-center">
+                                    {allStudents.map((id, idx) => {
+                                        const isMain = id === req.student_id;
+                                        // Case-insensitive/trim check for robustness
+                                        const studentLabel = typeof id === 'string' ? id : String(id || '알 수 없음');
+
+                                        return (
+                                            <div key={`${id}-${idx}`} className={clsx(
+                                                "px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all text-[10px] font-bold",
+                                                isMain
+                                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                                                    : "bg-[#2a2a2a] text-gray-300 border border-white/5"
+                                            )}>
+                                                {isMain && <span className="text-[8px] bg-white/20 px-1 rounded">대표</span>}
+                                                <span>{studentLabel}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
                         {/* 신청 일시 */}
                         <div className="flex flex-col gap-1">
                             <span className="text-gray-500 font-bold">신청 일시</span>
