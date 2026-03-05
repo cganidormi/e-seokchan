@@ -399,14 +399,14 @@ export default function StudentsPage() {
 
         if (authData && authData.length > 0) {
           const csvRows = [
-            ["학년", "반", "번호", "이름", "아이디", "임시비밀번호", "학부모링크"]
+            ["학년", "반", "번호", "이름", "아이디", "임시비밀번호", "학부모토큰"]
           ];
 
           changed.forEach(s => {
             const sid = toStudentId(s);
             const auth = authData.find(a => a.student_id === sid);
             if (sid && auth) {
-              const link = s.parent_token ? `${window.location.origin}/parent?token=${s.parent_token}` : '';
+              const tokenValue = s.parent_token ? s.parent_token : '';
               csvRows.push([
                 s.grade.toString(),
                 s.class.toString(),
@@ -414,7 +414,7 @@ export default function StudentsPage() {
                 s.name,
                 sid,
                 auth.temp_password || '',
-                link
+                tokenValue
               ]);
             }
           });
@@ -458,13 +458,13 @@ export default function StudentsPage() {
       .in("student_id", studentIds);
 
     const csvRows = [
-      ["학년", "반", "번호", "이름", "아이디", "임시비밀번호", "학부모링크"]
+      ["학년", "반", "번호", "이름", "아이디", "임시비밀번호", "학부모토큰"]
     ];
 
     gradeStudents.forEach(s => {
       const sid = `${s.grade}${s.class}${String(s.number).padStart(2, "0")}${s.name}`;
       const auth = authData?.find(a => a.student_id === sid);
-      const link = s.parent_token ? `${window.location.origin}/parent?token=${s.parent_token}` : '';
+      const tokenValue = s.parent_token ? s.parent_token : '';
 
       csvRows.push([
         s.grade.toString(),
@@ -473,7 +473,7 @@ export default function StudentsPage() {
         s.name,
         sid,
         auth?.temp_password || '설정안됨',
-        link
+        tokenValue
       ]);
     });
 
