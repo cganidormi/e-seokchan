@@ -76,6 +76,9 @@ export default function StudentSeatPage() {
     const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
     const [currentTime, setCurrentTime] = useState(new Date());
     const [studentId, setStudentId] = useState<string | null>(null);
+    const [historyRecords, setHistoryRecords] = useState<any[]>([]);
+    const [historyStudent, setHistoryStudent] = useState<any>(null);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
     useEffect(() => {
         // Permissions Check
@@ -151,11 +154,11 @@ export default function StudentSeatPage() {
         const { data, error } = await supabase
             .from('leave_requests')
             .select('*, leave_request_students(student_id)')
-            .in('status', ['승인', '신청'])
+            .in('status', ['승인', '신청', '학부모승인대기', '학부모승인'])
             .gte('end_time', today.toISOString());
 
         if (error) {
-            window.alert("출입 현황 로드 에러: " + JSON.stringify(error));
+            console.error("출입 현황 로드 에러:", error);
         }
 
         if (data) {
@@ -164,6 +167,69 @@ export default function StudentSeatPage() {
                 return req.status === '승인';
             });
             setActiveLeaves(filteredData);
+        }
+    };
+
+    const fetchStudentHistory = async (targetStudentId: string) => {
+        try {
+            // 1. Fetch requests where student is primary applicant
+            const { data: mainRequests, error: mainError } = await supabase
+                .from('leave_requests')
+                .select('*, leave_request_students(student_id)')
+                .eq('student_id', targetStudentId)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (mainError) throw mainError;
+
+            // 2. Fetch requests where student is a companion
+            const { data: coLinkData, error: coLinkError } = await supabase
+                .from('leave_request_students')
+                .select('leave_request_id')
+                .eq('student_id', targetStudentId)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (coLinkError) throw coLinkError;
+
+            const coRequestIds = coLinkData?.map(c => c.leave_request_id) || [];
+            let coRequests: any[] = [];
+
+            if (coRequestIds.length > 0) {
+                const { data: fetchedCo, error: coError } = await supabase
+                    .from('leave_requests')
+                    .select('*, leave_request_students(student_id)')
+                    .in('id', coRequestIds)
+                    .order('created_at', { ascending: false });
+
+                if (coError) throw coError;
+                if (fetchedCo) coRequests = fetchedCo;
+            }
+
+            // 3. Combine and Deduplicate
+            const combined = [...(mainRequests || []), ...coRequests];
+            const uniqueMap = new Map();
+            combined.forEach(req => uniqueMap.set(req.id, req));
+
+            const sortedRecords = Array.from(uniqueMap.values())
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .slice(0, 30); // 30 entries
+
+            setHistoryRecords(sortedRecords);
+
+            // Try to find student info in assignments
+            const assignment = assignments.find(a => a.student_id === targetStudentId);
+            if (assignment?.student) {
+                setHistoryStudent(assignment.student);
+            } else {
+                // Fetch separately if not in current room
+                const { data: sData } = await supabase.from('students').select('*').eq('student_id', targetStudentId).maybeSingle();
+                setHistoryStudent(sData || { student_id: targetStudentId, name: 'Unknown' });
+            }
+            setIsHistoryModalOpen(true);
+        } catch (e) {
+            console.error(e);
+            toast.error('기록을 불러오지 못했습니다.');
         }
     };
 
@@ -460,8 +526,14 @@ export default function StudentSeatPage() {
                                     return (
                                         <div key={seatNum} className="relative group">
                                             <div
+                                                onDoubleClick={(e) => {
+                                                    if (assignment?.student_id) {
+                                                        e.stopPropagation();
+                                                        fetchStudentHistory(assignment.student_id);
+                                                    }
+                                                }}
                                                 className={clsx(
-                                                    "relative flex flex-col border-r border-b border-gray-200 overflow-hidden transition-all",
+                                                    "relative flex flex-col border-r border-b border-gray-200 overflow-hidden transition-all select-none cursor-pointer",
                                                     isDisabled ? "bg-gray-300" : "bg-white",
                                                     !assignment && !isDisabled && "bg-gray-50/50",
                                                     "w-full h-[54px]",
@@ -519,34 +591,41 @@ export default function StudentSeatPage() {
                                                                 let textClass = "text-transparent";
                                                                 let content: React.ReactNode = periodObj.p;
 
-                                                                if (status === 'active' && type) {
+                                                                if (type) {
                                                                     textClass = "font-bold text-[10px]";
-                                                                    switch (type) {
-                                                                        case '컴이석':
-                                                                            blockClass = "bg-blue-200";
-                                                                            textClass = "text-blue-700";
-                                                                            content = '컴';
-                                                                            break;
-                                                                        case '이석':
-                                                                            blockClass = "bg-orange-200";
-                                                                            textClass = "text-orange-700";
-                                                                            content = '이';
-                                                                            break;
-                                                                        case '외출':
-                                                                            blockClass = "bg-green-200";
-                                                                            textClass = "text-green-800";
-                                                                            content = '출';
-                                                                            break;
-                                                                        case '외박':
-                                                                            blockClass = "bg-purple-200";
-                                                                            textClass = "text-purple-700";
-                                                                            content = '박';
-                                                                            break;
-                                                                        case '자리비움':
-                                                                            blockClass = isAwayBlinking ? "bg-red-600" : "bg-red-500";
-                                                                            textClass = "text-white";
-                                                                            content = '비';
-                                                                            break;
+                                                                    // Assign abbreviation based on type
+                                                                    if (type === '컴이석') content = '컴';
+                                                                    else if (type === '이석') content = '이';
+                                                                    else if (type === '외출') content = '출';
+                                                                    else if (type === '외박') content = '박';
+                                                                    else if (type === '자리비움') content = '비';
+
+                                                                    if (status === 'active') {
+                                                                        switch (type) {
+                                                                            case '컴이석':
+                                                                                blockClass = "bg-blue-200";
+                                                                                textClass = "text-blue-700";
+                                                                                break;
+                                                                            case '이석':
+                                                                                blockClass = "bg-orange-200";
+                                                                                textClass = "text-orange-700";
+                                                                                break;
+                                                                            case '외출':
+                                                                                blockClass = "bg-green-200";
+                                                                                textClass = "text-green-800";
+                                                                                break;
+                                                                            case '외박':
+                                                                                blockClass = "bg-purple-200";
+                                                                                textClass = "text-purple-700";
+                                                                                break;
+                                                                            case '자리비움':
+                                                                                blockClass = isAwayBlinking ? "bg-red-600" : "bg-red-500";
+                                                                                textClass = "text-white";
+                                                                                break;
+                                                                        }
+                                                                    } else if (status === 'past') {
+                                                                        blockClass = "bg-gray-300";
+                                                                        textClass = "text-gray-500 font-bold";
                                                                     }
                                                                 } else if (status === 'past') {
                                                                     blockClass = "bg-gray-300";
@@ -573,6 +652,98 @@ export default function StudentSeatPage() {
                     )}
                 </div>
             </div>
+
+            {/* Student History Modal */}
+            {isHistoryModalOpen && historyStudent && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsHistoryModalOpen(false)}>
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-gray-100 flex flex-col relative">
+                            {/* Close Button Top Right */}
+                            <button
+                                onClick={() => setIsHistoryModalOpen(false)}
+                                className="absolute top-4 right-4 p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400"
+                            >
+                                ✕
+                            </button>
+
+                            {/* Center Content - Horizontal Layout */}
+                            <div className="flex items-center justify-center gap-6 mt-4 mb-4">
+                                {/* Student Info - ID and Name */}
+                                <div className="text-center">
+                                    <h3 className="text-3xl font-black text-gray-800 tracking-tight">{historyStudent.student_id}</h3>
+                                    <p className="text-gray-500 font-bold">{historyStudent.name}</p>
+                                </div>
+                            </div>
+                            <div className="w-full text-center pb-2">
+                                <p className="text-xs text-gray-400">최근 이석 기록 (최대 30건)</p>
+                            </div>
+                        </div>
+
+                        <div className="overflow-y-auto p-4 flex flex-col gap-3">
+                            {historyRecords.length === 0 ? (
+                                <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
+                            ) : (
+                                historyRecords.map((rec) => {
+                                    const statusColors: any = {
+                                        '신청': 'bg-blue-50 text-blue-600',
+                                        '승인': 'bg-green-50 text-green-600',
+                                        '반려': 'bg-red-50 text-red-600',
+                                        '취소': 'bg-gray-50 text-gray-500',
+                                        '복귀': 'bg-gray-100 text-gray-600',
+                                        '학부모승인': 'bg-orange-50 text-orange-600',
+                                        '학부모승인대기': 'bg-yellow-50 text-yellow-600',
+                                    };
+
+                                    return (
+                                        <div key={rec.id} className="flex flex-col p-3 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors bg-white shadow-sm">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={clsx("px-2 py-0.5 rounded text-[10px] font-bold border border-opacity-10", statusColors[rec.status] || 'bg-gray-50 text-gray-500')}>
+                                                        {rec.status}
+                                                    </span>
+                                                    <span className="font-bold text-gray-700 text-sm">
+                                                        {rec.leave_type}
+                                                        {rec.leave_request_students && rec.leave_request_students.length > 0 && (
+                                                            <span className="ml-1 text-[10px] text-blue-500 font-normal">
+                                                                (외 {rec.leave_request_students.length}명)
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] text-gray-400">{new Date(rec.created_at).toLocaleDateString()}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg mb-2">
+                                                {rec.leave_type === '컴이석' || rec.leave_type === '이석' ? (
+                                                    <div className="font-mono text-xs">
+                                                        {rec.period}
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        {new Date(rec.start_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
+                                                        {rec.leave_type === '자리비움'
+                                                            ? new Date(new Date(rec.start_time).getTime() + 10 * 60000).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                            : new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                        }
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {rec.reason && (
+                                                <p className="text-[11px] text-gray-500 truncate">
+                                                    Reason: {rec.reason}
+                                                </p>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
