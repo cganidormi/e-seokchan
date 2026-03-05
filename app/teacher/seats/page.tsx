@@ -890,34 +890,41 @@ export default function SeatManagementPage() {
                                                                 let textClass = "text-transparent";
                                                                 let content: React.ReactNode = periodObj.p;
 
-                                                                if (status === 'active' && type) {
+                                                                if (type) {
                                                                     textClass = "font-bold text-[10px]";
-                                                                    switch (type) {
-                                                                        case '컴이석':
-                                                                            blockClass = "bg-blue-200";
-                                                                            textClass = "text-blue-700";
-                                                                            content = '컴';
-                                                                            break;
-                                                                        case '이석':
-                                                                            blockClass = "bg-orange-200";
-                                                                            textClass = "text-orange-700";
-                                                                            content = '이';
-                                                                            break;
-                                                                        case '외출':
-                                                                            blockClass = "bg-green-200";
-                                                                            textClass = "text-green-800";
-                                                                            content = '출';
-                                                                            break;
-                                                                        case '외박':
-                                                                            blockClass = "bg-purple-200";
-                                                                            textClass = "text-purple-700";
-                                                                            content = '박';
-                                                                            break;
-                                                                        case '자리비움':
-                                                                            blockClass = isAwayBlinking ? "bg-red-600" : "bg-red-500";
-                                                                            textClass = "text-white";
-                                                                            content = '비';
-                                                                            break;
+                                                                    // Assign abbreviation based on type
+                                                                    if (type === '컴이석') content = '컴';
+                                                                    else if (type === '이석') content = '이';
+                                                                    else if (type === '외출') content = '출';
+                                                                    else if (type === '외박') content = '박';
+                                                                    else if (type === '자리비움') content = '비';
+
+                                                                    if (status === 'active') {
+                                                                        switch (type) {
+                                                                            case '컴이석':
+                                                                                blockClass = "bg-blue-200";
+                                                                                textClass = "text-blue-700";
+                                                                                break;
+                                                                            case '이석':
+                                                                                blockClass = "bg-orange-200";
+                                                                                textClass = "text-orange-700";
+                                                                                break;
+                                                                            case '외출':
+                                                                                blockClass = "bg-green-200";
+                                                                                textClass = "text-green-800";
+                                                                                break;
+                                                                            case '외박':
+                                                                                blockClass = "bg-purple-200";
+                                                                                textClass = "text-purple-700";
+                                                                                break;
+                                                                            case '자리비움':
+                                                                                blockClass = isAwayBlinking ? "bg-red-600" : "bg-red-500";
+                                                                                textClass = "text-white";
+                                                                                break;
+                                                                        }
+                                                                    } else if (status === 'past') {
+                                                                        blockClass = "bg-gray-300";
+                                                                        textClass = "text-gray-500 font-bold";
                                                                     }
                                                                 } else if (status === 'past') {
                                                                     blockClass = "bg-gray-300";
