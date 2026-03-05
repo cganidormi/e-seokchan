@@ -183,26 +183,27 @@ export default function DashboardMain() {
                 };
             });
 
-            // --- Process 4: Floor Stats ---
+            // --- Process 4: Floor Stats (Dormitory Floors 1-4) ---
             const floorStats = [1, 2, 3, 4].map(floor => {
-                const floorRooms = (roomsRes.data || []).filter((r: any) => r.room_number >= floor * 100 && r.room_number < (floor + 1) * 100);
-                const capacity = floorRooms.reduce((acc: number, r: any) => acc + r.total_seats, 0);
-
-                const assignedSeats = (seatsRes.data || []).filter((s: any) => s.room_number >= floor * 100 && s.room_number < (floor + 1) * 100);
-                const assignedCount = assignedSeats.length;
-
-                const assignedStudentIds = new Set(assignedSeats.map((s: any) => s.student_id));
-                const overnightLeaves = activeLeaves.filter((l: any) =>
-                    assignedStudentIds.has(l.student_id) && l.leave_type === '외박'
+                // Filter students assigned to this floor (1xx, 2xx, 3xx, 4xx)
+                const floorStudents = students.filter((s: any) =>
+                    s.room_number >= floor * 100 && s.room_number < (floor + 1) * 100
                 );
-                const overnightCount = new Set(overnightLeaves.map((l: any) => l.student_id)).size;
+
+                const assignedCount = floorStudents.length;
+                const floorStudentIds = new Set(floorStudents.map((s: any) => s.student_id));
+
+                // Count overnight leaves for students on this floor
+                const floorOvernightCount = activeLeaves.filter((l: any) =>
+                    l.leave_type === '외박' && floorStudentIds.has(l.student_id)
+                ).length;
 
                 return {
                     floor,
-                    capacity: capacity > 0 ? capacity : 0,
-                    assigned: assignedCount,
-                    current: Math.max(0, assignedCount - overnightCount),
-                    overnight: overnightCount
+                    capacity: assignedCount, // 정원: 해당 층에 배정된 총 인원
+                    assigned: assignedCount, // (UI에서 사용되지 않을 수 있음)
+                    current: Math.max(0, assignedCount - floorOvernightCount),
+                    overnight: floorOvernightCount
                 };
             });
 
