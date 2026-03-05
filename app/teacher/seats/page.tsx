@@ -115,19 +115,53 @@ export default function SeatManagementPage() {
 
     const fetchStudentHistory = async (studentId: string) => {
         try {
-            const { data } = await supabase
+            // 1. Fetch requests where student is primary applicant
+            const { data: mainRequests, error: mainError } = await supabase
                 .from('leave_requests')
-                .select('*')
+                .select('*, leave_request_students(student_id)')
                 .eq('student_id', studentId)
                 .order('created_at', { ascending: false })
-                .limit(20);
+                .limit(50);
 
-            if (data) {
-                setHistoryRecords(data);
-                const s = students.find(st => st.student_id === studentId);
-                setHistoryStudent(s || { student_id: studentId, name: 'Unknown', grade: 0, class: 0 });
-                setIsHistoryModalOpen(true);
+            if (mainError) throw mainError;
+
+            // 2. Fetch requests where student is a companion
+            const { data: coLinkData, error: coLinkError } = await supabase
+                .from('leave_request_students')
+                .select('leave_request_id')
+                .eq('student_id', studentId)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (coLinkError) throw coLinkError;
+
+            const coRequestIds = coLinkData?.map(c => c.leave_request_id) || [];
+            let coRequests: any[] = [];
+
+            if (coRequestIds.length > 0) {
+                const { data: fetchedCo, error: coError } = await supabase
+                    .from('leave_requests')
+                    .select('*, leave_request_students(student_id)')
+                    .in('id', coRequestIds)
+                    .order('created_at', { ascending: false });
+
+                if (coError) throw coError;
+                if (fetchedCo) coRequests = fetchedCo;
             }
+
+            // 3. Combine and Deduplicate
+            const combined = [...(mainRequests || []), ...coRequests];
+            const uniqueMap = new Map();
+            combined.forEach(req => uniqueMap.set(req.id, req));
+
+            const sortedRecords = Array.from(uniqueMap.values())
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .slice(0, 30); // 30 entries
+
+            setHistoryRecords(sortedRecords);
+            const s = students.find(st => st.student_id === studentId);
+            setHistoryStudent(s || { student_id: studentId, name: 'Unknown', grade: 0, class: 0 });
+            setIsHistoryModalOpen(true);
         } catch (e) {
             console.error(e);
             toast.error('기록을 불러오지 못했습니다.');
@@ -1141,7 +1175,14 @@ export default function SeatManagementPage() {
                                                     <span className={clsx("px-2 py-0.5 rounded text-[10px] font-bold border border-opacity-10", statusColors[rec.status] || 'bg-gray-50 text-gray-500')}>
                                                         {rec.status}
                                                     </span>
-                                                    <span className="font-bold text-gray-700 text-sm">{rec.leave_type}</span>
+                                                    <span className="font-bold text-gray-700 text-sm">
+                                                        {rec.leave_type}
+                                                        {rec.leave_request_students && rec.leave_request_students.length > 0 && (
+                                                            <span className="ml-1 text-[10px] text-blue-500 font-normal">
+                                                                (외 {rec.leave_request_students.length}명)
+                                                            </span>
+                                                        )}
+                                                    </span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-[10px] text-gray-400">{new Date(rec.created_at).toLocaleDateString()}</span>
