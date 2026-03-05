@@ -34,16 +34,18 @@ export default function StudentsPage() {
   const generateTempPassword = () => "1234";
 
   // ----------------------------------------
-  // UUID 생성 (브라우저 호환성용)
+  // 짧은 토큰 생성 (대문자 2자리 + 숫자 4자리)
   // ----------------------------------------
-  const generateUUID = () => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
+  const generateShortToken = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const num1 = Math.floor(Math.random() * 10);
+    const num2 = Math.floor(Math.random() * 10);
+    const num3 = Math.floor(Math.random() * 10);
+    const num4 = Math.floor(Math.random() * 10);
+    const char1 = chars.charAt(Math.floor(Math.random() * chars.length));
+    const char2 = chars.charAt(Math.floor(Math.random() * chars.length));
+
+    return `${char1}${char2}${num1}${num2}${num3}${num4}`;
   };
 
   // -------------------------
@@ -265,7 +267,7 @@ export default function StudentsPage() {
       weekend: s.weekend,
       student_id: toStudentId(s),
       // Generate Token if missing and has valid info
-      parent_token: s.parent_token || generateUUID()
+      parent_token: s.parent_token || generateShortToken()
     }));
 
     // 이름이 비어있는(지워진) 학생들 찾아서 삭제
