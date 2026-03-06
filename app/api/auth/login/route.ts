@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         const { data: user, error } = await supabaseAdmin
             .from(tableName)
             .select('*')
-            .eq(idColumn, id)
+            .ilike(idColumn, id.trim())
             .maybeSingle();
 
         if (error || !user) {
