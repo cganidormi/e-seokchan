@@ -343,35 +343,28 @@ export default function StudentsPage() {
       );
       const old_student_id = oldStudent?.student_id;
 
-      // 1. 이름이 바뀌었거나 삭제된 경우 -> 기존 구형 아이디 삭제
+      // 1. 이름이 바뀌었거나 삭제된 경우 -> 기존 아이디 삭제 (서버 API 통해)
       if (old_student_id && old_student_id !== student_id) {
-        await supabase
-          .from("students_auth")
-          .delete()
-          .eq("student_id", old_student_id);
+        await fetch('/api/admin/delete-student-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: old_student_id }),
+        }).catch(() => { });
       }
 
-      // 2. 추가 클린업: 10101 같은 "숫자만 있는 구형 아이디" 강제 삭제
-      // 학번(G+CC+NN) 형식 아이디가 존재할 경우 삭제하여 이중 계정 방지
+      // 2. 추가 클린업: 구형 아이디 삭제 (서버 API 통해)
       const legacy_id = `${s.grade}${String(s.class).padStart(2, "0")}${String(s.number).padStart(2, "0")}`;
       if (legacy_id !== student_id) {
-        await supabase
-          .from("students_auth")
-          .delete()
-          .eq("student_id", legacy_id);
+        await fetch('/api/admin/delete-student-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: legacy_id }),
+        }).catch(() => { });
       }
 
-      // 3. 새 이름이 있으면 계정 생성/업데이트
+      // 3. 새 이름이 있으면 계정 생성/업데이트 (서버 API 통해 RLS 우회)
       if (student_id) {
-        const { data: existing } = await supabase
-          .from("students_auth")
-          .select("*")
-          .eq("student_id", student_id)
-          .single();
-
-        const tempPassword = existing?.temp_password || generateTempPassword();
-
-        // RLS 보안으로 인해 서버 API를 통해 upsert
+        const tempPassword = generateTempPassword();
         await fetch('/api/admin/reset-student-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

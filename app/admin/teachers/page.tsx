@@ -194,27 +194,21 @@ export default function TeachersPage() {
       const oldTeacher = originalTeachers.find(ot => ot.id === t.id);
       const oldTeacherId = oldTeacher?.teacher_id;
 
-      // 이름이 변경되어 teacher_id가 바뀐 경우 기존 계정 삭제
+      // 이름이 변경되어 teacher_id가 바뀐 경우 기존 계정 삭제 (서버 API 통해)
       if (oldTeacherId && oldTeacherId !== newTeacherId) {
-        await supabase
-          .from("teachers_auth")
-          .delete()
-          .eq("teacher_id", oldTeacherId);
+        await fetch('/api/admin/delete-teacher-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ teacher_id: oldTeacherId }),
+        }).catch(() => { }); // 없어도 계속 진행
       }
 
       // 새 teacher_id 설정
       t.teacher_id = newTeacherId;
 
-      // 1. 계정(teachers_auth) 생성/업데이트
-      const { data: existing } = await supabase
-        .from("teachers_auth")
-        .select("*")
-        .eq("teacher_id", newTeacherId)
-        .single();
+      // 1. 계정(teachers_auth) 생성/업데이트 (서버 API 통해 RLS 우회)
+      const tempPassword = generateTempPassword();
 
-      const tempPassword = existing?.temp_password || generateTempPassword();
-
-      // RLS 보안으로 인해 서버 API를 통해 upsert
       let authError: any = null;
       try {
         const resp = await fetch('/api/admin/reset-teacher-password', {
@@ -236,20 +230,9 @@ export default function TeachersPage() {
         continue;
       }
 
-      // 신규 계정이거나 비번이 변경된 경우 알림 목록에 추가
-      if (!existing || existing.temp_password !== tempPassword) {
-        createdCredentials.push(`${t.name} 선생님: ID=${newTeacherId}, PW=${tempPassword}`);
-      }
-      // 하지만 기존 계정이 있어도 관리자가 '저장'을 눌렀다는 건 신규 등록일 수도 있으니 안전하게 보여주는 게 좋음
-      // 여기서는 '신규 생성'된 경우에만 보여주거나, 아니면 그냥 다 보여주는 게 나을 수도.
-      // 일단 '신규 교사'인 경우에만 확실히 보여주자.
+      createdCredentials.push(`${t.name} 선생님: ID=${newTeacherId}, PW=${tempPassword}`);
+
       const isNewTeacher = !originalTeachers.find(ot => ot.id === t.id);
-      if (isNewTeacher) {
-        // 중복 push 방지
-        if (!createdCredentials.some(s => s.startsWith(`${t.name} 선생님`))) {
-          createdCredentials.push(`${t.name} 선생님: ID=${newTeacherId}, PW=${tempPassword}`);
-        }
-      }
 
       // 2. teachers 테이블 업데이트/삽입
       if (isNewTeacher) {
