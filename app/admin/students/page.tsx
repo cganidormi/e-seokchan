@@ -361,25 +361,35 @@ export default function StudentsPage() {
           .eq("student_id", legacy_id);
       }
 
-      // 3. 새 이름이 있으면 계정 생성/업데이트
+      // 3. 새 이름이 있으면 계정 생성/업데이트 - 브라우저 직접 저장이 아닌 서버 API 사용
       if (student_id) {
         const { data: existing } = await supabase
           .from("students_auth")
-          .select("*")
+          .select("temp_password")
           .eq("student_id", student_id)
           .single();
 
         const tempPassword = existing?.temp_password || generateTempPassword();
 
-        await supabase.from("students_auth").upsert(
-          {
-            student_id,
-            username: student_id,
-            temp_password: tempPassword,
-            must_change_password: true,
-          },
-          { onConflict: "student_id" }
-        );
+        try {
+          const response = await fetch('/api/admin/reset-student-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              student_id,
+              new_password: tempPassword,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || '계정 생성 중 서버 오류 발생');
+          }
+        } catch (authError: any) {
+          console.error("Auth creation failed:", authError);
+          toast.error(`'${s.name}' 계정 생성 실패: ${authError.message}`);
+          continue;
+        }
       }
     }
 
