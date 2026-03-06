@@ -205,31 +205,32 @@ export default function TeachersPage() {
       // 새 teacher_id 설정
       t.teacher_id = newTeacherId;
 
-      // 1. 계정(teachers_auth) 생성/업데이트 - 브라우저 직접 저장이 아닌 서버 API 사용
-      // 먼저 기존 계정이 있는지 확인 (임시 비번 유지 또는 신규 생성 판단용)
+      // 1. 계정(teachers_auth) 생성/업데이트
       const { data: existing } = await supabase
         .from("teachers_auth")
-        .select("temp_password")
+        .select("*")
         .eq("teacher_id", newTeacherId)
         .single();
 
       const tempPassword = existing?.temp_password || generateTempPassword();
 
+      // RLS 보안으로 인해 서버 API를 통해 upsert
+      let authError: any = null;
       try {
-        const response = await fetch('/api/admin/reset-teacher-password', {
+        const resp = await fetch('/api/admin/reset-teacher-password', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            teacher_id: newTeacherId,
-            new_password: tempPassword,
-          }),
+          body: JSON.stringify({ teacher_id: newTeacherId, new_password: tempPassword }),
         });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || '계정 생성 중 서버 오류 발생');
+        if (!resp.ok) {
+          const d = await resp.json();
+          authError = { message: d.error || '서버 오류' };
         }
-      } catch (authError: any) {
+      } catch (e: any) {
+        authError = { message: e.message };
+      }
+
+      if (authError) {
         console.error("Auth creation failed:", authError);
         toast.error(`'${t.name}' 계정 생성 실패: ${authError.message}`);
         continue;
@@ -239,9 +240,12 @@ export default function TeachersPage() {
       if (!existing || existing.temp_password !== tempPassword) {
         createdCredentials.push(`${t.name} 선생님: ID=${newTeacherId}, PW=${tempPassword}`);
       }
-
+      // 하지만 기존 계정이 있어도 관리자가 '저장'을 눌렀다는 건 신규 등록일 수도 있으니 안전하게 보여주는 게 좋음
+      // 여기서는 '신규 생성'된 경우에만 보여주거나, 아니면 그냥 다 보여주는 게 나을 수도.
+      // 일단 '신규 교사'인 경우에만 확실히 보여주자.
       const isNewTeacher = !originalTeachers.find(ot => ot.id === t.id);
       if (isNewTeacher) {
+        // 중복 push 방지
         if (!createdCredentials.some(s => s.startsWith(`${t.name} 선생님`))) {
           createdCredentials.push(`${t.name} 선생님: ID=${newTeacherId}, PW=${tempPassword}`);
         }
