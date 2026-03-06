@@ -131,12 +131,13 @@ export default function TeachersPage() {
       return;
     }
 
-    // 1. teachers_auth 삭제
+    // 1. teachers_auth 삭제 (서버 API 통해 RLS 우회)
     if (teacher.teacher_id) {
-      await supabase
-        .from("teachers_auth")
-        .delete()
-        .eq("teacher_id", teacher.teacher_id);
+      await fetch('/api/admin/delete-teacher-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacher_id: teacher.teacher_id }),
+      }).catch(() => { });
     }
 
     // 2. teachers 삭제
