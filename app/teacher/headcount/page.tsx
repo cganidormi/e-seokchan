@@ -108,9 +108,11 @@ const isWeeklyHomeTime = (date: Date) => {
     const hour = date.getHours();
     const minute = date.getMinutes();
 
-    // Friday (5) >= 17:00
+    // Friday (5) >= 15:30
     if (day === 5) {
-        return hour >= 17;
+        if (hour > 15) return true;
+        if (hour === 15 && minute >= 30) return true;
+        return false;
     }
     // Saturday (6) - All day
     if (day === 6) {
@@ -176,6 +178,7 @@ export default function HeadcountPage() {
         left: { status: 'in' | 'out', name: string, student_id?: string, isWeekend?: boolean, leaveType?: '외출' | '외박' },
         right: { status: 'in' | 'out', name: string, student_id?: string, isWeekend?: boolean, leaveType?: '외출' | '외박' }
     }>>({});
+    const [checkedSlots, setCheckedSlots] = useState<Set<string>>(new Set());
     const router = useRouter();
 
     const [students, setStudents] = useState<Student[]>([]);
@@ -286,16 +289,13 @@ export default function HeadcountPage() {
     }, []);
 
     const toggleStatus = (roomNum: number, position: 'left' | 'right') => {
-        setRoomStatus(prev => ({
-            ...prev,
-            [roomNum]: {
-                ...prev[roomNum],
-                [position]: {
-                    ...prev[roomNum][position],
-                    status: prev[roomNum][position].status === 'in' ? 'out' : 'in'
-                }
-            }
-        }));
+        const slotId = `${roomNum}-${position}`;
+        setCheckedSlots(prev => {
+            const next = new Set(prev);
+            if (next.has(slotId)) next.delete(slotId);
+            else next.add(slotId);
+            return next;
+        });
     };
 
     const handleBedClick = (roomNum: number, position: 'left' | 'right') => {
@@ -594,15 +594,21 @@ export default function HeadcountPage() {
                                                     "relative flex-1 rounded-md border flex flex-col items-center justify-center transition-all duration-200",
                                                     "group active:scale-95",
                                                     mode === 'check'
-                                                        ? (roomData.left.status === 'out'
-                                                            ? (roomData.left.leaveType === '외출'
-                                                                ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]" // Outing (Green)
-                                                                : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]") // Stay-out (Purple)
+                                                        ? (checkedSlots.has(`${roomNum}-left`)
+                                                            ? (roomData.left.leaveType === '외박'
+                                                                ? "bg-purple-600 border-yellow-400 border-[3px] shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20" // Overnight + Checked (Keep Purple, add yellow border)
+                                                                : "bg-yellow-400 border-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.6)] z-20" // Checked (Yellow)
+                                                            )
                                                             : (
-                                                                // Present (In) & Has Student & NOT Weekly Home Goer -> Bright Light Effect
-                                                                roomData.left.name && !(isWeeklyHomeTime(new Date()) && roomData.left.isWeekend)
-                                                                    ? "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10"
-                                                                    : "bg-[#1f2937] border-gray-700 hover:border-gray-500 hover:bg-gray-700"
+                                                                roomData.left.status === 'out'
+                                                                    ? (roomData.left.leaveType === '외출'
+                                                                        ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+                                                                        : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
+                                                                    : (
+                                                                        roomData.left.name && !(isWeeklyHomeTime(new Date()) && roomData.left.isWeekend)
+                                                                            ? "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10"
+                                                                            : "bg-[#1f2937] border-gray-700 hover:border-gray-500 hover:bg-gray-700"
+                                                                    )
                                                             ))
                                                         : "bg-[#1f2937] border-dashed border-gray-600 hover:border-purple-400 hover:bg-gray-700"
                                                 )}
@@ -662,15 +668,21 @@ export default function HeadcountPage() {
                                                     "relative flex-1 rounded-md border flex flex-col items-center justify-center transition-all duration-200",
                                                     "group active:scale-95",
                                                     mode === 'check'
-                                                        ? (roomData.right.status === 'out'
-                                                            ? (roomData.right.leaveType === '외출'
-                                                                ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]" // Outing (Green)
-                                                                : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]") // Stay-out (Purple)
+                                                        ? (checkedSlots.has(`${roomNum}-right`)
+                                                            ? (roomData.right.leaveType === '외박'
+                                                                ? "bg-purple-600 border-yellow-400 border-[3px] shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20" // Overnight + Checked (Keep Purple, add yellow border)
+                                                                : "bg-yellow-400 border-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.6)] z-20" // Checked (Yellow)
+                                                            )
                                                             : (
-                                                                // Present (In) & Has Student & NOT Weekly Home Goer -> Bright Light Effect
-                                                                roomData.right.name && !(isWeeklyHomeTime(new Date()) && roomData.right.isWeekend)
-                                                                    ? "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10"
-                                                                    : "bg-[#1f2937] border-gray-700 hover:border-gray-500 hover:bg-gray-700"
+                                                                roomData.right.status === 'out'
+                                                                    ? (roomData.right.leaveType === '외출'
+                                                                        ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+                                                                        : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
+                                                                    : (
+                                                                        roomData.right.name && !(isWeeklyHomeTime(new Date()) && roomData.right.isWeekend)
+                                                                            ? "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10"
+                                                                            : "bg-[#1f2937] border-gray-700 hover:border-gray-500 hover:bg-gray-700"
+                                                                    )
                                                             ))
                                                         : "bg-[#1f2937] border-dashed border-gray-600 hover:border-purple-400 hover:bg-gray-700"
                                                 )}
