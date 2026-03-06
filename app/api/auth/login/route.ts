@@ -15,13 +15,13 @@ export async function POST(request: Request) {
         let idColumn = '';
 
         if (role === 'monitor') {
-            tableName = 'monitors';
+            tableName = 'monitors_auth';
             idColumn = 'monitor_id';
         } else if (role === 'student') {
-            tableName = 'students';
+            tableName = 'students_auth';
             idColumn = 'student_id';
         } else if (role === 'teacher') {
-            tableName = 'teachers';
+            tableName = 'teachers_auth';
             idColumn = 'teacher_id';
         } else {
             return NextResponse.json({ success: false, error: 'Invalid role' }, { status: 400 });

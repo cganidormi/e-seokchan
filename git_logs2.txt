@@ -1,0 +1,30 @@
+f44e6b8 - Fri Mar 6 17:38:50 2026 - fix: resolve teacher login and profile fetch issues after restoration
+112f487 - Fri Mar 6 17:02:00 2026 - fix: finalize teacher announcement board and API
+1fcfef8 - Fri Mar 6 16:16:02 2026 - style: distinguish empty beds from weekly home students in headcount layout
+3119ef5 - Fri Mar 6 16:06:09 2026 - style: darken text color in announcement edit modal on student page
+e491dcd - Fri Mar 6 15:59:48 2026 - feat: update Friday weekly home time to 15:30 and improve headcount selection logic
+c1d81d5 - Thu Mar 5 23:32:27 2026 - Fix: Floor headcount calculation using dormitory room assignments
+b3ddc74 - Thu Mar 5 23:17:51 2026 - Revert: Remove history modal and double-click from student seat map for privacy
+a79b231 - Thu Mar 5 23:12:43 2026 - Fix: Apply seat map improvements (past abbreviations & robust history) to student page
+4e9d8cd - Thu Mar 5 22:57:28 2026 - Fix: Show past abbreviations and improve history fetching on seat map
+a191e82 - Thu Mar 5 22:32:55 2026 - Fix: Show active and companion leave requests in seat map history
+125019c - Thu Mar 5 22:21:07 2026 - Fix: Teacher card companion students list visibility and layout
+ee69a3e - Thu Mar 5 10:24:32 2026 - fix(admin): 학생 관리 엑셀 다운로드 시 학부모 링크 대신 토큰 6자리만 뜨도록 수정
+cec98fb - Thu Mar 5 10:12:03 2026 - feat(admin): 학부모 접속 토큰을 기존 UUID에서 6자리(영문2+숫자4)로 변경 및 마이그레이션 적용
+7ddbc7a - Thu Mar 5 04:58:49 2026 - style: update notice board emoji in parent page from megaphone to letter
+e15ad56 - Thu Mar 5 04:52:20 2026 - fix: exclude test account 3317 Hong Gildong from total capacity in dashboard
+1a00a37 - Thu Mar 5 04:35:53 2026 - trigger deployment after repo visibility change
+74f0bf3 - Thu Mar 5 04:28:56 2026 - fix: delete student record from db on removal to fix dashboard capacity
+80da935 - Thu Mar 5 03:45:28 2026 - 학생 개별 전광판 메시지 및 푸시 알림 기능 추가
+7b07115 - Thu Mar 5 03:23:56 2026 - 학생 페이지 전광판 타이틀 변경 ('기숙사 입실 안내' -> '홍지관 안내문')
+7710284 - Wed Mar 4 21:05:32 2026 - feat(student): add real-time editable notice board controlled by designated student
+476c726 - Wed Mar 4 20:41:07 2026 - feat(parent): add real-time editable notice board controlled by designated parent link
+dd3dce4 - Wed Mar 4 20:05:30 2026 - feat(admin): deploy secure server-side teacher password reset API
+3b0cda5 - Wed Mar 4 19:21:19 2026 - chore: remove insecure RLS script for password reset
+7b5a80d - Wed Mar 4 14:14:20 2026 - feat(admin): implement secure server-side password reset API for students
+abda224 - Wed Mar 4 13:48:33 2026 - fix(admin): set student temp password to fixed '1234'
+05a1a9c - Wed Mar 4 10:56:54 2026 - style(parent): reduce emblem size and add leave request notification board
+ebea366 - Tue Mar 3 01:34:42 2026 -  Apply text wrapping only for Room 3 in seat maps
+5f38ed4 - Tue Mar 3 01:27:48 2026 -  Fix text truncation in seat maps for long names
+ad71bbc - Tue Mar 3 00:58:12 2026 -  Add password change button to student page
+d9a4ab4 - Tue Mar 3 00:31:49 2026 -  Revert auth logic to use native fast RPCs and implement pgcrypto checking

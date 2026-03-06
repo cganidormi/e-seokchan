@@ -51,7 +51,7 @@ export default function TeacherPage() {
           const { data: teacher, error } = await supabase
             .from('teachers')
             .select('id, name, position')
-            .eq('teacher_id', loginId)
+            .eq('name', loginId)
             .single();
 
           if (error) {
