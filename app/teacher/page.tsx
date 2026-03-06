@@ -48,11 +48,18 @@ export default function TeacherPage() {
           // We must fetch 'teacher_id' (string ID) as well to pass to change-password page correctly
           // However, to be safe against column existence issues, we use the loginId variable 
           // which we know is valid (since the query succeeded).
-          const { data: teacher, error } = await supabase
+          // The database contains names with leading spaces for some teachers (e.g. ' 이현미').
+          // Using ilike with wildcards allows us to ignore these hidden spaces.
+          const { data: teachersList, error } = await supabase
             .from('teachers')
             .select('id, name, position')
-            .eq('name', loginId)
-            .single();
+            .ilike('name', `%${loginId}%`);
+
+          let teacher = null;
+          if (teachersList && teachersList.length > 0) {
+            // Find the exact match after trimming
+            teacher = teachersList.find(t => t.name.trim() === loginId.trim());
+          }
 
           if (error) {
             console.error('[DEBUG] teacher fetch error:', error);
