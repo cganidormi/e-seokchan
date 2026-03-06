@@ -22,6 +22,7 @@ export async function POST(request: Request) {
         const { error } = await supabase.from('teachers_auth').upsert(
             {
                 teacher_id,
+                username: teacher_id,
                 temp_password: new_password,
                 must_change_password: true,
             },
