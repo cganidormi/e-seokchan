@@ -518,7 +518,7 @@ export default function StudentPage() {
                     setEditNoticeContent(noticeText);
                   }
                 }}
-                className="w-full text-sm p-2 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                className="w-full text-sm p-2 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white text-gray-900 font-semibold"
               >
                 <option value="all">📢 전체 학생</option>
                 <optgroup label="개별 학생 선택">
@@ -532,7 +532,7 @@ export default function StudentPage() {
               <textarea
                 value={editNoticeContent}
                 onChange={(e) => setEditNoticeContent(e.target.value)}
-                className="w-full text-sm p-2 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-400 min-h-[60px] resize-none"
+                className="w-full text-sm p-2 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-400 min-h-[60px] resize-none text-gray-900 font-medium"
                 placeholder="공지내용 입력..."
               />
               <div className="flex justify-end gap-2">
