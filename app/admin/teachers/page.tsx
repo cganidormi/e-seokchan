@@ -218,10 +218,10 @@ export default function TeachersPage() {
         });
         if (!resp.ok) {
           const d = await resp.json();
-          authError = { message: d.error || '서버 오류' };
+          authError = { message: `[${resp.status}] ${d.error || '서버 오류'} - ${d.details || ''}` };
         }
       } catch (e: any) {
-        authError = { message: e.message };
+        authError = { message: `네트워크 오류: ${e.message}` };
       }
 
       if (authError) {
