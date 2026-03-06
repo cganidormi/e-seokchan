@@ -589,27 +589,25 @@ export default function HeadcountPage() {
                                                     }
                                                 }}
                                                 onClick={() => handleBedClick(roomNum, 'left')}
-                                                disabled={false}
                                                 className={clsx(
-                                                    "relative flex-1 rounded-md border flex flex-col items-center justify-center transition-all duration-200",
-                                                    "group active:scale-95",
+                                                    "relative flex-1 rounded-md border flex flex-col items-center justify-center transition-all duration-200 group active:scale-95",
                                                     mode === 'check'
                                                         ? (checkedSlots.has(`${roomNum}-left`)
                                                             ? (roomData.left.leaveType === '외박'
-                                                                ? "bg-purple-600 border-yellow-400 border-[3px] shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20" // Overnight + Checked (Keep Purple, add yellow border)
-                                                                : "bg-yellow-400 border-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.6)] z-20" // Checked (Yellow)
+                                                                ? "bg-purple-600 border-yellow-400 border-[3px] shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20"
+                                                                : "bg-yellow-400 border-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.6)] z-20")
+                                                            : (roomData.left.status === 'out'
+                                                                ? (roomData.left.leaveType === '외출'
+                                                                    ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+                                                                    : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
+                                                                : (roomData.left.name
+                                                                    ? (isWeeklyHomeTime(new Date()) && roomData.left.isWeekend
+                                                                        ? "bg-[#1f2937] border-gray-700 font-medium" // Weekly Home
+                                                                        : "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10") // Present
+                                                                    : "bg-[#1c1c1e] border-white/5" // Empty
+                                                                )
                                                             )
-                                                            : (
-                                                                roomData.left.status === 'out'
-                                                                    ? (roomData.left.leaveType === '외출'
-                                                                        ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
-                                                                        : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
-                                                                    : (
-                                                                        roomData.left.name && !(isWeeklyHomeTime(new Date()) && roomData.left.isWeekend)
-                                                                            ? "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10"
-                                                                            : "bg-[#1f2937] border-gray-700 hover:border-gray-500 hover:bg-gray-700"
-                                                                    )
-                                                            ))
+                                                        )
                                                         : "bg-[#1f2937] border-dashed border-gray-600 hover:border-purple-400 hover:bg-gray-700"
                                                 )}
                                             >
@@ -663,27 +661,25 @@ export default function HeadcountPage() {
                                                     }
                                                 }}
                                                 onClick={() => handleBedClick(roomNum, 'right')}
-                                                disabled={false}
                                                 className={clsx(
-                                                    "relative flex-1 rounded-md border flex flex-col items-center justify-center transition-all duration-200",
-                                                    "group active:scale-95",
+                                                    "relative flex-1 rounded-md border flex flex-col items-center justify-center transition-all duration-200 group active:scale-95",
                                                     mode === 'check'
                                                         ? (checkedSlots.has(`${roomNum}-right`)
                                                             ? (roomData.right.leaveType === '외박'
-                                                                ? "bg-purple-600 border-yellow-400 border-[3px] shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20" // Overnight + Checked (Keep Purple, add yellow border)
-                                                                : "bg-yellow-400 border-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.6)] z-20" // Checked (Yellow)
+                                                                ? "bg-purple-600 border-yellow-400 border-[3px] shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20"
+                                                                : "bg-yellow-400 border-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.6)] z-20")
+                                                            : (roomData.right.status === 'out'
+                                                                ? (roomData.right.leaveType === '외출'
+                                                                    ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+                                                                    : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
+                                                                : (roomData.right.name
+                                                                    ? (isWeeklyHomeTime(new Date()) && roomData.right.isWeekend
+                                                                        ? "bg-[#1f2937] border-gray-700 font-medium" // Weekly Home
+                                                                        : "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10") // Present
+                                                                    : "bg-[#1c1c1e] border-white/5" // Empty
+                                                                )
                                                             )
-                                                            : (
-                                                                roomData.right.status === 'out'
-                                                                    ? (roomData.right.leaveType === '외출'
-                                                                        ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
-                                                                        : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
-                                                                    : (
-                                                                        roomData.right.name && !(isWeeklyHomeTime(new Date()) && roomData.right.isWeekend)
-                                                                            ? "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10"
-                                                                            : "bg-[#1f2937] border-gray-700 hover:border-gray-500 hover:bg-gray-700"
-                                                                    )
-                                                            ))
+                                                        )
                                                         : "bg-[#1f2937] border-dashed border-gray-600 hover:border-purple-400 hover:bg-gray-700"
                                                 )}
                                             >
@@ -733,75 +729,77 @@ export default function HeadcountPage() {
                             })}
                         </div>
                     </TransformComponent>
-                </TransformWrapper>
-            </div>
+                </TransformWrapper >
+            </div >
 
             {/* Assignment Modal (Identical to seats/page.tsx) */}
-            {isModalOpen && selectedSlot && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsModalOpen(false)}>
-                    <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-extrabold text-gray-800">
-                                {selectedSlot.room}호 {selectedSlot.position === 'left' ? '왼쪽 침대' : '오른쪽 침대'} 배정
-                            </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
-                        </div>
+            {
+                isModalOpen && selectedSlot && (
+                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsModalOpen(false)}>
+                        <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-lg font-extrabold text-gray-800">
+                                    {selectedSlot.room}호 {selectedSlot.position === 'left' ? '왼쪽 침대' : '오른쪽 침대'} 배정
+                                </h2>
+                                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+                            </div>
 
-                        <div className="mb-6">
-                            <label className="block text-xs font-bold text-gray-400 mb-2">학생 선택 검색</label>
-                            <Select
-                                autoFocus
-                                menuPlacement="auto"
-                                options={students
-                                    .filter(s => !Object.values(roomStatus).some(r => r.left.student_id === s.student_id || r.right.student_id === s.student_id))
-                                    .map(s => ({
-                                        value: s.student_id,
-                                        label: `${s.student_id} ${s.name}`,
-                                        student: s
-                                    }))}
-                                onChange={(option: any) => {
-                                    assignStudent(option.value);
-                                }}
-                                placeholder="이름 또는 학번 검색..."
-                                styles={{
-                                    control: (base) => ({
-                                        ...base,
-                                        borderRadius: '1rem',
-                                        padding: '4px',
-                                        borderColor: '#e5e7eb',
-                                        boxShadow: 'none',
-                                        '&:hover': { borderColor: '#fbbf24' }
-                                    }),
-                                    option: (base, state) => ({
-                                        ...base,
-                                        backgroundColor: state.isFocused ? '#fefce8' : 'white',
-                                        color: '#1f2937',
-                                        fontWeight: '500',
-                                        cursor: 'pointer'
-                                    })
-                                }}
-                            />
-                        </div>
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-gray-400 mb-2">학생 선택 검색</label>
+                                <Select
+                                    autoFocus
+                                    menuPlacement="auto"
+                                    options={students
+                                        .filter(s => !Object.values(roomStatus).some(r => r.left.student_id === s.student_id || r.right.student_id === s.student_id))
+                                        .map(s => ({
+                                            value: s.student_id,
+                                            label: `${s.student_id} ${s.name}`,
+                                            student: s
+                                        }))}
+                                    onChange={(option: any) => {
+                                        assignStudent(option.value);
+                                    }}
+                                    placeholder="이름 또는 학번 검색..."
+                                    styles={{
+                                        control: (base) => ({
+                                            ...base,
+                                            borderRadius: '1rem',
+                                            padding: '4px',
+                                            borderColor: '#e5e7eb',
+                                            boxShadow: 'none',
+                                            '&:hover': { borderColor: '#fbbf24' }
+                                        }),
+                                        option: (base, state) => ({
+                                            ...base,
+                                            backgroundColor: state.isFocused ? '#fefce8' : 'white',
+                                            color: '#1f2937',
+                                            fontWeight: '500',
+                                            cursor: 'pointer'
+                                        })
+                                    }}
+                                />
+                            </div>
 
-                        <div className="flex gap-2">
-                            {roomStatus[selectedSlot.room][selectedSlot.position].student_id && (
+                            <div className="flex gap-2">
+                                {roomStatus[selectedSlot.room][selectedSlot.position].student_id && (
+                                    <button
+                                        onClick={() => assignStudent(null)}
+                                        className="px-3 py-1.5 flex-1 bg-red-50 text-red-500 font-bold text-sm rounded-xl hover:bg-red-100 border border-red-100 transition-colors"
+                                    >
+                                        현재 배정 해제
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => assignStudent(null)}
-                                    className="px-3 py-1.5 flex-1 bg-red-50 text-red-500 font-bold text-sm rounded-xl hover:bg-red-100 border border-red-100 transition-colors"
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="px-3 py-1.5 flex-1 bg-gray-100 text-gray-600 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
                                 >
-                                    현재 배정 해제
+                                    닫기
                                 </button>
-                            )}
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="px-3 py-1.5 flex-1 bg-gray-100 text-gray-600 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
-                            >
-                                닫기
-                            </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Student History Modal */}
             {
