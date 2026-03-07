@@ -47,6 +47,15 @@ interface Patient {
     created_at: string;
 }
 
+const isWeeklyReturnPeriod = (date: Date) => {
+    const day = date.getDay();
+    const timeValue = date.getHours() * 100 + date.getMinutes();
+    if (day === 5) return timeValue >= 1530;
+    if (day === 6) return true;
+    if (day === 0) return timeValue <= 1850;
+    return false;
+};
+
 export default function DashboardMain() {
     const [stats, setStats] = useState<DashboardStats>({
         totalStudents: 0,
@@ -129,7 +138,7 @@ export default function DashboardMain() {
                 supabase.from("students").select("*"),
                 supabase.from("teachers").select("*", { count: "exact", head: true }),
                 supabase.from("leave_requests")
-                    .select("student_id, leave_type")
+                    .select("student_id, leave_type, start_time, end_time")
                     .eq("status", "승인")
                     .lte("start_time", endOfDay.toISOString())
                     .gte("end_time", startOfDay.toISOString()),
@@ -155,13 +164,38 @@ export default function DashboardMain() {
             });
             setWeeklyReturnees(weekly);
 
-            // --- Process 2: Leaves ---
+            // --- Process 2: Leaves (개별외박 + 매주귀가 합산, 중복제거) ---
             const activeLeaves = leavesRes.data || [];
-            const overnight = new Set(activeLeaves.filter((l: any) => l.leave_type === '외박').map((l: any) => l.student_id)).size;
+            const now = new Date();
+            const isToday = isSameDay(now, selectedDate);
+            const isWeeklyReturnTime = isWeeklyReturnPeriod(isToday ? now : selectedDate);
+
+            const combinedOvernightIds = new Set<string>();
+            activeLeaves.forEach((l: any) => {
+                if (l.leave_type === '외박') {
+                    if (isToday) {
+                        const start = new Date(l.start_time);
+                        const end = new Date(l.end_time);
+                        if (now >= start && now <= end) combinedOvernightIds.add(l.student_id);
+                    } else {
+                        combinedOvernightIds.add(l.student_id);
+                    }
+                }
+            });
+            if (isWeeklyReturnTime) {
+                weekly.forEach((s: any) => combinedOvernightIds.add(s.student_id));
+            }
+
+            const overnight = combinedOvernightIds.size;
             const short = new Set(activeLeaves.filter((l: any) => l.leave_type === '외출').map((l: any) => l.student_id)).size;
 
             const countLeaves = (subsetStudents: any[], type?: '외박' | '외출') => {
                 const subsetIds = new Set(subsetStudents.map((s: any) => s.student_id));
+                if (type === '외박') {
+                    let count = 0;
+                    combinedOvernightIds.forEach(id => { if (subsetIds.has(id)) count++; });
+                    return count;
+                }
                 const relevantLeaves = activeLeaves.filter((l: any) => {
                     if (!subsetIds.has(l.student_id)) return false;
                     if (type) return l.leave_type === type;
@@ -185,23 +219,17 @@ export default function DashboardMain() {
 
             // --- Process 4: Floor Stats (Dormitory Floors 1-4) ---
             const floorStats = [1, 2, 3, 4].map(floor => {
-                // Filter students assigned to this floor (1xx, 2xx, 3xx, 4xx)
                 const floorStudents = students.filter((s: any) =>
                     s.room_number >= floor * 100 && s.room_number < (floor + 1) * 100
                 );
-
                 const assignedCount = floorStudents.length;
                 const floorStudentIds = new Set(floorStudents.map((s: any) => s.student_id));
-
-                // Count overnight leaves for students on this floor
-                const floorOvernightCount = activeLeaves.filter((l: any) =>
-                    l.leave_type === '외박' && floorStudentIds.has(l.student_id)
-                ).length;
-
+                let floorOvernightCount = 0;
+                combinedOvernightIds.forEach(id => { if (floorStudentIds.has(id)) floorOvernightCount++; });
                 return {
                     floor,
-                    capacity: assignedCount, // 정원: 해당 층에 배정된 총 인원
-                    assigned: assignedCount, // (UI에서 사용되지 않을 수 있음)
+                    capacity: assignedCount,
+                    assigned: assignedCount,
                     current: Math.max(0, assignedCount - floorOvernightCount),
                     overnight: floorOvernightCount
                 };
