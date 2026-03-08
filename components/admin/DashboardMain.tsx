@@ -5,7 +5,8 @@ import { supabase } from "@/supabaseClient";
 import toast, { Toaster } from 'react-hot-toast';
 import {
     FaWrench,
-    FaFirstAid, FaHome, FaPlus, FaTrash, FaBell, FaCheck
+    FaFirstAid, FaHome, FaPlus, FaTrash, FaBell, FaCheck,
+    FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen
 } from "react-icons/fa";
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 
@@ -17,7 +18,7 @@ interface DashboardStats {
     studentsByFloor: { floor: number; capacity: number; assigned: number; current: number; overnight: number }[];
     currentLeaves: { overnight: number; short: number };
     violationCount: number;
-    violationList: { id: number; student_id: string; student_name: string; checked_at: string }[];
+    violationList: { id: number; student_id: string; student_name: string; checked_at: string; note: string }[];
 }
 
 interface WeeklyReturnee {
@@ -143,7 +144,7 @@ export default function DashboardMain() {
                     .lte("start_time", endOfDay.toISOString())
                     .gte("end_time", startOfDay.toISOString()),
                 supabase.from('morning_checks')
-                    .select('id, student_id, checked_at')
+                    .select('id, student_id, checked_at, note')
                     .eq('type', 'late')
                     .gte('checked_at', startOfDay.toISOString())
                     .lte('checked_at', endOfDay.toISOString()),
@@ -247,7 +248,8 @@ export default function DashboardMain() {
                     id: v.id,
                     student_id: v.student_id,
                     student_name: studentMap.get(v.student_id) || v.student_id,
-                    checked_at: v.checked_at
+                    checked_at: v.checked_at,
+                    note: v.note || '일과시간 미준수'
                 }));
             }
 
@@ -631,7 +633,7 @@ export default function DashboardMain() {
                                 <div className="w-8 h-8 bg-rose-100 rounded-full flex items-center justify-center text-rose-500 text-[12px]">
                                     <FaBell />
                                 </div>
-                                <span className="font-bold text-rose-900 text-[12px]">일과시간 미준수자</span>
+                                <span className="font-bold text-rose-900 text-[12px]">생활지도 위반자</span>
                             </div>
                             <span className="text-[12px] font-bold text-rose-600">{stats.violationCount}명</span>
                         </div>
@@ -668,7 +670,7 @@ export default function DashboardMain() {
                         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => setViolationModal(null)}>
                             <div className="bg-white w-full max-w-[300px] rounded-[1.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                                 <div className="bg-rose-500 px-5 py-4 text-white flex justify-between items-center">
-                                    <h3 className="font-bold text-base">{violationModal.grade}학년 {violationModal.classNum}반 ({stats.violationList.filter(v => v.student_id.startsWith(`${violationModal.grade}${violationModal.classNum}`)).length}명)</h3>
+                                    <h3 className="font-bold text-base">{violationModal.grade}학년 {violationModal.classNum}반 위반자 ({stats.violationList.filter(v => v.student_id.startsWith(`${violationModal.grade}${violationModal.classNum}`)).length}명)</h3>
                                     <button onClick={() => setViolationModal(null)} className="opacity-80 hover:opacity-100 p-1">✕</button>
                                 </div>
                                 <div className="p-4 max-h-[50vh] overflow-y-auto">
@@ -680,19 +682,48 @@ export default function DashboardMain() {
                                                 .filter(v => v.student_id.startsWith(`${violationModal.grade}${violationModal.classNum}`))
                                                 .map(v => (
                                                     <div key={v.id} className="flex items-center justify-between bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100">
-                                                        <span className="text-sm font-bold text-gray-800">{v.student_id}</span>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${v.note === '스토퍼 미설치' ? 'bg-amber-100 text-amber-600' :
+                                                                v.note === '일과시간 미준수' ? 'bg-orange-100 text-orange-600' :
+                                                                    v.note === '청소불량' ? 'bg-green-100 text-green-600' :
+                                                                        v.note === '음식물 섭취 위반' ? 'bg-red-100 text-red-600' :
+                                                                            'bg-blue-100 text-blue-600'
+                                                                }`}>
+                                                                {v.note === '스토퍼 미설치' && <FaDoorOpen size={14} />}
+                                                                {v.note === '일과시간 미준수' && <FaClock size={14} />}
+                                                                {v.note === '청소불량' && <FaBroom size={14} />}
+                                                                {v.note === '음식물 섭취 위반' && <FaUtensils size={14} />}
+                                                                {v.note === '박스 방치' && <FaBoxOpen size={14} />}
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-sm font-bold text-gray-800 block">{v.student_id} {v.student_name}</span>
+                                                                <span className="text-[11px] font-medium text-gray-500">{v.note}</span>
+                                                            </div>
+                                                        </div>
                                                         <button
                                                             onClick={async () => {
                                                                 if (!confirm('삭제하시겠습니까?')) return;
+
+                                                                // Optimistic UI update
+                                                                const originalStats = { ...stats };
                                                                 setStats(prev => ({
                                                                     ...prev,
                                                                     violationCount: prev.violationCount - 1,
                                                                     violationList: prev.violationList.filter(item => item.id !== v.id)
                                                                 }));
-                                                                await supabase.from('morning_checks').delete().eq('id', v.id);
-                                                                toast.success('삭제됨');
+
+                                                                const { error } = await supabase.from('morning_checks').delete().eq('id', v.id);
+
+                                                                if (error) {
+                                                                    console.error('[Dashboard] Delete Error:', error);
+                                                                    toast.error('삭제 실패 (DB 권한 확인 필요)');
+                                                                    // Rollback
+                                                                    setStats(originalStats);
+                                                                } else {
+                                                                    toast.success('삭제됨');
+                                                                }
                                                             }}
-                                                            className="w-7 h-7 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors"
+                                                            className="w-7 h-7 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors flex-shrink-0 ml-2"
                                                         >
                                                             <FaTrash size={10} />
                                                         </button>
@@ -711,7 +742,7 @@ export default function DashboardMain() {
                         className="w-full mt-3 py-3 rounded-xl text-sm font-bold transition-all text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 shadow-sm text-center flex items-center justify-center gap-2"
                     >
                         <span>🚨</span>
-                        일과시간 미준수 학생 등록/관리
+                        생활지도 위반 학생 등록/관리
                     </button>
                 </div>
 

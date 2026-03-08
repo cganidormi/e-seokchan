@@ -147,7 +147,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                     backgroundSize: '40px 40px'
                 }}
             >
-                일과시간 미준수지도 →
+                생활규정 미준수지도 →
             </button>
 
             {/* 탭 전환 UI */}
