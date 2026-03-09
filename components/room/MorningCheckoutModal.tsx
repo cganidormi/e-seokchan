@@ -11,7 +11,8 @@ import {
     FaClock,
     FaBroom,
     FaUtensils,
-    FaBoxOpen
+    FaBoxOpen,
+    FaSignOutAlt
 } from 'react-icons/fa';
 import { Student } from '@/components/student/types';
 
@@ -26,6 +27,7 @@ const VIOLATION_TYPES = [
     { id: '청소불량', icon: FaBroom, color: 'green' },
     { id: '음식물 섭취 위반', icon: FaUtensils, color: 'red' },
     { id: '박스 방치', icon: FaBoxOpen, color: 'blue' },
+    { id: '퇴실수칙 불이행', icon: FaSignOutAlt, color: 'purple' },
 ] as const;
 
 type ViolationId = typeof VIOLATION_TYPES[number]['id'];
@@ -75,6 +77,15 @@ const COLOR_MAP: Record<string, { tab: string; active: string; badge: string; bt
         header: 'bg-blue-50',
         text: 'text-blue-600',
         shadow: 'shadow-blue-100',
+    },
+    purple: {
+        tab: 'bg-purple-50 border-purple-200 text-purple-700',
+        active: 'bg-purple-500 border-purple-500 text-white shadow-md shadow-purple-200',
+        badge: 'bg-purple-100 text-purple-700',
+        btn: 'bg-purple-500 hover:bg-purple-600 shadow-purple-200',
+        header: 'bg-purple-50',
+        text: 'text-purple-600',
+        shadow: 'shadow-purple-100',
     },
 };
 
@@ -202,10 +213,9 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                             <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-gray-600 shadow-sm transition-colors">✕</button>
                         </div>
 
-                        {/* Violation Type Tabs */}
-                        <div className="p-4 border-b border-gray-100 bg-white">
-                            <p className="text-[11px] font-bold text-gray-400 mb-2 uppercase tracking-wider">위반 유형 선택</p>
-                            <div className="grid grid-cols-5 gap-1.5">
+                        <div className="px-4 py-2 border-b border-gray-100 bg-white">
+                            <p className="text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">위반 유형 선택</p>
+                            <div className="grid grid-cols-6 gap-1">
                                 {VIOLATION_TYPES.map(v => {
                                     const isActive = selectedViolation === v.id;
                                     const c = COLOR_MAP[v.color];
@@ -214,11 +224,11 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                                             key={v.id}
                                             onClick={() => setSelectedViolation(v.id)}
                                             className={clsx(
-                                                'flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border text-[10px] font-bold transition-all duration-200',
+                                                'flex flex-col items-center justify-center gap-0.5 p-1 rounded-xl border text-[9px] font-bold transition-all duration-200 min-h-[52px]',
                                                 isActive ? c.active : `bg-white border-gray-100 text-gray-500 hover:${c.tab}`
                                             )}
                                         >
-                                            <v.icon className="text-lg" />
+                                            <v.icon className="text-base" />
                                             <span className="leading-tight text-center whitespace-pre-wrap break-keep">{v.id.replace(' ', '\n')}</span>
                                         </button>
                                     );

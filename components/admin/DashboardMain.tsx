@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/supabaseClient";
 import toast, { Toaster } from 'react-hot-toast';
 import {
     FaWrench,
     FaFirstAid, FaHome, FaPlus, FaTrash, FaBell, FaCheck,
-    FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen
+    FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt
 } from "react-icons/fa";
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 
@@ -76,6 +76,7 @@ export default function DashboardMain() {
     const [selectedDate, setSelectedDate] = useState(new Date());
 
     const [isLoading, setIsLoading] = useState(true);
+    const dateInputRef = useRef<HTMLInputElement>(null);
 
     // Form States
     const [newFacility, setNewFacility] = useState({ title: '', room: '' });
@@ -456,26 +457,42 @@ export default function DashboardMain() {
             <Toaster />
 
             {/* Header */}
-            <div className="px-6 pt-12 pb-6 flex items-center justify-between sticky top-0 bg-[#FDFDFD]/90 backdrop-blur-md z-10 transition-all">
-                <div className="px-6 pt-12 pb-6 flex items-center justify-between sticky top-0 bg-[#FDFDFD]/90 backdrop-blur-md z-10 transition-all">
-                    <div className="relative inline-block cursor-pointer">
-                        <div className="flex items-center justify-center bg-white px-5 py-2.5 rounded-full shadow-sm border border-gray-200 hover:bg-gray-50 transition pointer-events-none">
-                            <span className="font-bold text-base text-gray-800 tracking-tight">{dateString}</span>
+            <div className="sticky top-0 bg-[#FDFDFD]/80 backdrop-blur-xl z-40 border-b border-gray-100/50 transition-all">
+                <div className="px-6 py-4 max-w-xl mx-auto md:max-w-4xl flex items-center justify-between">
+                    <div
+                        className="relative group cursor-pointer"
+                        onClick={() => dateInputRef.current?.showPicker()}
+                    >
+                        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200 group-hover:bg-gray-50 transition-all active:scale-95">
+                            <FaClock className="text-gray-400 text-sm" />
+                            <span className="font-bold text-sm text-gray-800 tracking-tight">{dateString}</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse ml-1"></div>
                         </div>
                         <input
+                            ref={dateInputRef}
                             id="date-picker-input"
                             type="date"
                             required
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                             onChange={(e) => {
                                 if (e.target.value) setSelectedDate(new Date(e.target.value));
                             }}
                         />
                     </div>
+
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => window.location.href = '/teacher'}
+                            className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-yellow-400/50 text-yellow-600 hover:bg-yellow-50 transition-all active:scale-95 text-xs font-bold"
+                        >
+                            <span>⬅</span>
+                            <span>교사 페이지</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div className="px-6 space-y-8 max-w-xl mx-auto md:max-w-4xl mt-2">
+            <div className="px-6 space-y-6 max-w-xl mx-auto md:max-w-4xl mt-4">
 
                 <div className="space-y-4">
                     <div className="flex justify-between items-center">
@@ -687,13 +704,15 @@ export default function DashboardMain() {
                                                                 v.note === '일과시간 미준수' ? 'bg-orange-100 text-orange-600' :
                                                                     v.note === '청소불량' ? 'bg-green-100 text-green-600' :
                                                                         v.note === '음식물 섭취 위반' ? 'bg-red-100 text-red-600' :
-                                                                            'bg-blue-100 text-blue-600'
+                                                                            v.note === '퇴실수칙 불이행' ? 'bg-purple-100 text-purple-600' :
+                                                                                'bg-blue-100 text-blue-600'
                                                                 }`}>
                                                                 {v.note === '스토퍼 미설치' && <FaDoorOpen size={14} />}
                                                                 {v.note === '일과시간 미준수' && <FaClock size={14} />}
                                                                 {v.note === '청소불량' && <FaBroom size={14} />}
                                                                 {v.note === '음식물 섭취 위반' && <FaUtensils size={14} />}
                                                                 {v.note === '박스 방치' && <FaBoxOpen size={14} />}
+                                                                {v.note === '퇴실수칙 불이행' && <FaSignOutAlt size={14} />}
                                                             </div>
                                                             <div>
                                                                 <span className="text-sm font-bold text-gray-800 block">{v.student_id} {v.student_name}</span>
