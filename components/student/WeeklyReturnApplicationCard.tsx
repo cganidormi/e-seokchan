@@ -12,8 +12,9 @@ interface Props {
 
 export default function WeeklyReturnApplicationCard({ student }: Props) {
     const [isPeriod, setIsPeriod] = useState(false);
-    const [hasApplied, setHasApplied] = useState(false);
+    const [overrideEntry, setOverrideEntry] = useState<any>(null); // DB override entry
     const [loading, setLoading] = useState(true);
+    const [currentMonthStr, setCurrentMonthStr] = useState('');
     const [targetMonthStr, setTargetMonthStr] = useState('');
     const [isSubscribed, setIsSubscribed] = useState(false);
 
@@ -34,7 +35,7 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
                     table: 'monthly_return_applications',
                     filter: `student_id=eq.${student.student_id}`
                 },
-                (payload) => {
+                () => {
                     checkDateAndStatus();
                 }
             )
@@ -83,33 +84,11 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
                 applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
             });
 
-            // DB 저장
-            // 학생이면 student_id, 학부모면 parent_token을 사용 (student 객체 정보를 기반으로 판단)
             const payload: any = {
                 subscription_json: subscription,
                 device_type: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
             };
 
-            if (student.parent_token) {
-                // 학부모 페이지에서 접근 시 student 객체에 parent_token이 있을 수 있음
-                // 하지만 parent/page.tsx에서 넘겨주는 student 객체에 parent_token이 포함되어 있는지 확인 필요.
-                // 보통 parent_token으로 조회한 student 정보이므로 포함되어 있을 것임.
-                // 만약 student_id만 있다면, 학생 본인으로 간주.
-                // 여기서는 안전하게: parent_token이 있으면 그걸 쓰고, 없으면 student_id를 쓴다?
-                // 다만, 학생 페이지에서도 student_id를 쓴다.
-                // 구독 테이블의 구분은: student_id OR parent_token
-
-                // **중요**: 학생 페이지면 student.parent_token이 없을 수도 있음 (보안상).
-                // 학부모 페이지면 student.parent_token이 있음.
-
-                // 간단히: 현재 페이지 컨텍스트를 알 수 없으니, 
-                // student.parent_token이 확실히 있는 경우에만 parent_token을 사용하고,
-                // 아니면 student_id를 사용한다.
-
-                // DB 스키마: student_id, parent_token 둘 중 하나만 채워짐.
-            }
-
-            // 더 정확한 방법: localStorage의 토큰 확인?
             const pToken = localStorage.getItem('dormichan_parent_token');
             if (pToken) {
                 payload.parent_token = pToken;
@@ -131,23 +110,25 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
     };
 
     const checkDateAndStatus = async () => {
-        // ... (기존 로직 유지, 날짜 체크만 복원)
         if (!student) return;
 
         const now = new Date();
-        const date = now.getDate(); // 1~31
+        const date = now.getDate();
 
-        // 1. 날짜 체크: 10일, 11일, 12일
+        // 1. 날짜 체크: 10일~12일 (신청 기간)
         const checkPeriod = date >= 10 && date <= 12;
         setIsPeriod(checkPeriod);
 
-        // 다음 달 계산 (신청 대상)
+        // 현재 달 계산
+        const cMonth = now.getMonth() + 1;
+        setCurrentMonthStr(`${cMonth}월`);
+
+        // 다음 달 계산
         const targetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
         const tYear = targetDate.getFullYear();
         const tMonth = targetDate.getMonth() + 1;
         setTargetMonthStr(`${tMonth}월`);
 
-        // Check if applied
         try {
             const { data } = await supabase
                 .from('monthly_return_applications')
@@ -157,27 +138,31 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
                 .eq('target_month', tMonth)
                 .single();
 
-            if (data) setHasApplied(true);
-            else setHasApplied(false);
+            setOverrideEntry(data || null);
         } catch (error) {
-            console.error(error);
+            setOverrideEntry(null);
         } finally {
             setLoading(false);
         }
     };
 
     const handleToggle = async () => {
-        // ... (Existing implementation)
         if (!student || loading) return;
         setLoading(true);
 
         const now = new Date();
-        const targetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        const tYear = targetDate.getFullYear();
-        const tMonth = targetDate.getMonth() + 1;
+        const targetNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const tYear = targetNextMonth.getFullYear();
+        const tMonth = targetNextMonth.getMonth() + 1;
+
+        // 현재 상태와 목표 상태 결정
+        const currentStatus = !!student.weekend;
+        const targetStatus = overrideEntry ? !!overrideEntry.is_weekly : currentStatus;
+        const newTargetStatus = !targetStatus;
 
         try {
-            if (hasApplied) {
+            if (newTargetStatus === currentStatus) {
+                // 기본 상태로 되돌리는 경우 -> DB 레코드 삭제
                 const { error } = await supabase
                     .from('monthly_return_applications')
                     .delete()
@@ -186,20 +171,20 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
                     .eq('target_month', tMonth);
 
                 if (error) throw error;
-                setHasApplied(false);
-                toast.success('매주 귀가 신청이 취소되었습니다.');
+                toast.success('기본 상태로 유지하도록 설정되었습니다.');
             } else {
+                // 상태를 변경하는 경우 -> DB 레코드 삽입/업데이트
                 const { error } = await supabase
                     .from('monthly_return_applications')
-                    .insert({
+                    .upsert({
                         student_id: student.student_id,
                         target_year: tYear,
-                        target_month: tMonth
-                    });
+                        target_month: tMonth,
+                        is_weekly: newTargetStatus
+                    }, { onConflict: 'student_id, target_year, target_month' });
 
                 if (error) throw error;
-                setHasApplied(true);
-                toast.success(`${tMonth}월 매주 귀가 신청이 완료되었습니다.`);
+                toast.success(`${tMonth}월 상태가 '${newTargetStatus ? '매주귀가' : '격주귀가'}'로 변경 예약되었습니다.`);
             }
         } catch (err: any) {
             console.error(err);
@@ -209,21 +194,24 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
         }
     };
 
-    // 렌더링 로직: 기간이 아니면 아예 안 보임 (null)
-    if (!isPeriod) return null;
+    if (!isPeriod || !student) return null;
+
+    const currentStatus = !!student.weekend;
+    const nextMonthStatus = overrideEntry ? !!overrideEntry.is_weekly : currentStatus;
+    const hasOverride = !!overrideEntry;
 
     return (
         <div className="w-full max-w-md mx-auto mb-6 px-4">
             <div className={clsx(
                 "w-full rounded-2xl p-5 shadow-lg border relative overflow-hidden transition-all duration-300",
-                hasApplied
+                nextMonthStatus
                     ? "bg-blue-600 border-blue-500 shadow-blue-500/30"
                     : "bg-white border-blue-100 shadow-sm"
             )}>
                 {/* Background Decor */}
                 <div className={clsx(
                     "absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/10 to-transparent rounded-bl-full opacity-50 pointer-events-none",
-                    hasApplied ? "block" : "hidden"
+                    nextMonthStatus ? "block" : "hidden"
                 )}></div>
 
                 <div className="relative z-10 flex flex-col gap-3">
@@ -231,32 +219,47 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
                         <div className="flex flex-col gap-1">
                             <span className={clsx(
                                 "text-xs font-bold uppercase tracking-wider",
-                                hasApplied ? "text-blue-200" : "text-blue-500"
+                                nextMonthStatus ? "text-blue-200" : "text-blue-500"
                             )}>
-                                매월 10일~12일 오픈
+                                매월 10일~12일 상태 변경 가능
                             </span>
                             <h3 className={clsx(
                                 "text-lg font-bold",
-                                hasApplied ? "text-white" : "text-gray-900"
+                                nextMonthStatus ? "text-white" : "text-gray-900"
                             )}>
-                                {targetMonthStr} 매주 귀가 신청
+                                {targetMonthStr} 귀가 형태 결정
                             </h3>
                         </div>
                         <div className={clsx(
                             "px-2 py-1 rounded text-xs font-bold",
-                            hasApplied ? "bg-white text-blue-600" : "bg-gray-100 text-gray-500"
+                            nextMonthStatus ? "bg-white text-blue-600" : "bg-blue-100 text-blue-600"
                         )}>
-                            {hasApplied ? "신청됨" : "미신청"}
+                            {nextMonthStatus ? "매주귀가" : "격주귀가"}
                         </div>
                     </div>
 
-                    <p className={clsx(
-                        "text-sm mb-2",
-                        hasApplied ? "text-blue-100" : "text-gray-500"
+                    <div className={clsx(
+                        "text-sm mb-2 p-3 rounded-xl border",
+                        nextMonthStatus
+                            ? "bg-white/10 border-white/20 text-blue-50"
+                            : "bg-gray-50 border-gray-100 text-gray-500"
                     )}>
-                        {hasApplied
-                            ? `다음 달(${targetMonthStr})부터 매주 귀가자로 등록됩니다.`
-                            : "매주 금요일 정기 귀가를 원하시면 신청해주세요."}
+                        <p className="mb-1 text-xs">
+                            <span className="font-extrabold opacity-80">[{currentMonthStr} 현재]</span> {currentStatus ? "매주귀가 중" : "격주귀가 중"}
+                        </p>
+                        <p className="text-base font-bold">
+                            <span className="opacity-80">[{targetMonthStr} 예정]</span> {nextMonthStatus ? "매주귀가" : "격주귀가"}
+                            {hasOverride && <span className="ml-2 text-xs bg-white/20 px-1.5 py-0.5 rounded animate-pulse font-black">(변경됨)</span>}
+                        </p>
+                    </div>
+
+                    <p className={clsx(
+                        "text-xs mb-1",
+                        nextMonthStatus ? "text-blue-100" : "text-gray-400"
+                    )}>
+                        {hasOverride
+                            ? "변경 내용을 취소하고 현재 상태를 유지하시겠습니까?"
+                            : "다음 달의 귀가 형태를 바꾸고 싶을 때만 아래 버튼을 누르세요."}
                     </p>
 
                     <button
@@ -264,15 +267,17 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
                         disabled={loading}
                         className={clsx(
                             "w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-md flex items-center justify-center gap-2",
-                            hasApplied
-                                ? "bg-white/20 text-white hover:bg-white/30 border border-white/20"
+                            nextMonthStatus
+                                ? "bg-white text-blue-600 hover:bg-gray-100 shadow-white/20"
                                 : "bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20"
                         )}
                     >
                         {loading && (
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         )}
-                        {hasApplied ? "신청 취소하기" : "신청하기"}
+                        {hasOverride
+                            ? "변경 취소 (현재 상태 유지)"
+                            : (currentStatus ? "격주귀가로 변경 신청" : "매주귀가로 변경 신청")}
                     </button>
                 </div>
             </div>
