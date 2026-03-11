@@ -1188,7 +1188,10 @@ export default function SeatManagementPage() {
                                                         {rec.leave_type}
                                                         {rec.leave_request_students && rec.leave_request_students.length > 0 && (
                                                             <span className="ml-1 text-[10px] text-blue-500 font-normal">
-                                                                (외 {rec.leave_request_students.length}명)
+                                                                ({rec.leave_request_students.map((s: any) => {
+                                                                    const found = students.find(st => st.student_id === s.student_id);
+                                                                    return found ? found.name : s.student_id;
+                                                                }).join(', ')})
                                                             </span>
                                                         )}
                                                     </span>
@@ -1220,19 +1223,27 @@ export default function SeatManagementPage() {
                                             </div>
 
                                             <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg mb-2">
-                                                {rec.leave_type === '컴이석' || rec.leave_type === '이석' ? (
-                                                    <div className="font-mono text-xs">
-                                                        {rec.period}
-                                                    </div>
-                                                ) : (
-                                                    <div>
-                                                        {new Date(rec.start_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
-                                                        {rec.leave_type === '자리비움'
-                                                            ? new Date(new Date(rec.start_time).getTime() + 10 * 60000).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                                                            : new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                                                        }
-                                                    </div>
-                                                )}
+                                                <div className="flex flex-col gap-1">
+                                                    {rec.leave_type === '컴이석' || rec.leave_type === '이석' ? (
+                                                        <div className="font-mono text-xs flex items-center justify-between">
+                                                            <span>{rec.period}</span>
+                                                            {rec.place && <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">{rec.place}</span>}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="flex items-center justify-between">
+                                                                <span>
+                                                                    {new Date(rec.start_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
+                                                                    {rec.leave_type === '자리비움'
+                                                                        ? new Date(new Date(rec.start_time).getTime() + 10 * 60000).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                                        : new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                                    }
+                                                                </span>
+                                                                {rec.place && <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold">{rec.place}</span>}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             {rec.reason && (
