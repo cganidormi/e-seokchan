@@ -29,7 +29,7 @@ function ParentContent() {
     const [loading, setLoading] = useState(true);
     const [student, setStudent] = useState<any>(null);
     const [leaveHistory, setLeaveHistory] = useState<any[]>([]);
-    const [currentStatus, setCurrentStatus] = useState<{ type: string, text: string }>({ type: 'school', text: '교내 학습 중입니다.' });
+    const [currentStatus, setCurrentStatus] = useState<{ type: string, text: string, endTime?: string }>({ type: 'school', text: '교내 학습 중입니다.' });
     const [isSubscribed, setIsSubscribed] = useState(false);
 
     // 추가: 전광판 관련 상태
@@ -208,7 +208,8 @@ function ParentContent() {
                     if (activeLeave) {
                         setCurrentStatus({
                             type: activeLeave.leave_type === '외박' ? 'sleepover' : 'outing',
-                            text: `${activeLeave.leave_type} 중입니다`
+                            text: `${activeLeave.leave_type} 중입니다`,
+                            endTime: activeLeave.end_time
                         });
                     } else {
                         // 만약 승인되었지만 아직 시작 전인 경우나 이미 종료된 경우
@@ -554,11 +555,21 @@ function ParentContent() {
                         <h2 className="text-xl font-bold text-gray-800 mb-1">
                             {currentStatus.text}
                         </h2>
-                        <p className="text-gray-500 text-sm mb-4">
-                            {currentStatus.type === 'school'
-                                ? `${new Date().getMonth() + 1}월의 매주귀가 상태 : ${student?.weekend ? '매주귀가' : '격주귀가'}`
-                                : '귀가 예정: 확인 필요'}
+                        <p className="text-gray-500 text-sm mb-2">
+                            {`${new Date().getMonth() + 1}월의 매주귀가 상태 : ${student?.weekend ? '매주귀가' : '격주귀가'}`}
                         </p>
+                        {currentStatus.endTime && (
+                            <p className="text-indigo-600 text-base font-bold mb-4 bg-indigo-50 py-2 rounded-xl border border-indigo-100">
+                                <span className="text-xs text-indigo-400 mr-2">귀교 예정</span>
+                                {new Date(currentStatus.endTime).toLocaleString('ko-KR', {
+                                    month: 'long',
+                                    day: 'numeric',
+                                    weekday: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </p>
+                        )}
 
                         {/* 공지 전광판 영역 */}
                         <div className="bg-orange-50 rounded-xl p-4 border border-orange-100 text-left relative">
