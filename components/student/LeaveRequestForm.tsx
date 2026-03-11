@@ -211,6 +211,13 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 }
             }
 
+            if ((leaveType === '외출' || leaveType === '외박') && startDate && endDate) {
+                if (startDate.getTime() >= endDate.getTime()) {
+                    toast.error('종료 시간은 시작 시간보다 미래여야 합니다.');
+                    return;
+                }
+            }
+
             // Strict Validation for Outing/Overnight (Single Person Only)
             if ((leaveType === '외출' || leaveType === '외박') && addedStudents.length > 1) {
                 toast.error(`${leaveType}은(는) 1인만 신청 가능합니다.`);
