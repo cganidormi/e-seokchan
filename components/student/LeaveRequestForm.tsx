@@ -517,6 +517,24 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             }
 
             // ---------------------------------------------------------
+            // Push Notification to Parent (Outing/Overnight)
+            // ---------------------------------------------------------
+            if (leaveType === '외출' || leaveType === '외박') {
+                const studentName = (students.find(s => s.student_id === studentId)?.name) || studentId;
+                fetch('/api/parent/notify-leave', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentId: studentId,
+                        studentName: studentName,
+                        leaveType: leaveType,
+                        startTime: finalStartTime,
+                        endTime: finalEndTime
+                    })
+                }).catch(e => console.error('Parent Push Error:', e));
+            }
+
+            // ---------------------------------------------------------
             // Push Notification to Teacher (New Request with Badge Support)
             // ---------------------------------------------------------
             if (teacherId) {
