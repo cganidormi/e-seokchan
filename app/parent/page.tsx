@@ -184,10 +184,11 @@ function ParentContent() {
 
             // 이석 기록 조회 (최근 5건)
             if (studentData.student_id) {
+                // Modified to use student_id directly for exact match
                 const { data: history, error: historyError } = await supabase
                     .from('leave_requests')
                     .select('*')
-                    .like('student_id', `${studentData.grade}${studentData.class}%${studentData.name}%`)
+                    .eq('student_id', studentData.student_id)
                     .in('leave_type', ['외출', '외박'])
                     .order('created_at', { ascending: false })
                     .limit(5);
@@ -195,11 +196,12 @@ function ParentContent() {
                 if (!historyError) {
                     setLeaveHistory(history || []);
 
-                    // 현재 상태 판별 로직
+                    // 현재 상태 판별 로직 (실시간 반영 안정화)
                     const now = new Date();
                     const activeLeave = (history || []).find((req: any) => {
                         const start = new Date(req.start_time);
                         const end = new Date(req.end_time);
+                        // '승인' 상태이고 현재 시간이 기간 내에 있는 경우
                         return req.status === '승인' && now >= start && now <= end;
                     });
 
@@ -209,6 +211,7 @@ function ParentContent() {
                             text: `${activeLeave.leave_type} 중입니다`
                         });
                     } else {
+                        // 만약 승인되었지만 아직 시작 전인 경우나 이미 종료된 경우
                         setCurrentStatus({ type: 'school', text: '교내 학습 중입니다.' });
                     }
                 }

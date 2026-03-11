@@ -229,7 +229,10 @@ export default function TeacherPage() {
 
       toast.success(`상태가 ${newStatus}(으)로 변경되었습니다.`);
 
-      const targetRequest = leaveRequests.find(r => r.id === requestId);
+      // Find the updated request to send notifications
+      // Ensure ID comparison handles both string and number types
+      const targetRequest = leaveRequests.find(r => String(r.id) === String(requestId));
+
       if (targetRequest) {
         const studentIds: string[] = [];
 
@@ -239,37 +242,76 @@ export default function TeacherPage() {
         }
 
         if (studentIds.length > 0) {
-          const { data: subs } = await supabase
-            .from('push_subscriptions')
-            .select('subscription_json')
+          // 1. Fetch Student Names & Parent Tokens
+          const { data: studentInfo } = await supabase
+            .from('students')
+            .select('student_id, name, parent_token')
             .in('student_id', studentIds);
 
-          if (subs && subs.length > 0) {
-            let message = `자녀의 [${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
+          const mainStudent = studentInfo?.find(s => s.student_id === targetRequest.student_id);
+          const studentName = mainStudent?.name || targetRequest.student_id;
+          const parentTokens = Array.from(new Set(studentInfo?.map(s => s.parent_token).filter(Boolean)));
 
-            if (newStatus === '학부모승인대기') {
-              message = `[${targetRequest.leave_type}] 선생님 승인 완료. 학부모님의 최종 승인이 필요합니다.`;
-            } else if (newStatus === '학부모승인') {
-              message = `[${targetRequest.leave_type}] 학부모님 승인 완료. 선생님의 최종 승인 대기 중입니다.`;
-            } else if (newStatus === '승인') {
-              message = `[${targetRequest.leave_type}] 최종 승인되었습니다. 즐거운 시간 보내세요!`;
-            } else if (newStatus === '복귀') {
-              message = `[${targetRequest.leave_type}] 학생이 기숙사로 복귀했습니다.`;
-            } else if (newStatus === '반려') {
-              message = `[${targetRequest.leave_type}] 신청이 반려되었습니다. 사유를 확인해주세요.`;
-            }
+          // 2. Fetch Notifications Subscriptions (Students & Parents)
+          const [{ data: studentSubs }, { data: parentSubs }] = await Promise.all([
+            supabase
+              .from('push_subscriptions')
+              .select('subscription_json')
+              .in('student_id', studentIds),
+            parentTokens.length > 0 ? supabase
+              .from('push_subscriptions')
+              .select('subscription_json')
+              .in('parent_token', parentTokens) : { data: [] }
+          ]);
 
-            await Promise.all(subs.map(sub =>
+          // 3. Prepare Notification Content
+          let message = `자녀의 [${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
+          let parentTitle = 'DormiCheck 학부모 알림';
+
+          if (newStatus === '학부모승인대기') {
+            message = `[${targetRequest.leave_type}] 선생님 승인 완료. 학부모님의 최종 승인이 필요합니다.`;
+          } else if (newStatus === '학부모승인') {
+            message = `[${targetRequest.leave_type}] 학부모님 승인 완료. 선생님의 최종 승인 대기 중입니다.`;
+          } else if (newStatus === '승인') {
+            message = `[${targetRequest.leave_type}] 최종 승인되었습니다. 즐거운 시간 보내세요!`;
+            parentTitle = `✅ [${targetRequest.leave_type}] 최종 승인 완료`;
+          } else if (newStatus === '복귀') {
+            message = `[${targetRequest.leave_type}] 학생이 기숙사로 복귀했습니다.`;
+          } else if (newStatus === '반려') {
+            message = `[${targetRequest.leave_type}] 신청이 반려되었습니다. 사유를 확인해주세요.`;
+          }
+
+          const studentMessage = `[${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
+          const parentMessage = `${studentName} 학생의 ${message}`;
+
+          // 4. Send Student Notifications
+          if (studentSubs && studentSubs.length > 0) {
+            studentSubs.forEach(sub =>
               fetch('/api/web-push', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   subscription: sub.subscription_json,
-                  message: message,
+                  message: studentMessage,
                   title: 'DormiCheck 알림'
                 })
-              }).catch(e => console.error('Push send error:', e))
-            ));
+              }).catch(e => console.error('Student Push Error:', e))
+            );
+          }
+
+          // 5. Send Parent Notifications
+          if (parentSubs && parentSubs.length > 0) {
+            parentSubs.forEach(sub =>
+              fetch('/api/web-push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  subscription: sub.subscription_json,
+                  message: parentMessage,
+                  title: parentTitle
+                })
+              }).catch(e => console.error('Parent Push Error:', e))
+            );
           }
         }
       }
