@@ -546,17 +546,9 @@ function ParentContent() {
                 {/* Current Status Card */}
                 <section className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
                     <div className="text-center">
-                        <div className={`inline-block rounded-full mb-3 ${currentStatus.type === 'school' ? '' :
-                            (currentStatus.type === 'outing' ? 'bg-blue-50 p-3' : 'bg-purple-50 p-3')
-                            }`}>
+                        <div className="inline-block rounded-full mb-3">
                             <div className="flex justify-center items-center w-16 h-16">
-                                {currentStatus.type === 'school' ? (
-                                    <img src="/images/school_emblem.png" alt="강원과학고" className="w-full h-full object-contain" />
-                                ) : (
-                                    <span className="text-3xl">
-                                        {currentStatus.type === 'outing' ? '🏃' : '🌙'}
-                                    </span>
-                                )}
+                                <img src="/images/school_emblem.png" alt="강원과학고" className="w-full h-full object-contain" />
                             </div>
                         </div>
                         <h2 className="text-xl font-bold text-gray-800 mb-1">
