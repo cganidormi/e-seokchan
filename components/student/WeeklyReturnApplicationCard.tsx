@@ -194,7 +194,9 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
         }
     };
 
-    if (!isPeriod || !student) return null;
+    const IS_SUSPENDED = true; // 기능을 일시 중단하려면 true로 설정
+
+    if (IS_SUSPENDED || !isPeriod || !student) return null;
 
     const currentStatus = !!student.weekend;
     const nextMonthStatus = overrideEntry ? !!overrideEntry.is_weekly : currentStatus;
