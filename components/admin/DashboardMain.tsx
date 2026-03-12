@@ -6,9 +6,10 @@ import toast, { Toaster } from 'react-hot-toast';
 import {
     FaWrench,
     FaFirstAid, FaHome, FaPlus, FaTrash, FaBell, FaCheck,
-    FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt
+    FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt, FaChartBar
 } from "react-icons/fa";
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
+import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
 
 // Types
 interface DashboardStats {
@@ -89,37 +90,41 @@ export default function DashboardMain() {
 
     // Modals
     const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
+    const [isViolationStatsOpen, setIsViolationStatsOpen] = useState(false);
     const [violationModal, setViolationModal] = useState<{ grade: number, classNum: number } | null>(null);
 
     // Refresh Trigger for Realtime
     const [refreshKey, setRefreshKey] = useState(0);
 
-    useEffect(() => {
-        fetchDashboardData();
-    }, [selectedDate, refreshKey]);
+    const isSameDay = (d1: Date, d2: Date) => {
+        return d1.getFullYear() === d2.getFullYear() &&
+            d1.getMonth() === d2.getMonth() &&
+            d1.getDate() === d2.getDate();
+    };
 
-    // Realtime Setup
-    useEffect(() => {
-        const handleRealtimeUpdate = () => {
-            setRefreshKey(prev => prev + 1);
-        };
+    const isToday = (d: Date) => {
+        const today = new Date();
+        return isSameDay(d, today);
+    }
 
-        const channels = [
-            supabase.channel('admin_dash_leaves').on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, handleRealtimeUpdate),
-            supabase.channel('admin_dash_seats').on('postgres_changes', { event: '*', schema: 'public', table: 'seat_assignments' }, handleRealtimeUpdate),
-            supabase.channel('admin_dash_students').on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, handleRealtimeUpdate),
-            supabase.channel('admin_dash_facility').on('postgres_changes', { event: '*', schema: 'public', table: 'facility_requests' }, () => fetchFacilityData()),
-            supabase.channel('admin_dash_patients').on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, () => fetchPatientData()),
-            supabase.channel('admin_dash_rooms').on('postgres_changes', { event: '*', schema: 'public', table: 'room_layouts' }, handleRealtimeUpdate),
-            supabase.channel('admin_dash_violations').on('postgres_changes', { event: '*', schema: 'public', table: 'morning_checks' }, handleRealtimeUpdate),
-        ];
+    const fetchFacilityData = async () => {
+        const { data } = await supabase.from("facility_requests").select("*").order("created_at", { ascending: false });
+        setFacilityRequests(data || []);
+    };
 
-        channels.forEach(c => c.subscribe());
+    const fetchPatientData = async () => {
+        const { data: patientData } = await supabase.from("patients").select("*").order("created_at", { ascending: false });
+        if (patientData) {
+            const { data: students } = await supabase.from("students").select("student_id, name");
+            const studentMap = new Map(students?.map((s: any) => [s.student_id, s.name]));
 
-        return () => {
-            channels.forEach(c => supabase.removeChannel(c));
-        };
-    }, []);
+            const merged = patientData.map((p: any) => ({
+                ...p,
+                student_name: studentMap.get(p.student_id) || p.student_id
+            }));
+            setPatients(merged);
+        }
+    };
 
     const fetchDashboardData = async () => {
         try {
@@ -155,7 +160,6 @@ export default function DashboardMain() {
 
             // --- Process 1: Students & Weekly Returnees ---
             const rawStudents = studentsRes.data || [];
-            // "3317 홍길동" (테스트 계정) 제외
             const students = rawStudents.filter((s: any) => !(s.grade === 3 && s.class === 3 && s.number === 17 && s.name === '홍길동'));
             const totalStudents = students.length;
 
@@ -166,16 +170,16 @@ export default function DashboardMain() {
             });
             setWeeklyReturnees(weekly);
 
-            // --- Process 2: Leaves (개별외박 + 매주귀가 합산, 중복제거) ---
+            // --- Process 2: Leaves ---
             const activeLeaves = leavesRes.data || [];
             const now = new Date();
-            const isToday = isSameDay(now, selectedDate);
-            const isWeeklyReturnTime = isWeeklyReturnPeriod(isToday ? now : selectedDate);
+            const isTodayDate = isSameDay(now, selectedDate);
+            const isWeeklyReturnTime = isWeeklyReturnPeriod(isTodayDate ? now : selectedDate);
 
             const combinedOvernightIds = new Set<string>();
             activeLeaves.forEach((l: any) => {
                 if (l.leave_type === '외박') {
-                    if (isToday) {
+                    if (isTodayDate) {
                         const start = new Date(l.start_time);
                         const end = new Date(l.end_time);
                         if (now >= start && now <= end) combinedOvernightIds.add(l.student_id);
@@ -219,7 +223,7 @@ export default function DashboardMain() {
                 };
             });
 
-            // --- Process 4: Floor Stats (Dormitory Floors 1-4) ---
+            // --- Process 4: Floor Stats ---
             const floorStats = [1, 2, 3, 4].map(floor => {
                 const floorStudents = students.filter((s: any) =>
                     s.room_number >= floor * 100 && s.room_number < (floor + 1) * 100
@@ -274,24 +278,32 @@ export default function DashboardMain() {
         }
     };
 
-    const fetchFacilityData = async () => {
-        const { data } = await supabase.from("facility_requests").select("*").order("created_at", { ascending: false });
-        setFacilityRequests(data || []);
-    };
+    useEffect(() => {
+        fetchDashboardData();
+    }, [selectedDate, refreshKey]);
 
-    const fetchPatientData = async () => {
-        const { data: patientData } = await supabase.from("patients").select("*").order("created_at", { ascending: false });
-        if (patientData) {
-            const { data: students } = await supabase.from("students").select("student_id, name");
-            const studentMap = new Map(students?.map((s: any) => [s.student_id, s.name]));
+    // Realtime Setup
+    useEffect(() => {
+        const handleRealtimeUpdate = () => {
+            setRefreshKey(prev => prev + 1);
+        };
 
-            const merged = patientData.map((p: any) => ({
-                ...p,
-                student_name: studentMap.get(p.student_id) || p.student_id
-            }));
-            setPatients(merged);
-        }
-    };
+        const channels = [
+            supabase.channel('admin_dash_leaves').on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, handleRealtimeUpdate),
+            supabase.channel('admin_dash_seats').on('postgres_changes', { event: '*', schema: 'public', table: 'seat_assignments' }, handleRealtimeUpdate),
+            supabase.channel('admin_dash_students').on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, handleRealtimeUpdate),
+            supabase.channel('admin_dash_facility').on('postgres_changes', { event: '*', schema: 'public', table: 'facility_requests' }, () => fetchFacilityData()),
+            supabase.channel('admin_dash_patients').on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, () => fetchPatientData()),
+            supabase.channel('admin_dash_rooms').on('postgres_changes', { event: '*', schema: 'public', table: 'room_layouts' }, handleRealtimeUpdate),
+            supabase.channel('admin_dash_violations').on('postgres_changes', { event: '*', schema: 'public', table: 'morning_checks' }, handleRealtimeUpdate),
+        ];
+
+        channels.forEach(c => c.subscribe());
+
+        return () => {
+            channels.forEach(c => supabase.removeChannel(c));
+        };
+    }, []);
 
     // --- Search Handler ---
     useEffect(() => {
@@ -410,18 +422,6 @@ export default function DashboardMain() {
             toast.success("삭제되었습니다");
         }
     };
-
-    // --- Filter Helpers ---
-    const isSameDay = (d1: Date, d2: Date) => {
-        return d1.getFullYear() === d2.getFullYear() &&
-            d1.getMonth() === d2.getMonth() &&
-            d1.getDate() === d2.getDate();
-    };
-
-    const isToday = (d: Date) => {
-        const today = new Date();
-        return isSameDay(d, today);
-    }
 
     const filteredFacility = facilityRequests.filter(req => {
         const created = new Date(req.created_at);
@@ -647,8 +647,8 @@ export default function DashboardMain() {
                     <div className="bg-rose-50/60 p-3 rounded-2xl border border-rose-100 flex flex-col gap-2">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-rose-100 rounded-full flex items-center justify-center text-rose-500 text-[12px]">
-                                    <FaBell />
+                                <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center p-1.5 shadow-sm">
+                                    <img src="/yellow_card.svg" className="w-full h-full object-contain" alt="Yellow Card" />
                                 </div>
                                 <span className="font-bold text-rose-900 text-[12px]">생활지도 위반자</span>
                             </div>
@@ -697,8 +697,8 @@ export default function DashboardMain() {
                                         <div className="flex flex-col gap-2">
                                             {stats.violationList
                                                 .filter(v => v.student_id.startsWith(`${violationModal.grade}${violationModal.classNum}`))
-                                                .map(v => (
-                                                    <div key={v.id} className="flex items-center justify-between bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100">
+                                                .map((v, vIdx) => (
+                                                    <div key={v.id || `violation-${vIdx}`} className="flex items-center justify-between bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100">
                                                         <div className="flex items-center gap-3">
                                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${v.note === '스토퍼 미설치' ? 'bg-amber-100 text-amber-600' :
                                                                 v.note === '일과시간 미준수' ? 'bg-orange-100 text-orange-600' :
@@ -723,7 +723,6 @@ export default function DashboardMain() {
                                                             onClick={async () => {
                                                                 if (!confirm('삭제하시겠습니까?')) return;
 
-                                                                // Optimistic UI update
                                                                 const originalStats = { ...stats };
                                                                 setStats(prev => ({
                                                                     ...prev,
@@ -736,7 +735,6 @@ export default function DashboardMain() {
                                                                 if (error) {
                                                                     console.error('[Dashboard] Delete Error:', error);
                                                                     toast.error('삭제 실패 (DB 권한 확인 필요)');
-                                                                    // Rollback
                                                                     setStats(originalStats);
                                                                 } else {
                                                                     toast.success('삭제됨');
@@ -757,11 +755,11 @@ export default function DashboardMain() {
                     )}
 
                     <button
-                        onClick={() => setIsMorningModalOpen(true)}
+                        onClick={() => setIsViolationStatsOpen(true)}
                         className="w-full mt-3 py-3 rounded-xl text-sm font-bold transition-all text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 shadow-sm text-center flex items-center justify-center gap-2"
                     >
-                        <span>🚨</span>
-                        생활지도 위반 학생 등록/관리
+                        <FaChartBar size={14} />
+                        위반 학생 통계 (월별)
                     </button>
                 </div>
 
@@ -800,8 +798,8 @@ export default function DashboardMain() {
                             <div className="space-y-0.5">
                                 {filteredFacility.length === 0 ? (
                                     <div className="text-center py-4 text-gray-300 text-sm">요청 내역이 없습니다</div>
-                                ) : filteredFacility.map(req => (
-                                    <div key={req.id} className="group flex items-center py-1.5 px-3 hover:bg-gray-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-gray-100">
+                                ) : filteredFacility.map((req, reqIdx) => (
+                                    <div key={req.id || `facility-${reqIdx}`} className="group flex items-center py-1.5 px-3 hover:bg-gray-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-gray-100">
                                         <div
                                             className={`w-5 h-5 rounded-md border-2 mr-3 flex items-center justify-center cursor-pointer transition-colors ${req.status === '완료' ? 'bg-blue-500 border-blue-500' : 'border-gray-300 hover:border-blue-400'}`}
                                             onClick={(e) => {
@@ -848,12 +846,11 @@ export default function DashboardMain() {
                                             setShowSearch(true);
                                         }}
                                     />
-                                    {/* Search Dropdown */}
                                     {showSearch && searchResults.length > 0 && (
                                         <div className="absolute top-full left-0 w-48 bg-white border border-gray-100 shadow-xl rounded-xl mt-2 z-50 overflow-hidden">
-                                            {searchResults.map(s => (
+                                            {searchResults.map((s, sIdx) => (
                                                 <div
-                                                    key={s.student_id}
+                                                    key={s.student_id || `search-result-${sIdx}`}
                                                     className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between group"
                                                     onClick={() => {
                                                         setNewPatient({ ...newPatient, studentId: s.student_id });
@@ -892,8 +889,8 @@ export default function DashboardMain() {
                             <div className="space-y-0.5">
                                 {filteredPatients.length === 0 ? (
                                     <div className="text-center py-4 text-gray-300 text-sm">환자가 없습니다</div>
-                                ) : filteredPatients.map(p => (
-                                    <div key={p.id} className="group flex items-center py-1.5 px-3 hover:bg-gray-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-gray-100">
+                                ) : filteredPatients.map((p, pIdx) => (
+                                    <div key={p.id || `patient-${pIdx}`} className="group flex items-center py-1.5 px-3 hover:bg-gray-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-gray-100">
                                         <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-[12px] font-bold text-red-500 mr-3">
                                             {p.student_name ? p.student_name[0] : '?'}
                                         </div>
@@ -912,9 +909,17 @@ export default function DashboardMain() {
                 </div>
             </div>
 
-            {isMorningModalOpen && (
-                <MorningCheckoutModal isOpen={isMorningModalOpen} onClose={() => setIsMorningModalOpen(false)} />
-            )}
+            <MorningCheckoutModal
+                key="main-morning-checkout-modal"
+                isOpen={isMorningModalOpen}
+                onClose={() => setIsMorningModalOpen(false)}
+            />
+
+            <ViolationStatsModal
+                key="main-violation-stats-modal"
+                isOpen={isViolationStatsOpen}
+                onClose={() => setIsViolationStatsOpen(false)}
+            />
         </div>
     );
 }

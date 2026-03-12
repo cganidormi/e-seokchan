@@ -261,11 +261,11 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                                 <div className="flex justify-center py-10"><div className="animate-spin text-2xl">⏳</div></div>
                             ) : (
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                    {filteredStudents.map(student => {
+                                    {filteredStudents.map((student, sIdx) => {
                                         const isSelected = selectedStudentIds.includes(student.student_id);
                                         return (
                                             <button
-                                                key={student.student_id}
+                                                key={student.student_id || `student-select-${sIdx}`}
                                                 onClick={() => toggleSelection(student.student_id)}
                                                 className={clsx(
                                                     "p-3 rounded-xl border text-left transition-all relative overflow-hidden group",
