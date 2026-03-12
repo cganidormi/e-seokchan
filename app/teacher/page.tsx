@@ -177,11 +177,15 @@ export default function TeacherPage() {
         teacherMap.set(t.id, t.name);
       });
 
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+      const nowStr = new Date().toISOString();
+
       const { data, error } = await supabase
         .from('leave_requests')
         .select('*, leave_request_students(student_id)')
+        .or(`end_time.gte.${nowStr},created_at.gte.${threeDaysAgo},status.in.(신청,학부모승인대기,학부모승인,승인대기)`)
         .order('created_at', { ascending: false })
-        .limit(200);
+        .limit(1000);
 
       if (error) {
         console.error('Supabase query error:', error.message, error.details);
