@@ -639,6 +639,9 @@ function ParentContent() {
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-sm font-bold text-gray-900 mr-1">
+                                                    {student.name}
+                                                </span>
                                                 <span className={`px-2 py-0.5 rounded text-xs font-bold ${req.leave_type === '외출' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'
                                                     }`}>
                                                     {req.leave_type}

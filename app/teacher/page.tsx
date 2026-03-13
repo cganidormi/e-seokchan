@@ -305,17 +305,23 @@ export default function TeacherPage() {
 
           // 5. Send Parent Notifications
           if (parentSubs && parentSubs.length > 0) {
-            parentSubs.forEach(sub =>
-              fetch('/api/web-push', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  subscription: sub.subscription_json,
-                  message: parentMessage,
-                  title: parentTitle
-                })
-              }).catch(e => console.error('Parent Push Error:', e))
-            );
+            // Only send parent notifications for '외출' (Outing) or '외박' (Overnight)
+            const allowedParentNotificationTypes = ['외출', '외박'];
+            if (allowedParentNotificationTypes.includes(targetRequest.leave_type)) {
+              parentSubs.forEach(sub =>
+                fetch('/api/web-push', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    subscription: sub.subscription_json,
+                    message: parentMessage,
+                    title: parentTitle
+                  })
+                }).catch(e => console.error('Parent Push Error:', e))
+              );
+            } else {
+              console.log(`Skipping parent notification for leave_type: ${targetRequest.leave_type}`);
+            }
           }
         }
       }
