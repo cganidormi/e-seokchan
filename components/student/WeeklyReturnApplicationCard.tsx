@@ -116,7 +116,11 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
         const date = now.getDate();
 
         // 1. 날짜 체크: 10일~12일 (신청 기간)
-        const checkPeriod = date >= 10 && date <= 12;
+        // [3월 예외] 17일~19일로 임시 변경
+        const isMarch = now.getMonth() + 1 === 3;
+        const checkPeriod = isMarch 
+            ? (date >= 17 && date <= 19)
+            : (date >= 10 && date <= 12);
         setIsPeriod(checkPeriod);
 
         // 현재 달 계산
@@ -194,7 +198,7 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
         }
     };
 
-    const IS_SUSPENDED = true; // 기능을 일시 중단하려면 true로 설정
+    const IS_SUSPENDED = false; // 기능을 일시 중단하려면 true로 설정
 
     if (IS_SUSPENDED || !isPeriod || !student) return null;
 

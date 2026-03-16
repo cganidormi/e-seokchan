@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import webpush from 'web-push';
 
 // Supabase Service Role Key (Bypasses RLS)
 const supabase = createClient(
@@ -7,9 +8,18 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// VAPID Setup
+if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+        process.env.VAPID_SUBJECT || 'mailto:admin@dormichan.com',
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
+}
+
 export async function POST(request: Request) {
     try {
-        const { parent_token, new_notice_text } = await request.json();
+        const { parent_token, new_notice_text, send_push } = await request.json();
 
         if (!parent_token || typeof new_notice_text !== 'string') {
             return NextResponse.json(
@@ -59,6 +69,40 @@ export async function POST(request: Request) {
                 { error: '데이터베이스 업데이트 중 오류가 발생했습니다.', details: error.message },
                 { status: 500 }
             );
+        }
+
+        // 3. 선택적 푸시 알림 발송 (send_push가 true일 때만)
+        if (send_push && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+            // 모든 학부모(parent_token이 있는 구독정보)를 대상으로 조회
+            const { data: subs, error: subError } = await supabase
+                .from('push_subscriptions')
+                .select('*')
+                .not('parent_token', 'is', null);
+
+            if (!subError && subs && subs.length > 0) {
+                const payload = JSON.stringify({
+                    title: '📢 [학부모 공지] 안내 말씀',
+                    body: new_notice_text.length > 50 ? new_notice_text.substring(0, 50) + '...' : new_notice_text,
+                    url: '/parent'
+                });
+
+                const pushPromises = subs.map(async (sub: any) => {
+                    try {
+                        const subscription = typeof sub.subscription_json === 'string'
+                            ? JSON.parse(sub.subscription_json)
+                            : sub.subscription_json;
+                        await webpush.sendNotification(subscription, payload);
+                    } catch (err: any) {
+                        if (err.statusCode === 410 || err.statusCode === 404) {
+                            // 만료된 구독 삭제
+                            await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+                        }
+                    }
+                });
+
+                // 비동기로 발송 (완료까지 기다림)
+                await Promise.allSettled(pushPromises);
+            }
         }
 
         return NextResponse.json({ success: true });

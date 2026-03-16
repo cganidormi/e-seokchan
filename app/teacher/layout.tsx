@@ -62,12 +62,33 @@ export default function TeacherLayout({
             }
 
             // 2. Lazy Notification
-            // 10일: 오후 12시(12) 이후 발송
-            // 12일: 오후 7시(19) 이후 발송
+            // 10일: 오후 12시(12) 이후 발송 (3월은 17일)
+            // 12일: 오후 7시(19) 이후 발송 (3월은 19일)
             const hour = now.getHours();
+            const isMarch = month === 3;
 
-            if ((day === 10 && hour >= 12) || (day === 12 && hour >= 19)) {
-                const type = day === 10 ? 'period_start' : 'period_end';
+            let shouldNotify = false;
+            let type: 'period_start' | 'period_end' = 'period_start';
+
+            if (isMarch) {
+                if (day === 17 && hour >= 12) {
+                    shouldNotify = true;
+                    type = 'period_start';
+                } else if (day === 19 && hour >= 19) {
+                    shouldNotify = true;
+                    type = 'period_end';
+                }
+            } else {
+                if (day === 10 && hour >= 12) {
+                    shouldNotify = true;
+                    type = 'period_start';
+                } else if (day === 12 && hour >= 19) {
+                    shouldNotify = true;
+                    type = 'period_end';
+                }
+            }
+
+            if (shouldNotify) {
 
 
                 try {

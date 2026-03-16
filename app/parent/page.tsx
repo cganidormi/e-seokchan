@@ -37,6 +37,7 @@ function ParentContent() {
     const [isEditingNotice, setIsEditingNotice] = useState(false);
     const [editNoticeContent, setEditNoticeContent] = useState('');
     const [isSavingNotice, setIsSavingNotice] = useState(false);
+    const [sendPush, setSendPush] = useState(false);
 
     // PWA State
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -363,6 +364,7 @@ function ParentContent() {
                 body: JSON.stringify({
                     parent_token: currentToken,
                     new_notice_text: editNoticeContent,
+                    send_push: sendPush,
                 }),
             });
 
@@ -599,6 +601,18 @@ function ParentContent() {
                                         className="w-full text-sm p-3 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white resize-none text-gray-800 min-h-[80px]"
                                         placeholder="공지사항 입력..."
                                     />
+                                    <div className="flex items-center gap-2 px-1">
+                                        <input
+                                            type="checkbox"
+                                            id="sendPushCheck"
+                                            checked={sendPush}
+                                            onChange={(e) => setSendPush(e.target.checked)}
+                                            className="w-4 h-4 text-orange-500 focus:ring-orange-400 border-gray-300 rounded"
+                                        />
+                                        <label htmlFor="sendPushCheck" className="text-sm font-bold text-orange-800 cursor-pointer">
+                                            전체 학부모에게 알림(Push) 보내기
+                                        </label>
+                                    </div>
                                     <div className="flex justify-end gap-2">
                                         <button
                                             onClick={() => setIsEditingNotice(false)}
