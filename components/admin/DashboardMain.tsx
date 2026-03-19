@@ -5,7 +5,7 @@ import { supabase } from "@/supabaseClient";
 import toast, { Toaster } from 'react-hot-toast';
 import {
     FaWrench,
-    FaFirstAid, FaHome, FaPlus, FaTrash, FaBell, FaCheck,
+    FaFirstAid, FaHome, FaPlus, FaTrash, FaBell, FaCheck, FaUsers,
     FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt, FaChartBar
 } from "react-icons/fa";
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
@@ -20,6 +20,13 @@ interface DashboardStats {
     currentLeaves: { overnight: number; short: number };
     violationCount: number;
     violationList: { id: number; student_id: string; student_name: string; checked_at: string; note: string }[];
+}
+
+interface MonthlyApplication {
+    student_id: string;
+    target_year: number;
+    target_month: number;
+    is_weekly: boolean;
 }
 
 interface WeeklyReturnee {
@@ -70,6 +77,8 @@ export default function DashboardMain() {
     });
 
     const [weeklyReturnees, setWeeklyReturnees] = useState<WeeklyReturnee[]>([]);
+    const [nextMonthApps, setNextMonthApps] = useState<MonthlyApplication[]>([]);
+    const [viewMonthMode, setViewMonthMode] = useState<'current' | 'next'>('current');
     const [facilityRequests, setFacilityRequests] = useState<FacilityRequest[]>([]);
     const [patients, setPatients] = useState<Patient[]>([]);
 
@@ -91,10 +100,12 @@ export default function DashboardMain() {
     // Modals
     const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
     const [isViolationStatsOpen, setIsViolationStatsOpen] = useState(false);
+    const [isWeeklyListModalOpen, setIsWeeklyListModalOpen] = useState(false);
     const [violationModal, setViolationModal] = useState<{ grade: number, classNum: number } | null>(null);
 
     // Refresh Trigger for Realtime
     const [refreshKey, setRefreshKey] = useState(0);
+    const [allRawStudents, setAllRawStudents] = useState<any[]>([]);
 
     const isSameDay = (d1: Date, d2: Date) => {
         return d1.getFullYear() === d2.getFullYear() &&
@@ -128,10 +139,15 @@ export default function DashboardMain() {
 
     const fetchDashboardData = async () => {
         try {
+            const now = new Date();
             const startOfDay = new Date(selectedDate);
             startOfDay.setHours(0, 0, 0, 0);
             const endOfDay = new Date(selectedDate);
             endOfDay.setHours(23, 59, 59, 999);
+
+            const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            const targetYear = nextMonthDate.getFullYear();
+            const targetMonth = nextMonthDate.getMonth() + 1;
 
             // Parallel Data Fetching
             const [
@@ -140,7 +156,8 @@ export default function DashboardMain() {
                 leavesRes,
                 violationsRes,
                 roomsRes,
-                seatsRes
+                seatsRes,
+                nextMonthAppsRes
             ] = await Promise.all([
                 supabase.from("students").select("*"),
                 supabase.from("teachers").select("*", { count: "exact", head: true }),
@@ -155,7 +172,11 @@ export default function DashboardMain() {
                     .gte('checked_at', startOfDay.toISOString())
                     .lte('checked_at', endOfDay.toISOString()),
                 supabase.from("room_layouts").select("room_number, total_seats"),
-                supabase.from("seat_assignments").select("room_number, student_id")
+                supabase.from("seat_assignments").select("room_number, student_id"),
+                supabase.from("monthly_return_applications")
+                    .select("*")
+                    .eq("target_year", targetYear)
+                    .eq("target_month", targetMonth)
             ]);
 
             // --- Process 1: Students & Weekly Returnees ---
@@ -169,10 +190,11 @@ export default function DashboardMain() {
                 return a.number - b.number;
             });
             setWeeklyReturnees(weekly);
+            setNextMonthApps(nextMonthAppsRes.data || []);
+            setAllRawStudents(students);
 
             // --- Process 2: Leaves ---
             const activeLeaves = leavesRes.data || [];
-            const now = new Date();
             const isTodayDate = isSameDay(now, selectedDate);
             const isWeeklyReturnTime = isWeeklyReturnPeriod(isTodayDate ? now : selectedDate);
 
@@ -576,6 +598,13 @@ export default function DashboardMain() {
                                 <div className="bg-orange-50 p-2 rounded-xl text-orange-500"><FaHome /></div>
                                 <h3 className="font-bold text-gray-800 text-[12px]">이번달 매주귀가자 현황</h3>
                             </div>
+                            <button
+                                onClick={() => setIsWeeklyListModalOpen(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-[10px] font-bold"
+                            >
+                                <FaUsers size={12} />
+                                귀가자 명단
+                            </button>
                         </div>
 
                         <div className="space-y-1">
@@ -920,6 +949,97 @@ export default function DashboardMain() {
                 isOpen={isViolationStatsOpen}
                 onClose={() => setIsViolationStatsOpen(false)}
             />
+
+            {isWeeklyListModalOpen && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => setIsWeeklyListModalOpen(false)}>
+                    <div className="bg-white w-full max-w-[340px] rounded-[1.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="bg-blue-700 px-5 py-3 text-white">
+                            <div className="flex justify-between items-center mb-2">
+                                <h3 className="font-bold text-base">귀가자 명단</h3>
+                                <div className="flex items-center gap-2">
+                                    <span className="bg-white/20 px-2 py-0.5 rounded-lg text-[11px] font-bold">
+                                        {viewMonthMode === 'current' ? weeklyReturnees.length : allRawStudents.filter(s => {
+                                            const app = nextMonthApps.find(a => a.student_id === s.student_id);
+                                            return app ? app.is_weekly : !!s.weekend;
+                                        }).length}명
+                                    </span>
+                                    <button onClick={() => setIsWeeklyListModalOpen(false)} className="opacity-80 hover:opacity-100 p-1">✕</button>
+                                </div>
+                            </div>
+                            <div className="flex bg-white/10 p-1 rounded-xl text-[11px] font-bold">
+                                <button
+                                    onClick={() => setViewMonthMode('current')}
+                                    className={`flex-1 py-1.5 rounded-lg transition-all ${viewMonthMode === 'current' ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-100'}`}
+                                >
+                                    {new Date().getMonth() + 1}월 현재
+                                </button>
+                                <button
+                                    onClick={() => setViewMonthMode('next')}
+                                    className={`flex-1 py-1.5 rounded-lg transition-all ${viewMonthMode === 'next' ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-100'}`}
+                                >
+                                    {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).getMonth() + 1}월 예정
+                                </button>
+                            </div>
+                        </div>
+                        <div className="p-4 max-h-[50vh] overflow-y-auto overflow-x-hidden">
+                            {viewMonthMode === 'current' ? (
+                                weeklyReturnees.length === 0 ? (
+                                    <p className="text-gray-400 text-center text-xs py-4">매주귀가자가 없습니다.</p>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[...weeklyReturnees]
+                                            .sort((a, b) => a.student_id.localeCompare(b.student_id))
+                                            .map((s) => (
+                                                <div key={s.student_id} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-bold text-blue-600 leading-none mb-0.5">{s.student_id}</span>
+                                                        <span className="text-xs font-bold text-gray-800">{s.name}</span>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                )
+                            ) : (() => {
+                                const nextList = allRawStudents.filter(s => {
+                                    const app = nextMonthApps.find(a => a.student_id === s.student_id);
+                                    return app ? app.is_weekly : !!s.weekend;
+                                }).sort((a, b) => a.student_id.localeCompare(b.student_id));
+
+                                if (nextList.length === 0) return <p className="text-gray-400 text-center text-xs py-4">매주귀가자가 없습니다.</p>;
+
+                                return (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {nextList.map((s) => {
+                                            const app = nextMonthApps.find(a => a.student_id === s.student_id);
+                                            const isChanging = app !== undefined && !!app.is_weekly !== !!s.weekend;
+                                            return (
+                                                <div key={s.student_id} className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isChanging ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
+                                                    <div className="flex-1 flex flex-col">
+                                                        <span className="text-[10px] font-bold text-blue-600 leading-none mb-0.5">{s.student_id}</span>
+                                                        <span className="text-xs font-bold text-gray-800">{s.name}</span>
+                                                    </div>
+                                                    {isChanging && (
+                                                        <span className="text-[9px] font-black text-blue-600 bg-white px-1 py-0.5 rounded shadow-sm">신규</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                        <div className="p-4 bg-gray-50 border-t border-gray-100">
+                            <button
+                                onClick={() => setIsWeeklyListModalOpen(false)}
+                                className="w-full py-2.5 bg-gray-200 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-300 transition-colors"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
