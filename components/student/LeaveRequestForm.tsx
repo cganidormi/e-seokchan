@@ -132,26 +132,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
             const now = new Date();
 
-            // Weekly Home Time Validation
+            // Weekly Home Time Validation (Moved to after time calculation)
             const validationStudent = students.find(s => s.student_id === studentId);
-            if (validationStudent?.weekend) {
-                const day = now.getDay();
-                const hour = now.getHours();
-                const minute = now.getMinutes();
-                let isRestricted = false;
 
-                if (day === 5 && hour >= 17) isRestricted = true; // Friday >= 17:00
-                if (day === 6) isRestricted = true; // Saturday All Day
-                if (day === 0) { // Sunday <= 18:50
-                    if (hour < 18) isRestricted = true;
-                    if (hour === 18 && minute <= 50) isRestricted = true;
-                }
-
-                if (isRestricted) {
-                    toast.error('매주 귀가 학생은 귀가 시간대(금요일 17:00 ~ 일요일 18:50)에 이석 신청을 할 수 없습니다.');
-                    return;
-                }
-            }
 
             const isToday = targetDate.toDateString() === now.toDateString();
 
@@ -500,6 +483,40 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 // This ensures the status automatically clears when the period ends.
                 finalEndTime = limitEndTime.toISOString();
                 finalStatus = '승인';
+            }
+
+            // [New] Weekly Returner Window Validation (Check target time, not now)
+            if (validationStudent?.weekend && finalStartTime && finalEndTime) {
+                const sDate = new Date(finalStartTime);
+                const eDate = new Date(finalEndTime);
+                
+                const isRestrictedTime = (date: Date) => {
+                    const day = date.getDay();
+                    const hour = date.getHours();
+                    const minute = date.getMinutes();
+                    if (day === 5 && hour >= 17) return true;
+                    if (day === 6) return true;
+                    if (day === 0 && (hour < 18 || (hour === 18 && minute <= 50))) return true;
+                    return false;
+                };
+
+                let isOverlap = isRestrictedTime(sDate) || isRestrictedTime(eDate);
+                
+                // For long requests (overnight), check middle points
+                if (!isOverlap && eDate.getTime() - sDate.getTime() > 12 * 60 * 60 * 1000) {
+                     for (let t = sDate.getTime() + 6 * 60 * 60 * 1000; t < eDate.getTime(); t += 6 * 60 * 60 * 1000) {
+                         if (isRestrictedTime(new Date(t))) {
+                             isOverlap = true;
+                             break;
+                         }
+                     }
+                }
+
+                if (isOverlap) {
+                    toast.error('매주 귀가 학생은 귀가 시간대(금요일 17:00 ~ 일요일 18:50)가 포함된 신청을 할 수 없습니다.');
+                    setIsSubmitting(false);
+                    return;
+                }
             }
 
             const { data: leaveData, error: leaveError } = await supabase

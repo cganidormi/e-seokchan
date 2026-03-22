@@ -108,10 +108,9 @@ const isWeeklyHomeTime = (date: Date) => {
     const hour = date.getHours();
     const minute = date.getMinutes();
 
-    // Friday (5) >= 15:30
+    // Friday (5) >= 17:00
     if (day === 5) {
-        if (hour > 15) return true;
-        if (hour === 15 && minute >= 30) return true;
+        if (hour >= 17) return true;
         return false;
     }
     // Saturday (6) - All day
