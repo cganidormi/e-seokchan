@@ -12,22 +12,27 @@ import {
     FaBroom,
     FaUtensils,
     FaBoxOpen,
-    FaSignOutAlt
+    FaSignOutAlt,
+    FaSearch,
+    FaTimes,
+    FaCheck
 } from 'react-icons/fa';
 import { Student } from '@/components/student/types';
 
 interface MorningCheckoutModalProps {
     isOpen: boolean;
     onClose: () => void;
+    initialSelectedStudentIds?: string[];
+    roomNumber?: number;
 }
 
 const VIOLATION_TYPES = [
-    { id: '스토퍼 미설치', icon: FaDoorOpen, color: 'amber' },
-    { id: '일과시간 미준수', icon: FaClock, color: 'orange' },
-    { id: '청소불량', icon: FaBroom, color: 'green' },
-    { id: '음식물 섭취 위반', icon: FaUtensils, color: 'red' },
-    { id: '박스 방치', icon: FaBoxOpen, color: 'blue' },
-    { id: '퇴실수칙 불이행', icon: FaSignOutAlt, color: 'purple' },
+    { id: '스토퍼 미설치', icon: FaDoorOpen, color: 'amber', point: 1 },
+    { id: '일과시간 미준수', icon: FaClock, color: 'orange', point: 2 },
+    { id: '청소불량', icon: FaBroom, color: 'green', point: 1 },
+    { id: '음식물 섭취 위반', icon: FaUtensils, color: 'red', point: 3 },
+    { id: '박스 방치', icon: FaBoxOpen, color: 'blue', point: 1 },
+    { id: '퇴실수칙 불이행', icon: FaSignOutAlt, color: 'purple', point: 2 },
 ] as const;
 
 type ViolationId = typeof VIOLATION_TYPES[number]['id'];
@@ -91,14 +96,16 @@ const COLOR_MAP: Record<string, { tab: string; active: string; badge: string; bt
 
 export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
     isOpen,
-    onClose
+    onClose,
+    initialSelectedStudentIds,
+    roomNumber
 }) => {
     const [students, setStudents] = useState<Student[]>([]);
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [selectedViolation, setSelectedViolation] = useState<ViolationId>('일과시간 미준수');
+    const [selectedViolation, setSelectedViolation] = useState<ViolationId>('스토퍼 미설치');
     const [checkDate, setCheckDate] = useState(new Date().toISOString().split('T')[0]);
 
     const activeViolation = VIOLATION_TYPES.find(v => v.id === selectedViolation)!;
@@ -108,9 +115,9 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
         if (isOpen) {
             fetchStudents();
             setSearchTerm('');
-            setSelectedStudentIds([]);
+            setSelectedStudentIds(initialSelectedStudentIds || []);
             setCheckDate(new Date().toISOString().split('T')[0]);
-            setSelectedViolation('일과시간 미준수');
+            setSelectedViolation('스토퍼 미설치');
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = 'unset';
@@ -118,33 +125,41 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
         return () => {
             document.body.style.overflow = 'unset';
         };
-    }, [isOpen]);
+    }, [isOpen, initialSelectedStudentIds]);
 
-    // 위반 유형 변경 시 학생 선택 초기화
+    // 위반 유형 변경 시 학생 선택 초기화 (방 번호가 없을 때만)
     useEffect(() => {
-        setSelectedStudentIds([]);
-        setSearchTerm('');
-    }, [selectedViolation]);
+        if (!roomNumber) {
+            setSelectedStudentIds([]);
+            setSearchTerm('');
+        }
+    }, [selectedViolation, roomNumber]);
 
     const fetchStudents = async () => {
         setIsLoading(true);
-        const { data } = await supabase.from('students').select('*').order('student_id');
-        if (data) setStudents(data);
-        setIsLoading(false);
-    };
-
-    const filteredStudents = students.filter(s => {
-        if (searchTerm) {
-            return s.name.includes(searchTerm) || s.student_id.includes(searchTerm);
+        try {
+            const { data } = await supabase.from('students').select('*').order('student_id');
+            if (data) setStudents(data);
+        } catch (e) {
+            toast.error('학생 정보를 불러오지 못했습니다.');
+        } finally {
+            setIsLoading(false);
         }
-        return true;
-    });
+    };
 
     const toggleSelection = (id: string) => {
         setSelectedStudentIds(prev =>
-            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+            prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
         );
     };
+
+    const filteredStudents = students.filter(s => {
+        const matchesSearch = s.name.includes(searchTerm) || s.student_id.includes(searchTerm);
+        if (roomNumber) {
+            return matchesSearch && (s.room_number === roomNumber || s.room === roomNumber);
+        }
+        return matchesSearch;
+    });
 
     const handleSave = async () => {
         if (selectedStudentIds.length === 0) return toast.error('선택된 학생이 없습니다.');
@@ -166,10 +181,7 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
 
             const { error } = await supabase.from('morning_checks').insert(payload);
 
-            if (error) {
-                console.error(error);
-                throw error;
-            }
+            if (error) throw error;
 
             toast.success(`${selectedStudentIds.length}명 저장되었습니다.`);
             onClose();
@@ -188,33 +200,45 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
     const modalContent = (
         <AnimatePresence>
             {isOpen && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-end sm:items-start justify-center sm:p-4 sm:pt-10"
-                >
+                <div className="fixed inset-0 z-[9999] flex items-end sm:items-start justify-center sm:p-4 sm:pt-10">
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                    />
                     <motion.div
                         initial={{ y: "100%", opacity: 0, scale: 0.95 }}
                         animate={{ y: 0, opacity: 1, scale: 1 }}
                         exit={{ y: "100%", opacity: 0, scale: 0.95 }}
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="bg-white w-full sm:max-w-2xl rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[88vh] overflow-hidden"
+                        className="relative bg-white w-full sm:max-w-2xl rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] sm:max-h-[88vh] overflow-hidden"
                     >
                         {/* Header */}
-                        <div className={`px-4 py-2.5 border-b border-gray-100 flex justify-between items-center ${colors.header} transition-colors duration-300`}>
-                            <div>
-                                <h2 className={`text-base font-extrabold flex items-center gap-2 ${colors.text}`}>
-                                    <activeViolation.icon className="text-lg" />
-                                    생활지도 위반 기록
+                        <div className={clsx("px-6 py-4 text-white flex justify-between items-center transition-colors duration-300", colors.active)}>
+                            <div className="flex flex-col gap-0">
+                                {roomNumber && (
+                                    <span className="text-3xl font-black mb-0.5 drop-shadow-xs">
+                                        {roomNumber}호
+                                    </span>
+                                )}
+                                <h2 className="text-base font-bold flex items-center gap-1.5 opacity-90">
+                                    <activeViolation.icon />
+                                    <span>{activeViolation.id}</span>
                                 </h2>
-                                <p className="text-[11px] text-gray-400">위반 유형을 선택하고 해당 학생을 기록하세요.</p>
                             </div>
-                            <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-gray-600 shadow-sm transition-colors">✕</button>
+                            <button
+                                onClick={onClose}
+                                className="p-2.5 hover:bg-black/10 rounded-full transition-colors flex items-center justify-center bg-white/10"
+                            >
+                                <FaTimes size={24} />
+                            </button>
                         </div>
 
+                        {/* Violation Types Tab */}
                         <div className="px-4 py-2 border-b border-gray-100 bg-white">
-                            <p className="text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">위반 유형 선택</p>
+                            <p className="text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider px-1">위반 유형 선택</p>
                             <div className="grid grid-cols-6 gap-1">
                                 {VIOLATION_TYPES.map(v => {
                                     const isActive = selectedViolation === v.id;
@@ -236,7 +260,7 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                             </div>
                         </div>
 
-                        {/* Controls */}
+                        {/* Date & Search Controls */}
                         <div className="p-4 flex flex-col gap-3 bg-white border-b border-gray-100">
                             <div className="flex gap-2">
                                 <input
@@ -245,22 +269,50 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                                     value={checkDate}
                                     onChange={e => setCheckDate(e.target.value)}
                                 />
-                                <input
-                                    type="text"
-                                    placeholder="이름/학번 검색..."
-                                    value={searchTerm}
-                                    onChange={(e) => { setSearchTerm(e.target.value); }}
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors"
-                                />
+                                {!roomNumber && (
+                                    <div className="relative flex-1">
+                                        <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                        <input
+                                            type="text"
+                                            placeholder="이름/학번 검색..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        {/* List */}
+                        {/* Selection Tools */}
+                        {!roomNumber && (
+                            <div className="px-6 py-2 border-b border-gray-100 flex gap-2">
+                                <button
+                                    onClick={() => setSelectedStudentIds(filteredStudents.map(s => s.student_id))}
+                                    className="px-3 py-1 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
+                                >
+                                    전체 선택
+                                </button>
+                                <button
+                                    onClick={() => setSelectedStudentIds([])}
+                                    className="px-3 py-1 text-xs font-bold text-gray-500 bg-gray-50 rounded-lg hover:bg-gray-100"
+                                >
+                                    해제
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Student List */}
                         <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50">
                             {isLoading ? (
-                                <div className="flex justify-center py-10"><div className="animate-spin text-2xl">⏳</div></div>
+                                <div className="flex justify-center py-10">
+                                    <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                                </div>
                             ) : (
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                <div className={clsx(
+                                    "grid gap-2",
+                                    roomNumber ? "grid-cols-2 gap-3" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2"
+                                )}>
                                     {filteredStudents.map((student, sIdx) => {
                                         const isSelected = selectedStudentIds.includes(student.student_id);
                                         return (
@@ -268,22 +320,27 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                                                 key={student.student_id || `student-select-${sIdx}`}
                                                 onClick={() => toggleSelection(student.student_id)}
                                                 className={clsx(
-                                                    "p-3 rounded-xl border text-left transition-all relative overflow-hidden group",
+                                                    "border text-left transition-all relative overflow-hidden group flex flex-col justify-center",
+                                                    roomNumber
+                                                        ? "p-5 rounded-2xl min-h-[100px]"
+                                                        : "p-3 rounded-xl min-h-[64px]",
                                                     isSelected
-                                                        ? `border-2 bg-white ${colors.shadow} shadow-sm`
+                                                        ? `border-2 bg-white ${colors.shadow} shadow-md ${roomNumber ? 'scale-[1.02]' : 'scale-[1.01]'}`
                                                         : "bg-white border-gray-100 hover:border-gray-200"
                                                 )}
                                                 style={isSelected ? { borderColor: activeViolation.color === 'amber' ? '#f59e0b' : activeViolation.color === 'orange' ? '#f97316' : activeViolation.color === 'green' ? '#22c55e' : activeViolation.color === 'red' ? '#ef4444' : '#3b82f6' } : {}}
                                             >
-                                                <div className="flex justify-between items-start">
+                                                <div className="flex justify-between items-center w-full">
                                                     <div>
-                                                        <span className={clsx("text-xs font-bold block mb-0.5", isSelected ? colors.text : "text-gray-400")}>{student.student_id}</span>
-                                                        <span className={clsx("text-sm font-bold block", isSelected ? "text-gray-900" : "text-gray-700")}>{student.name}</span>
+                                                        <span className={clsx("font-bold block tracking-tighter", roomNumber ? "text-xs mb-1" : "text-[8px] mb-0.5", isSelected ? colors.text : "text-gray-400")}>{student.student_id}</span>
+                                                        <span className={clsx("font-black block leading-none", roomNumber ? "text-2xl" : "text-base", isSelected ? "text-gray-900" : "text-gray-700")}>{student.name}</span>
                                                     </div>
-                                                    <div className={clsx("w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0", isSelected ? "border-current" : "border-gray-200 bg-gray-50")}
-                                                        style={isSelected ? { backgroundColor: activeViolation.color === 'amber' ? '#f59e0b' : activeViolation.color === 'orange' ? '#f97316' : activeViolation.color === 'green' ? '#22c55e' : activeViolation.color === 'red' ? '#ef4444' : '#3b82f6', borderColor: 'transparent' } : {}}
+                                                    <div className={clsx("rounded-full border flex items-center justify-center transition-colors flex-shrink-0",
+                                                        roomNumber ? "w-8 h-8 border-2" : "w-5 h-5 border-2",
+                                                        isSelected ? "border-white bg-white/20" : "border-gray-200 bg-gray-50")}
+                                                        style={isSelected ? { backgroundColor: 'white', borderColor: 'transparent' } : {}}
                                                     >
-                                                        {isSelected && <span className="text-white text-[10px]">✓</span>}
+                                                        {isSelected && <FaCheck size={roomNumber ? 16 : 10} style={{ color: activeViolation.color === 'amber' ? '#f59e0b' : activeViolation.color === 'orange' ? '#f97316' : activeViolation.color === 'green' ? '#22c55e' : activeViolation.color === 'red' ? '#ef4444' : '#3b82f6' }} />}
                                                     </div>
                                                 </div>
                                             </button>
@@ -294,7 +351,7 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                         </div>
 
                         {/* Footer */}
-                        <div className="px-4 py-2 border-t border-gray-100 bg-white flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-4 sm:pb-2">
+                        <div className="px-6 py-4 border-t border-gray-100 bg-white flex justify-between items-center shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                             <button
                                 onClick={onClose}
                                 className="px-5 py-2 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors text-sm"
@@ -319,10 +376,9 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
                             </div>
                         </div>
                     </motion.div>
-                </motion.div>
-            )
-            }
-        </AnimatePresence >
+                </div>
+            )}
+        </AnimatePresence>
     );
 
     if (!mounted || typeof document === 'undefined') return null;

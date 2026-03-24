@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import Select from 'react-select';
 import { Student } from '@/components/student/types';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
+import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 
 // Room Layout Configuration (Row, Col) based on floor plan
 // Abstracted using last 2 digits (01-25)
@@ -141,6 +142,11 @@ export default function HeadcountPage() {
     const [historyStudent, setHistoryStudent] = useState<{ name: string, student_id: string } | null>(null);
     const [historyRecords, setHistoryRecords] = useState<any[]>([]);
     const [teacherPosition, setTeacherPosition] = useState<string>('');
+
+    // Disciplinary Modal State
+    const [isDisciplineModalOpen, setIsDisciplineModalOpen] = useState(false);
+    const [disciplineRoomStudentIds, setDisciplineRoomStudentIds] = useState<string[]>([]);
+    const [disciplineRoomNum, setDisciplineRoomNum] = useState<number | undefined>(undefined);
 
     useEffect(() => {
         const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
@@ -305,6 +311,24 @@ export default function HeadcountPage() {
             // In check mode, a single click toggles status
             toggleStatus(roomNum, position);
         }
+    };
+
+    const handleRoomNumberClick = (roomNum: number) => {
+        const roomData = roomStatus[roomNum];
+        if (!roomData) return;
+
+        const ids: string[] = [];
+        if (roomData.left.student_id) ids.push(roomData.left.student_id);
+        if (roomData.right.student_id) ids.push(roomData.right.student_id);
+
+        if (ids.length === 0) {
+            toast.error('해당 호실에 배정된 학생이 없습니다.');
+            return;
+        }
+
+        setDisciplineRoomStudentIds(ids);
+        setDisciplineRoomNum(roomNum);
+        setIsDisciplineModalOpen(true);
     };
 
     const assignStudent = async (studentId: string | null) => {
@@ -567,12 +591,19 @@ export default function HeadcountPage() {
                                     >
                                         {/* Room Number Header */}
                                         <div className="flex justify-center items-center px-1 py-0.5 shrink-0">
-                                            <span className={clsx(
-                                                "font-bold tracking-tight text-white/90",
-                                                isSideBySide ? "text-[10px]" : "text-[11px]"
-                                            )}>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRoomNumberClick(roomNum);
+                                                }}
+                                                className={clsx(
+                                                    "font-bold tracking-tight text-white/90 hover:text-yellow-400 hover:scale-110 transition-all cursor-pointer bg-white/5 px-2 rounded-full border border-white/10 active:scale-95",
+                                                    isSideBySide ? "text-[10px]" : "text-[11px]"
+                                                )}
+                                                title="생활지도 기록"
+                                            >
                                                 {roomNum}
-                                            </span>
+                                            </button>
                                         </div>
 
                                         <div className={clsx(
@@ -897,6 +928,13 @@ export default function HeadcountPage() {
                     </div>
                 )
             }
+
+            <MorningCheckoutModal
+                isOpen={isDisciplineModalOpen}
+                onClose={() => setIsDisciplineModalOpen(false)}
+                initialSelectedStudentIds={disciplineRoomStudentIds}
+                roomNumber={disciplineRoomNum}
+            />
         </div >
     );
 }
