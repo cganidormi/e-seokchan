@@ -36,6 +36,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     });
     const [mounted, setMounted] = useState(false);
+    const [selectedStudent, setSelectedStudent] = useState<StudentViolationCount | null>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -81,11 +82,17 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
 
                 const merged = studentsData
                     .filter(s => !(s.grade === 3 && s.class === 3 && s.number === 17 && s.name === '홍길동'))
-                    .map(s => ({
-                        ...s,
-                        count: (violationMap.get(s.student_id) || []).length,
-                        details: violationMap.get(s.student_id) || []
-                    }))
+                    .map(s => {
+                        const details = violationMap.get(s.student_id) || [];
+                        const sortedDetails = [...details].sort((a, b) => 
+                            new Date(a.checked_at).getTime() - new Date(b.checked_at).getTime()
+                        );
+                        return {
+                            ...s,
+                            count: details.length,
+                            details: sortedDetails
+                        };
+                    })
                     .filter(s => s.count > 0)
                     .sort((a, b) => {
                         if (b.count !== a.count) return b.count - a.count;
@@ -130,7 +137,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                 </div>
                                 <div>
                                     <h2 className="text-base font-black text-gray-900 leading-none">위반 통계 요약</h2>
-                                    <p className="text-[10px] text-gray-400 font-bold mt-0.5">이달의 위반자 명단</p>
+                                    <p className="text-[10px] text-gray-400 font-bold mt-0.5">{selectedMonth.replace('-', '년 ')}월 위반자 명단</p>
                                 </div>
                             </div>
 
@@ -161,7 +168,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                         </div>
 
                         {/* High-Density Content */}
-                        <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-white">
+                        <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-white relative">
                             {isLoading ? (
                                 <div className="flex flex-col items-center justify-center py-20 gap-3">
                                     <div className="w-8 h-8 border-3 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
@@ -175,12 +182,12 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                             ) : (
                                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1.5">
                                     {filtered.map((student, idx) => {
-                                        const violationSummary = Array.from(new Set(student.details.map(d => d.note)));
                                         return (
                                             <div 
                                                 key={student.student_id || `student-idx-${idx}`} 
+                                                onClick={() => setSelectedStudent(student)}
                                                 className={clsx(
-                                                    "relative p-2 rounded-2xl border transition-all group overflow-hidden",
+                                                    "relative p-2 rounded-2xl border transition-all group overflow-hidden cursor-pointer active:scale-95",
                                                     student.count >= 3 
                                                         ? "bg-rose-50 border-rose-100 shadow-sm" 
                                                         : "bg-gray-50 border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-sm"
@@ -199,21 +206,35 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                                     <span className="text-xs font-black text-gray-800 line-clamp-1">{student.name}</span>
                                                 </div>
                                                 
-                                                <div className="flex flex-wrap gap-0.5">
-                                                    {violationSummary.slice(0, 4).map((note, nIdx) => {
-                                                        const Icon = VIOLATION_ICONS[note] || FaChartBar;
-                                                        return (
-                                                            <div 
-                                                                key={nIdx} 
-                                                                title={note}
-                                                                className="w-4 h-4 bg-white/60 rounded-md flex items-center justify-center text-gray-400 group-hover:text-rose-400 transition-colors"
-                                                            >
-                                                                <Icon size={10} />
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    {violationSummary.length > 4 && (
-                                                        <div className="text-[7px] font-black text-gray-300 self-center">+{violationSummary.length - 4}</div>
+                                                <div className="flex flex-wrap gap-1">
+                                                    {(() => {
+                                                        const counts = student.details.reduce((acc: any, d: any) => {
+                                                            acc[d.note] = (acc[d.note] || 0) + 1;
+                                                            return acc;
+                                                        }, {});
+                                                        
+                                                        return Object.entries(counts).slice(0, 4).map(([note, count], nIdx) => {
+                                                            const Icon = VIOLATION_ICONS[note as string] || FaChartBar;
+                                                            return (
+                                                                <div 
+                                                                    key={nIdx} 
+                                                                    title={`${note}: ${count}회`}
+                                                                    className="relative w-5 h-5 bg-white/60 rounded-lg flex items-center justify-center text-gray-400 group-hover:text-rose-400 transition-colors border border-gray-100/50"
+                                                                >
+                                                                    <Icon size={11} />
+                                                                    {(count as number) > 1 && (
+                                                                        <span className="absolute -bottom-1 -right-1 bg-gray-900 text-white text-[7px] font-black w-3 h-3 rounded-full flex items-center justify-center ring-1 ring-white">
+                                                                            {count as number}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        });
+                                                    })()}
+                                                    {Array.from(new Set(student.details.map(d => d.note))).length > 4 && (
+                                                        <div className="text-[7px] font-black text-gray-300 self-center ml-0.5">
+                                                            +{Array.from(new Set(student.details.map(d => d.note))).length - 4}
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>
@@ -221,6 +242,67 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                     })}
                                 </div>
                             )}
+
+                            {/* Chronological Detail View Overlay */}
+                            <AnimatePresence>
+                                {selectedStudent && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="absolute inset-0 z-50 bg-white/90 backdrop-blur-sm p-5 flex flex-col"
+                                    >
+                                        <div className="flex items-center justify-between mb-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center text-white font-black text-sm">
+                                                    {selectedStudent.name[0]}
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-black text-gray-900 leading-none">{selectedStudent.name} 상세 내역</h3>
+                                                    <p className="text-xs text-gray-500 font-bold mt-1">{selectedStudent.student_id} • 위반 {selectedStudent.count}건</p>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={() => setSelectedStudent(null)}
+                                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-black rounded-xl transition-all text-xs"
+                                            >
+                                                목록으로
+                                            </button>
+                                        </div>
+
+                                        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                                            {selectedStudent.details.map((v, vIdx) => {
+                                                const Icon = VIOLATION_ICONS[v.note] || FaChartBar;
+                                                const date = new Date(v.checked_at);
+                                                return (
+                                                    <motion.div 
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        transition={{ delay: vIdx * 0.05 }}
+                                                        key={v.id || `detail-${vIdx}`} 
+                                                        className="flex items-center justify-between bg-white border border-gray-100 p-4 rounded-2xl shadow-sm"
+                                                    >
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-9 h-9 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
+                                                                <Icon size={16} />
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-sm font-black text-gray-800 block">{v.note}</span>
+                                                                <span className="text-[10px] text-gray-400 font-bold">
+                                                                    {date.getFullYear()}. {date.getMonth() + 1}. {date.getDate()} ({['일','월','화','수','목','금','토'][date.getDay()]})
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-[10px] font-black text-gray-300">
+                                                            #{vIdx + 1}
+                                                        </div>
+                                                    </motion.div>
+                                                );
+                                            })}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         {/* Minimal Footer */}
