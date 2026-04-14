@@ -508,7 +508,7 @@ export default function DashboardMain() {
                             className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-yellow-400/50 text-yellow-600 hover:bg-yellow-50 transition-all active:scale-95 text-xs font-bold"
                         >
                             <span>⬅</span>
-                            <span>교사 페이지</span>
+                            <span>교사 홈으로</span>
                         </button>
                     </div>
                 </div>
