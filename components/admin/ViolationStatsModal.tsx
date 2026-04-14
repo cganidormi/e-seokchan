@@ -310,12 +310,14 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-1.5">
                                     <div className="w-2 h-2 rounded-full bg-rose-500 shadow-sm"></div>
-                                    <span className="text-[10px] font-bold text-gray-500">3회 이상 (관찰 대상)</span>
+                                    <span className="text-[10px] font-bold text-gray-500">
+                                        관찰 대상 (3회 이상): <span className="text-gray-900 font-black">{students.filter(s => s.count >= 3).length}</span>명
+                                    </span>
                                 </div>
                                 <div className="text-[10px] font-bold text-gray-400 flex items-center gap-3">
                                     <span>총 위반: <span className="text-gray-900 font-black">{students.reduce((acc, s) => acc + s.count, 0)}</span>건</span>
                                     <span className="w-px h-2 bg-gray-200"></span>
-                                    <span>대상 인원: <span className="text-gray-900 font-black">{students.length}</span>명</span>
+                                    <span>전체 인원: <span className="text-gray-900 font-black">{students.length}</span>명</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
