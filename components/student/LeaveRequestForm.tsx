@@ -486,7 +486,21 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             }
 
             // [New] Weekly Returner Window Validation (Check target time, not now)
-            if (validationStudent?.weekend && finalStartTime && finalEndTime) {
+            let isMonthlyWeekly = false;
+            try {
+                const { data: monthlyData } = await supabase
+                    .from('monthly_return_applications')
+                    .select('is_weekly')
+                    .eq('student_id', studentId)
+                    .eq('target_year', now.getFullYear())
+                    .eq('target_month', now.getMonth() + 1)
+                    .maybeSingle();
+                if (monthlyData?.is_weekly) isMonthlyWeekly = true;
+            } catch (e) {
+                console.error('Monthly return check failed:', e);
+            }
+
+            if ((validationStudent?.weekend || isMonthlyWeekly) && finalStartTime && finalEndTime) {
                 const sDate = new Date(finalStartTime);
                 const eDate = new Date(finalEndTime);
                 

@@ -233,7 +233,8 @@ export default function SeatManagementPage() {
             .from('monthly_return_applications')
             .select('student_id')
             .eq('target_year', currentYear)
-            .eq('target_month', currentMonth);
+            .eq('target_month', currentMonth)
+            .eq('is_weekly', true);
 
         if (returnData) {
             const ids = new Set(returnData.map(r => r.student_id));
