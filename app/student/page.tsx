@@ -11,6 +11,7 @@ import { LeaveStatusList } from '@/components/student/LeaveStatusList';
 import WeeklyReturnApplicationCard from '@/components/student/WeeklyReturnApplicationCard';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import PullToRefresh from '@/components/PullToRefresh';
+import AnniversaryBanner from '@/components/parent/ParentsDayCelebration';
 import { MdLockReset } from 'react-icons/md';
 
 export default function StudentPage() {
@@ -552,6 +553,7 @@ export default function StudentPage() {
 
       <PullToRefresh onRefresh={() => studentId ? fetchLeaveRequests(studentId) : Promise.resolve()}>
         <div className="flex flex-col gap-4">
+          <AnniversaryBanner type="student" />
           <WeeklyReturnApplicationCard student={currentStudent} />
           <LeaveRequestForm
             studentId={studentId}

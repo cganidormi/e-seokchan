@@ -11,6 +11,7 @@ import { LeaveProcessList } from '@/components/teacher/LeaveProcessList';
 import { LeaveRequest } from '@/components/teacher/types';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import PullToRefresh from '@/components/PullToRefresh';
+import AnniversaryBanner from '@/components/parent/ParentsDayCelebration';
 
 export default function TeacherPage() {
   const [teacherId, setTeacherId] = useState<string | null>(null);
@@ -437,6 +438,8 @@ export default function TeacherPage() {
           </button>
         )}
       </div>
+
+      <AnniversaryBanner type="teacher" />
 
       <PullToRefresh onRefresh={() => teacherId && teacherName ? fetchLeaveRequests(teacherId, teacherName) : Promise.resolve()}>
         <LeaveProcessList

@@ -6,6 +6,7 @@ import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
 import WeeklyReturnApplicationCard from '@/components/student/WeeklyReturnApplicationCard';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
+import AnniversaryBanner from '@/components/parent/ParentsDayCelebration';
 
 // 헬퍼: VAPID 키를 Uint8Array로 변환
 function urlBase64ToUint8Array(base64String: string) {
@@ -516,6 +517,7 @@ function ParentContent() {
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             <Toaster position="top-center" />
+            <AnniversaryBanner />
 
             {/* Header */}
             <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-10">
