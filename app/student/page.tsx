@@ -230,51 +230,54 @@ export default function StudentPage() {
 
   const fetchLeaveRequests = async (id: string) => {
     try {
-      // 0. Fetch Teachers Map manually (since FK join failed)
-      const { data: teachersData } = await supabase.from('teachers').select('id, name');
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const nowStr = new Date().toISOString();
+
+      // Define optimized filter: Currently active OR created within the last 7 days
+      const timeFilter = `end_time.gte.${nowStr},created_at.gte.${sevenDaysAgo}`;
+
+      // 1. Parallel Fetching for maximum efficiency
+      const [
+        { data: teachersData, error: teachersError },
+        { data: publicRequests, error: publicError },
+        { data: myMainRequests, error: myMainError },
+        { data: coLinkData, error: coLinkError }
+      ] = await Promise.all([
+        supabase.from('teachers').select('id, name'),
+        supabase.from('leave_requests')
+          .select('*, leave_request_students(student_id)')
+          .neq('leave_type', '외출')
+          .neq('leave_type', '외박')
+          .or(timeFilter)
+          .order('created_at', { ascending: false })
+          .limit(300),
+        supabase.from('leave_requests')
+          .select('*, leave_request_students(student_id)')
+          .eq('student_id', id)
+          .in('leave_type', ['외출', '외박'])
+          .or(timeFilter)
+          .order('created_at', { ascending: false })
+          .limit(200),
+        supabase.from('leave_request_students')
+          .select('leave_request_id')
+          .eq('student_id', id)
+          .order('created_at', { ascending: false })
+          .limit(200)
+      ]);
+
+      if (teachersError) console.error('[DEBUG] Teachers fetch error:', teachersError);
+      if (publicError) throw publicError;
+      if (myMainError) throw myMainError;
+      if (coLinkError) throw coLinkError;
+
+      // Teacher Map for fast lookups
       const teacherMap = new Map();
       teachersData?.forEach((t: { id: string; name: string }) => {
         teacherMap.set(t.id, t.name);
       });
 
-      // 1. Fetch "Public" requests
-      const { data: publicRequests, error: publicError } = await supabase
-        .from('leave_requests')
-        .select('*, leave_request_students(student_id)')
-        .neq('leave_type', '외출')
-        .neq('leave_type', '외박')
-        .order('created_at', { ascending: false })
-        .limit(200);
-
-      if (publicError) {
-        throw publicError;
-      }
-
-      // 2. Fetch "Private" requests
-      // 2a. Main
-      const { data: myMainPrivateRequests, error: myMainError } = await supabase
-        .from('leave_requests')
-        .select('*, leave_request_students(student_id)')
-        .eq('student_id', id)
-        .in('leave_type', ['외출', '외박'])
-        .order('created_at', { ascending: false })
-        .limit(200);
-
-      if (myMainError) {
-        console.error('[DEBUG] My Main Private Fetch Error:', JSON.stringify(myMainError));
-        throw myMainError;
-      }
-
-      // 2b. Co-applicant
-      const { data: coLinkData } = await supabase
-        .from('leave_request_students')
-        .select('leave_request_id')
-        .eq('student_id', id)
-        .order('created_at', { ascending: false })
-        .limit(200);
-
+      // 2. Fetch "Private" requests where I am a co-applicant
       const coRequestIds = coLinkData?.map(c => c.leave_request_id) || [];
-
       let myCoPrivateRequests: any[] = [];
       if (coRequestIds.length > 0) {
         const { data: fetchedCo, error: coError } = await supabase
@@ -282,30 +285,28 @@ export default function StudentPage() {
           .select('*, leave_request_students(student_id)')
           .in('id', coRequestIds)
           .in('leave_type', ['외출', '외박'])
+          .or(timeFilter)
           .order('created_at', { ascending: false });
 
-        if (coError) {
-          throw coError;
-        }
-
+        if (coError) throw coError;
         if (fetchedCo) myCoPrivateRequests = fetchedCo;
       }
 
-      // 3. Combine
+      // 3. Combine and Deduplicate (Public Iseoks + My Personal Outings/Stays)
       const allRequests = [
         ...(publicRequests || []),
-        ...(myMainPrivateRequests || []),
+        ...(myMainRequests || []),
         ...myCoPrivateRequests
       ];
 
-      // Deduplicate
       const uniqueRequestsMap = new Map();
       allRequests.forEach(req => uniqueRequestsMap.set(req.id, req));
       const combinedRequests = Array.from(uniqueRequestsMap.values());
 
+      // Sort by creation date (newest first)
       combinedRequests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      // Transform: manual join for teachers
+      // 4. Transform: add teacher names
       const transformed = combinedRequests.map(req => ({
         ...req,
         teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' },
@@ -313,6 +314,7 @@ export default function StudentPage() {
 
       setLeaveRequests(transformed as any[]);
     } catch (err: any) {
+      console.error('[Student Fetch Error]:', err);
     }
   };
 
