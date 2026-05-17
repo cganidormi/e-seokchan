@@ -71,7 +71,15 @@ export default function TeacherPage() {
             setTeacherLoginId(loginId); // String ID (from storage, confirmed valid)
             setTeacherName(teacher.name);
             setTeacherPosition(teacher.position);
-            await fetchLeaveRequests(teacher.id, teacher.name);
+            
+            // 2. 이석 내역 조회와 학생 목록 조회를 동시에 병렬로 가동!
+            await Promise.all([
+              fetchLeaveRequests(teacher.id, teacher.name),
+              (async () => {
+                const { data: studentData } = await supabase.from('students').select('*');
+                if (studentData) setStudents(studentData);
+              })()
+            ]);
           } else {
             console.error('[DEBUG] Teacher record not found in teachers table for login ID:', loginId);
             toast.error('교사 정보를 찾을 수 없습니다. 관리자에게 문의하세요.');
@@ -80,8 +88,6 @@ export default function TeacherPage() {
       } catch (err) {
         console.error('[DEBUG] Session resolution error:', err);
       } finally {
-        const { data: studentData } = await supabase.from('students').select('*');
-        if (studentData) setStudents(studentData);
         setIsLoading(false);
       }
     };
@@ -171,42 +177,43 @@ export default function TeacherPage() {
 
   const fetchLeaveRequests = async (id: string, name: string) => {
     try {
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+      const nowStr = new Date().toISOString();
 
-      const { data: teachersData } = await supabase.from('teachers').select('id, name');
+      // 1. 교사 목록과 이석 신청 목록을 동시에 병렬로 조회!
+      const [
+        { data: teachersData, error: teachersError },
+        { data: requestsData, error: requestsError }
+      ] = await Promise.all([
+        supabase.from('teachers').select('id, name'),
+        supabase
+          .from('leave_requests')
+          .select('*, leave_request_students(student_id)')
+          .or(`end_time.gte.${nowStr},created_at.gte.${threeDaysAgo},status.in.(신청,학부모승인대기,학부모승인,승인대기)`)
+          .order('created_at', { ascending: false })
+          .limit(500)
+      ]);
+
+      if (teachersError) console.error('[DEBUG] Teachers fetch error:', teachersError);
+      if (requestsError) {
+        console.error('Supabase query error:', requestsError.message, requestsError.details);
+        throw requestsError;
+      }
+
       const teacherMap = new Map();
       teachersData?.forEach((t: { id: string; name: string }) => {
         teacherMap.set(t.id, t.name);
       });
 
-      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-      const nowStr = new Date().toISOString();
-
-      const { data, error } = await supabase
-        .from('leave_requests')
-        .select('*, leave_request_students(student_id)')
-        .or(`end_time.gte.${nowStr},created_at.gte.${threeDaysAgo},status.in.(신청,학부모승인대기,학부모승인,승인대기)`)
-        .order('created_at', { ascending: false })
-        .limit(1000);
-
-      if (error) {
-        console.error('Supabase query error:', error.message, error.details);
-        throw error;
-      }
-
-      const requestsWithDetails = (data || [])
+      const requestsWithDetails = (requestsData || [])
         .filter((req) => {
           // 만료된 요청 필터링 (승인되지 않은 상태에서 시간이 지난 경우 숨김)
-          // 단, '승인', '반려', '취소', '복귀' 등 완료된 상태는 기록을 위해 보여줄 수도 있지만, 
-          // 선생님 요청사항은 "만료된 요청은 깔끔하게 삭제"이므로 
-          // "처리되지 않은(Pending) 상태인데 이미 시간이 지난 것"만 안 보이게 처리함.
-          // 완료된 건(승인/반려 등)은 히스토리로 남겨둠.
-
           const now = new Date();
           const endTime = new Date(req.end_time);
           const isExpired = now > endTime;
           const isPending = req.status === '신청' || req.status === '학부모승인대기' || req.status === '학부모승인' || req.status === '승인대기';
 
-          // 만료되었고 아직 처리중(Pending)이면 숨김 (뱃지 카운트에서도 제외됨)
+          // 만료되었고 아직 처리중(Pending)이면 숨김
           if (isExpired && isPending) return false;
 
           return true;
