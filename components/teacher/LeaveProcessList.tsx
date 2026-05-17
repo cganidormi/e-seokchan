@@ -12,6 +12,8 @@ interface LeaveProcessListProps {
     onCancel: (requestId: string | number) => void;
     teacherName: string;
     teacherId: string;
+    unifiedViewMode: 'my_active' | 'all_active' | 'past_all';
+    onTabChange: (mode: 'my_active' | 'all_active' | 'past_all') => void;
 }
 
 export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
@@ -20,9 +22,9 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     onCancel,
     teacherName,
     teacherId,
+    unifiedViewMode,
+    onTabChange,
 }) => {
-    // Unified View Mode: 'my_active' | 'all_active' | 'past_all'
-    const [unifiedViewMode, setUnifiedViewMode] = useState<'my_active' | 'all_active' | 'past_all'>('my_active');
     const [filterType, setFilterType] = useState('전체'); // Added filter type state
     const [expandedId, setExpandedId] = useState<string | number | null>(null);
     const [statusMenuId, setStatusMenuId] = useState<string | number | null>(null);
@@ -73,24 +75,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     };
 
     const filtered = (leaveRequests || []).filter(req => {
-        // 1. Unified Filter
-        const isActive = isRequestActive(req);
-
-        if (unifiedViewMode === 'past_all') {
-            // "지난 내역": Show inactive items (past/cancelled). No user restriction (show all).
-            if (isActive) return false;
-        } else {
-            // "내 담당", "전체 현황": Show ACTIVE items only.
-            if (!isActive) return false;
-
-            if (unifiedViewMode === 'my_active') {
-                // "내 담당": Filter by my ID
-                if (req.teacher_id !== teacherId) return false;
-            }
-            // "전체 현황": No user restriction.
-        }
-
-        // 2. Leave Type Filter
+        // 1. Leave Type Filter
         if (filterType !== '전체' && req.leave_type !== filterType) return false;
 
         return true;
@@ -161,7 +146,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                     ].map((tab) => (
                         <button
                             key={tab.id}
-                            onClick={() => setUnifiedViewMode(tab.id as any)}
+                            onClick={() => onTabChange(tab.id as any)}
                             className={clsx(
                                 "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center",
                                 unifiedViewMode === tab.id

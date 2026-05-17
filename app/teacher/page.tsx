@@ -22,6 +22,7 @@ export default function TeacherPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [showQR, setShowQR] = useState(false);
+  const [unifiedViewMode, setUnifiedViewMode] = useState<'my_active' | 'all_active' | 'past_all'>('my_active');
 
   const router = useRouter();
 
@@ -74,7 +75,7 @@ export default function TeacherPage() {
             
             // 2. 이석 내역 조회와 학생 목록 조회를 동시에 병렬로 가동!
             await Promise.all([
-              fetchLeaveRequests(teacher.id, teacher.name),
+              fetchLeaveRequests(teacher.id, teacher.name, 'my_active'),
               (async () => {
                 const { data: studentData } = await supabase.from('students').select('*');
                 if (studentData) setStudents(studentData);
@@ -105,8 +106,7 @@ export default function TeacherPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_requests' },
         (payload) => {
-
-          fetchLeaveRequests(teacherId, teacherName);
+          fetchLeaveRequests(teacherId, teacherName, unifiedViewMode);
         }
       )
       .subscribe();
@@ -117,8 +117,7 @@ export default function TeacherPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'leave_request_students' },
         (payload) => {
-
-          fetchLeaveRequests(teacherId, teacherName);
+          fetchLeaveRequests(teacherId, teacherName, unifiedViewMode);
         }
       )
       .subscribe();
@@ -127,7 +126,7 @@ export default function TeacherPage() {
       supabase.removeChannel(channel1);
       supabase.removeChannel(channel2);
     };
-  }, [teacherId, teacherName]);
+  }, [teacherId, teacherName, unifiedViewMode]);
 
   // 자동 알림 구독 시도
   useEffect(() => {
@@ -175,10 +174,47 @@ export default function TeacherPage() {
     }
   }, [leaveRequests, teacherId]);
 
-  const fetchLeaveRequests = async (id: string, name: string) => {
+  // unifiedViewMode 탭 상태 변경 시 데이터를 실시간 비동기 지연 로드 (Lazy Loading)
+  useEffect(() => {
+    if (teacherId && teacherName) {
+      fetchLeaveRequests(teacherId, teacherName, unifiedViewMode);
+    }
+  }, [unifiedViewMode, teacherId, teacherName]);
+
+  const fetchLeaveRequests = async (
+    id: string, 
+    name: string, 
+    mode: 'my_active' | 'all_active' | 'past_all' = 'my_active'
+  ) => {
     try {
-      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
       const nowStr = new Date().toISOString();
+      let query = supabase
+        .from('leave_requests')
+        .select('*, leave_request_students(student_id)');
+
+      if (mode === 'my_active') {
+        // 내 담당 활성 이석만 초고속 조회 (완료된 복귀, 취소, 반려 제외 + 내 ID 매칭 + 종료 전)
+        query = query
+          .eq('teacher_id', id)
+          .not('status', 'in', '("복귀","취소","반려")')
+          .gte('end_time', nowStr)
+          .order('start_time', { ascending: true });
+      } else if (mode === 'all_active') {
+        // 전체 현황 활성 이석 조회 (완료된 복귀, 취소, 반려 제외 + 종료 전)
+        query = query
+          .not('status', 'in', '("복귀","취소","반려")')
+          .gte('end_time', nowStr)
+          .order('start_time', { ascending: true })
+          .limit(300);
+      } else if (mode === 'past_all') {
+        // 지난 내역 조회 (사용자 피드백 반영: 기존 스펙대로 최근 3일 치로 컴팩트하게 제한)
+        const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+        query = query
+          .or(`end_time.lt.${nowStr},status.in.(복귀,취소,반려)`)
+          .gte('created_at', threeDaysAgo)
+          .order('created_at', { ascending: false })
+          .limit(500);
+      }
 
       // 1. 교사 목록과 이석 신청 목록을 동시에 병렬로 조회!
       const [
@@ -186,12 +222,7 @@ export default function TeacherPage() {
         { data: requestsData, error: requestsError }
       ] = await Promise.all([
         supabase.from('teachers').select('id, name'),
-        supabase
-          .from('leave_requests')
-          .select('*, leave_request_students(student_id)')
-          .or(`end_time.gte.${nowStr},created_at.gte.${threeDaysAgo},status.in.(신청,학부모승인대기,학부모승인,승인대기)`)
-          .order('created_at', { ascending: false })
-          .limit(500)
+        query
       ]);
 
       if (teachersError) console.error('[DEBUG] Teachers fetch error:', teachersError);
@@ -449,13 +480,15 @@ export default function TeacherPage() {
 
       <AnniversaryBanner type="teacher" />
 
-      <PullToRefresh onRefresh={() => teacherId && teacherName ? fetchLeaveRequests(teacherId, teacherName) : Promise.resolve()}>
+      <PullToRefresh onRefresh={() => teacherId && teacherName ? fetchLeaveRequests(teacherId, teacherName, unifiedViewMode) : Promise.resolve()}>
         <LeaveProcessList
           leaveRequests={leaveRequests}
           onUpdateStatus={handleUpdateStatus}
           onCancel={handleCancelRequest}
           teacherName={teacherName}
           teacherId={teacherId}
+          unifiedViewMode={unifiedViewMode}
+          onTabChange={setUnifiedViewMode}
         />
         <div className="mt-8 text-center pb-8">
           <a href="/privacy" className="text-xs text-gray-400 underline hover:text-gray-600 transition-colors">
