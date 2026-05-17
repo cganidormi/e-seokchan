@@ -337,7 +337,8 @@ export default function TeacherPage() {
   };
 
   const handleCancelRequest = async (requestId: string | number) => {
-    if (!confirm('신청을 취소(삭제)하시겠습니까?')) return;
+    const confirmMsg = "이석 신청을 취소(삭제) 시 사용하는 기능입니다.\n\n정말로 신청을 취소(삭제)하시겠습니까?";
+    if (!confirm(confirmMsg)) return;
 
     const { error } = await supabase
       .from('leave_requests')

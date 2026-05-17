@@ -55,9 +55,9 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     };
 
     const handleEarlyReturn = (e: React.MouseEvent) => {
-        if (!canEdit) return;
+        if (viewMode !== 'active') return;
         e.stopPropagation();
-        if (!confirm('조기 복귀 처리하시겠습니까?')) return;
+        if (!confirm("외출·외박 조기 복귀 시 사용하는 기능입니다.\n\n정말로 조기 복귀 처리하시겠습니까?")) return;
         onUpdateStatus(req.id, '복귀');
     };
 
@@ -223,9 +223,8 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                     )}
                 </div>
 
-                {/* 5. 취소 및 복귀 버튼 (우측 끝) - Only if canEdit */}
-                {/* 5. 취소 및 복귀 버튼 (우측 끝) - Only if canEdit */}
-                {canEdit && (
+                {/* 5. 취소 및 복귀 버튼 (우측 끝) - 모든 교사에게 개방 */}
+                {viewMode === 'active' && (
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                         {/* 
                            조기 복귀 Logic:
