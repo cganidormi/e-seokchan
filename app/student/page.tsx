@@ -142,7 +142,14 @@ export default function StudentPage() {
     const teacherName = searchParams.get('teacherName');
     const message = searchParams.get('message');
 
-    let currentSummons = JSON.parse(localStorage.getItem('dormichan_unread_summons') || '[]');
+    let currentSummons = [];
+    try {
+      currentSummons = JSON.parse(localStorage.getItem('dormichan_unread_summons') || '[]');
+      if (!Array.isArray(currentSummons)) currentSummons = [];
+    } catch (e) {
+      console.error('Failed to parse summons from localStorage:', e);
+      currentSummons = [];
+    }
 
     if (isSummon === 'true' && teacherName) {
       const newSummon = {
@@ -154,8 +161,8 @@ export default function StudentPage() {
 
       // Add to local storage (avoid exact duplicates within 5 seconds if multiple effects fire)
       const isDuplicate = currentSummons.some((s: any) =>
-        s.teacherName === newSummon.teacherName &&
-        Math.abs(new Date(s.timestamp).getTime() - newSummon.id) < 5000
+        s && s.teacherName === newSummon.teacherName &&
+        s.timestamp && Math.abs(new Date(s.timestamp).getTime() - newSummon.id) < 5000
       );
 
       if (!isDuplicate) {
@@ -170,18 +177,21 @@ export default function StudentPage() {
     }
 
     // 2. Clear existing toasts to prevent duplicates when re-rendering
-    // (Optional: react-hot-toast manages this, but we want to ensure we show ALL from storage)
     toast.dismiss();
 
     // 3. Display ALL unread summons from LocalStorage
     currentSummons.forEach((summon: any) => {
+      if (!summon || !summon.timestamp) return;
+      const summonDate = new Date(summon.timestamp);
+      if (isNaN(summonDate.getTime())) return; // Safe check for invalid date!
+
       toast((t) => (
         <div className="flex flex-col gap-2 min-w-[300px]">
           <div className="flex items-center gap-2">
             <span className="text-2xl">📢</span>
             <span className="font-bold text-lg text-red-600">선생님 호출</span>
             <span className="text-xs text-gray-400 font-normal ml-auto">
-              {new Date(summon.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {summonDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
           <div className="font-bold text-gray-800 text-base">
@@ -194,10 +204,14 @@ export default function StudentPage() {
             onClick={() => {
               toast.dismiss(t.id);
               // Remove from LocalStorage
-              const remaining = JSON.parse(localStorage.getItem('dormichan_unread_summons') || '[]')
-                .filter((s: any) => s.id !== summon.id);
-              localStorage.setItem('dormichan_unread_summons', JSON.stringify(remaining));
-              setUnreadSummonCount(remaining.length);
+              try {
+                const remaining = JSON.parse(localStorage.getItem('dormichan_unread_summons') || '[]')
+                  .filter((s: any) => s && s.id !== summon.id);
+                localStorage.setItem('dormichan_unread_summons', JSON.stringify(remaining));
+                setUnreadSummonCount(remaining.length);
+              } catch (err) {
+                console.error(err);
+              }
             }}
             className="mt-2 bg-red-100 text-red-600 py-1 px-3 rounded font-bold text-sm hover:bg-red-200"
           >

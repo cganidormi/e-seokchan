@@ -22,10 +22,10 @@ export default function ServiceWorkerRegister() {
                     console.error('SW Register fail:', error);
                 });
 
-            // Refresh page when new SW takes control (updates app)
+            // Refresh page only when a NEW SW takes control over an EXISTING controlled page (updates app)
             let refreshing = false;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (!refreshing) {
+                if (!refreshing && navigator.serviceWorker.controller) {
                     refreshing = true;
                     window.location.reload();
                 }

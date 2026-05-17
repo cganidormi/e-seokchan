@@ -24,25 +24,32 @@ export default function WeeklyReturnApplicationCard({ student }: Props) {
 
         if (!student) return;
 
-        // Realtime Subscription
-        const channel = supabase
-            .channel(`weekly_return_${student.student_id}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'monthly_return_applications',
-                    filter: `student_id=eq.${student.student_id}`
-                },
-                () => {
-                    checkDateAndStatus();
-                }
-            )
-            .subscribe();
+        let channel: any = null;
+        try {
+            // Realtime Subscription
+            channel = supabase
+                .channel(`weekly_return_${student.student_id}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'monthly_return_applications',
+                        filter: `student_id=eq.'${student.student_id}'`
+                    },
+                    () => {
+                        checkDateAndStatus();
+                    }
+                )
+                .subscribe();
+        } catch (err) {
+            console.error('Failed to subscribe to weekly return application realtime channel:', err);
+        }
 
         return () => {
-            supabase.removeChannel(channel);
+            if (channel) {
+                supabase.removeChannel(channel);
+            }
         };
     }, [student]);
 
