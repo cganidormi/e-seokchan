@@ -7,6 +7,8 @@ import clsx from 'clsx';
 import Select from 'react-select';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import { FaBell } from "react-icons/fa";
+import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
+import { LeaveRequest } from '@/components/teacher/types';
 
 interface Student {
     student_id: string;
@@ -84,6 +86,9 @@ export default function SeatManagementPage() {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [teacherName, setTeacherName] = useState<string>('담당 교사');
     const [teacherPosition, setTeacherPosition] = useState<string>('');
+    const [teacherId, setTeacherId] = useState<string>('');
+    const [expandedHistoryId, setExpandedHistoryId] = useState<string | number | null>(null);
+    const [historyMenuId, setHistoryMenuId] = useState<string | number | null>(null);
 
     // Edit Mode for Layout
     const [isEditingLayout, setIsEditingLayout] = useState(false);
@@ -159,13 +164,154 @@ export default function SeatManagementPage() {
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                 .slice(0, 30); // 30 entries
 
-            setHistoryRecords(sortedRecords);
+            // Fetch teacher names
+            const { data: teachersData } = await supabase.from('teachers').select('id, name');
+            const teacherMap = new Map();
+            teachersData?.forEach(t => teacherMap.set(t.id, t.name));
+
+            const recordsWithTeachers = sortedRecords.map(req => ({
+                ...req,
+                teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' }
+            }));
+
+            setHistoryRecords(recordsWithTeachers);
             const s = students.find(st => st.student_id === studentId);
             setHistoryStudent(s || { student_id: studentId, name: 'Unknown', grade: 0, class: 0 });
             setIsHistoryModalOpen(true);
         } catch (e) {
             console.error(e);
             toast.error('기록을 불러오지 못했습니다.');
+        }
+    };
+
+    const handleUpdateStatus = async (requestId: string | number, newStatus: string) => {
+        try {
+            const { error } = await supabase
+                .from('leave_requests')
+                .update({ status: newStatus })
+                .eq('id', requestId);
+
+            if (error) throw error;
+
+            toast.success(`상태가 ${newStatus}(으)로 변경되었습니다.`);
+
+            const targetRequest = historyRecords.find(r => String(r.id) === String(requestId));
+
+            if (targetRequest) {
+                const studentIds: string[] = [];
+
+                if (targetRequest.student_id) studentIds.push(targetRequest.student_id);
+                if (targetRequest.leave_request_students) {
+                    targetRequest.leave_request_students.forEach((s: any) => studentIds.push(s.student_id));
+                }
+
+                if (studentIds.length > 0) {
+                    const { data: studentInfo } = await supabase
+                        .from('students')
+                        .select('student_id, name, parent_token')
+                        .in('student_id', studentIds);
+
+                    const mainStudent = studentInfo?.find(s => s.student_id === targetRequest.student_id);
+                    const studentName = mainStudent?.name || targetRequest.student_id;
+                    const parentTokens = Array.from(new Set(studentInfo?.map(s => s.parent_token).filter(Boolean)));
+
+                    const [{ data: studentSubs }, { data: parentSubs }] = await Promise.all([
+                        supabase
+                            .from('push_subscriptions')
+                            .select('subscription_json')
+                            .in('student_id', studentIds),
+                        parentTokens.length > 0 ? supabase
+                            .from('push_subscriptions')
+                            .select('subscription_json')
+                            .in('parent_token', parentTokens) : { data: [] }
+                    ]);
+
+                    let message = `자녀의 [${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
+                    let parentTitle = 'DormiCheck 학부모 알림';
+
+                    if (newStatus === '학부모승인대기') {
+                        message = `[${targetRequest.leave_type}] 선생님 승인 완료. 학부모님의 최종 승인이 필요합니다.`;
+                    } else if (newStatus === '학부모승인') {
+                        message = `[${targetRequest.leave_type}] 학부모님 승인 완료. 선생님의 최종 승인 대기 중입니다.`;
+                    } else if (newStatus === '승인') {
+                        message = `[${targetRequest.leave_type}] 최종 승인되었습니다. 즐거운 시간 보내세요!`;
+                        parentTitle = `✅ [${targetRequest.leave_type}] 최종 승인 완료`;
+                    } else if (newStatus === '복귀') {
+                        message = `[${targetRequest.leave_type}] 학생이 기숙사로 복귀했습니다.`;
+                    } else if (newStatus === '반려') {
+                        message = `[${targetRequest.leave_type}] 신청이 반려되었습니다. 사유를 확인해주세요.`;
+                    }
+
+                    const studentMessage = `[${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
+                    const parentMessage = `${studentName} 학생의 ${message}`;
+
+                    if (studentSubs && studentSubs.length > 0) {
+                        studentSubs.forEach((sub: any) =>
+                            fetch('/api/web-push', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    subscription: sub.subscription_json,
+                                    message: studentMessage,
+                                    title: 'DormiCheck 알림'
+                                })
+                            }).catch(e => console.error('Student Push Error:', e))
+                        );
+                    }
+
+                    if (parentSubs && parentSubs.length > 0) {
+                        const allowedParentNotificationTypes = ['외출', '외박'];
+                        if (allowedParentNotificationTypes.includes(targetRequest.leave_type)) {
+                            parentSubs.forEach((sub: any) =>
+                                fetch('/api/web-push', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        subscription: sub.subscription_json,
+                                        message: parentMessage,
+                                        title: parentTitle
+                                    })
+                                }).catch(e => console.error('Parent Push Error:', e))
+                            );
+                        }
+                    }
+                }
+            }
+
+            if (selectedRoom) {
+                fetchLiveStatus(selectedRoom);
+            }
+            if (historyStudent) {
+                fetchStudentHistory(historyStudent.student_id);
+            }
+        } catch (err) {
+            console.error('Update error:', err);
+            toast.error('상태 변경에 실패했습니다.');
+        }
+    };
+
+    const handleCancelRequest = async (requestId: string | number) => {
+        const confirmMsg = "이석 신청을 취소(삭제) 시 사용하는 기능입니다.\n\n정말로 신청을 취소(삭제)하시겠습니까?";
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            const { error } = await supabase
+                .from('leave_requests')
+                .update({ status: '취소' })
+                .eq('id', requestId);
+
+            if (error) throw error;
+
+            toast.success('취소되었습니다.');
+            if (selectedRoom) {
+                fetchLiveStatus(selectedRoom);
+            }
+            if (historyStudent) {
+                fetchStudentHistory(historyStudent.student_id);
+            }
+        } catch (err) {
+            console.error('Cancel error:', err);
+            toast.error('취소 실패');
         }
     };
 
@@ -176,9 +322,10 @@ export default function SeatManagementPage() {
         // Fetch Teacher Name & Position from Session
         const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
         if (loginId) {
-            supabase.from('teachers').select('name, position').eq('teacher_id', loginId).single()
+            supabase.from('teachers').select('id, name, position').eq('teacher_id', loginId).single()
                 .then(({ data }) => {
                     if (data) {
+                        setTeacherId(data.id);
                         setTeacherName(data.name);
                         setTeacherPosition(data.position);
                     }
@@ -189,6 +336,24 @@ export default function SeatManagementPage() {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
+
+    // Close status menu when clicking outside
+    useEffect(() => {
+        if (historyMenuId === null) return;
+
+        const handleGlobalClick = () => {
+            setHistoryMenuId(null);
+        };
+
+        const timeoutId = setTimeout(() => {
+            window.addEventListener('click', handleGlobalClick);
+        }, 0);
+
+        return () => {
+            clearTimeout(timeoutId);
+            window.removeEventListener('click', handleGlobalClick);
+        };
+    }, [historyMenuId]);
 
     useEffect(() => {
 
@@ -1095,12 +1260,23 @@ export default function SeatManagementPage() {
 
             {/* Student History Modal */}
             {isHistoryModalOpen && historyStudent && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsHistoryModalOpen(false)}>
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-5 border-b border-gray-100 flex flex-col relative">
+                <div
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => {
+                        setIsHistoryModalOpen(false);
+                        setExpandedHistoryId(null);
+                        setHistoryMenuId(null);
+                    }}
+                >
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="p-5 border-b border-gray-100 flex flex-col relative bg-white shrink-0">
                             {/* Close Button Top Right */}
                             <button
-                                onClick={() => setIsHistoryModalOpen(false)}
+                                onClick={() => {
+                                    setIsHistoryModalOpen(false);
+                                    setExpandedHistoryId(null);
+                                    setHistoryMenuId(null);
+                                }}
                                 className="absolute top-4 right-4 p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400"
                             >
                                 ✕
@@ -1148,110 +1324,35 @@ export default function SeatManagementPage() {
                                 </div>
                             </div>
                             <div className="w-full text-center pb-2">
-                                <p className="text-xs text-gray-400">최근 이석 기록 (20건)</p>
+                                <p className="text-xs text-gray-400 font-bold">최근 이석 기록 (30건)</p>
                             </div>
                         </div>
 
-                        <div className="overflow-y-auto p-4 flex flex-col gap-3">
+                        <div className="overflow-y-auto p-4 flex flex-col gap-3.5 bg-gray-100/60 flex-1">
                             {historyRecords.length === 0 ? (
                                 <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
                             ) : (
                                 historyRecords.map((rec) => {
-                                    const statusColors: any = {
-                                        '신청': 'bg-blue-50 text-blue-600',
-                                        '승인': 'bg-green-50 text-green-600',
-                                        '반려': 'bg-red-50 text-red-600',
-                                        '취소': 'bg-gray-50 text-gray-500',
-                                        '복귀': 'bg-gray-100 text-gray-600',
-                                        '학부모승인': 'bg-orange-50 text-orange-600',
-                                        '학부모승인대기': 'bg-yellow-50 text-yellow-600',
-                                    };
-
-                                    // Check for Away Cancellation Condition
-                                    let showAwayCancelParams = false;
-                                    if (rec.leave_type === '자리비움' && rec.status === '승인') {
-                                        const start = new Date(rec.start_time);
-                                        // Ensure we compare against current time (or updated time)
-                                        // `currentTime` is state, so it works.
-                                        const diffMins = (new Date().getTime() - start.getTime()) / 60000;
-                                        if (diffMins >= 10) showAwayCancelParams = true;
-                                    }
+                                    const isPast = rec.status === '복귀' || rec.status === '취소' || rec.status === '반려' || new Date(rec.end_time) < currentTime;
+                                    const viewMode = isPast ? 'past' : 'active';
 
                                     return (
-                                        <div key={rec.id} className="flex flex-col p-3 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors bg-white shadow-sm">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={clsx("px-2 py-0.5 rounded text-[10px] font-bold border border-opacity-10", statusColors[rec.status] || 'bg-gray-50 text-gray-500')}>
-                                                        {rec.status}
-                                                    </span>
-                                                    <span className="font-bold text-gray-700 text-sm">
-                                                        {rec.leave_type}
-                                                        {rec.leave_request_students && rec.leave_request_students.length > 0 && (
-                                                            <span className="ml-1 text-[10px] text-blue-500 font-normal">
-                                                                ({rec.leave_request_students.map((s: any) => {
-                                                                    const found = students.find(st => st.student_id === s.student_id);
-                                                                    return found ? found.name : s.student_id;
-                                                                }).join(', ')})
-                                                            </span>
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[10px] text-gray-400">{new Date(rec.created_at).toLocaleDateString()}</span>
-                                                    {showAwayCancelParams && (
-                                                        <button
-                                                            onClick={async (e) => {
-                                                                e.stopPropagation();
-                                                                if (!confirm(`자리비움 상태를 해제하시겠습니까?`)) return;
-                                                                try {
-                                                                    const { error } = await supabase.from('leave_requests').update({ status: '취소' }).eq('id', rec.id);
-                                                                    if (error) throw error;
-                                                                    toast.success('자리비움이 해제되었습니다.');
-                                                                    await fetchLiveStatus(selectedRoom);
-                                                                    setIsHistoryModalOpen(false);
-                                                                } catch (err) {
-                                                                    console.error(err);
-                                                                    toast.error('해제 실패');
-                                                                }
-                                                            }}
-                                                            className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-full font-bold hover:bg-red-200 transition-colors border border-red-200"
-                                                        >
-                                                            해제
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg mb-2">
-                                                <div className="flex flex-col gap-1">
-                                                    {rec.leave_type === '컴이석' || rec.leave_type === '이석' ? (
-                                                        <div className="font-mono text-xs flex items-center justify-between">
-                                                            <span>{rec.period}</span>
-                                                            {rec.place && <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">{rec.place}</span>}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex flex-col gap-1">
-                                                            <div className="flex items-center justify-between">
-                                                                <span>
-                                                                    {new Date(rec.start_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
-                                                                    {rec.leave_type === '자리비움'
-                                                                        ? new Date(new Date(rec.start_time).getTime() + 10 * 60000).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                                                                        : new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                                                                    }
-                                                                </span>
-                                                                {rec.place && <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold">{rec.place}</span>}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {rec.reason && (
-                                                <p className="text-[11px] text-gray-500 truncate">
-                                                    Running: {rec.reason}
-                                                </p>
-                                            )}
-                                        </div>
+                                        <LeaveProcessCard
+                                            key={rec.id}
+                                            req={rec as LeaveRequest}
+                                            isExpanded={expandedHistoryId === rec.id}
+                                            onToggleExpand={() => setExpandedHistoryId(expandedHistoryId === rec.id ? null : rec.id)}
+                                            isMenuOpen={historyMenuId === rec.id}
+                                            onToggleMenu={(e) => {
+                                                e.stopPropagation();
+                                                setHistoryMenuId(historyMenuId === rec.id ? null : rec.id);
+                                            }}
+                                            onUpdateStatus={handleUpdateStatus}
+                                            onCancel={handleCancelRequest}
+                                            viewMode={viewMode}
+                                            currentTeacherId={teacherId}
+                                            showOpacityForPast={false}
+                                        />
                                     );
                                 })
                             )}

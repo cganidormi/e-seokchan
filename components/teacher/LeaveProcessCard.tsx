@@ -15,6 +15,7 @@ interface LeaveProcessCardProps {
     onCancel: (requestId: string | number) => void;
     viewMode: 'active' | 'past';
     currentTeacherId: string;
+    showOpacityForPast?: boolean;
 }
 
 export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
@@ -26,7 +27,8 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     onUpdateStatus,
     onCancel,
     viewMode,
-    currentTeacherId
+    currentTeacherId,
+    showOpacityForPast = true
 }) => {
     const statusConfig = ({
         '신청': { dot: 'bg-blue-500', text: 'text-blue-500', label: '대기' },
@@ -62,14 +64,15 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     };
 
     return (
-        <div
-            onClick={onToggleExpand}
-            className={clsx(
-                "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
-                isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-4 h-[60px]", // Reduced px-5->px-4, fixed height
-                viewMode === 'past' && "opacity-60"
-            )}
-        >
+    <div
+        onClick={onToggleExpand}
+        className={clsx(
+            "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
+            // 👇 기존 h-[80px] 또는 h-[96px]를 지우고 딱 이 줄로 바꾸세요!
+            isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-4 py-3 !h-[105px]", 
+            viewMode === 'past' && showOpacityForPast && "opacity-60"
+        )}
+    >
             <div className="flex items-center w-full gap-2"> {/* Gap-3 -> Gap-2 */}
                 {/* 1. 이석 종류 & 상태 아이콘 */}
                 <div className="flex items-center gap-2 shrink-0"> {/* Removed w-[85px] */}
