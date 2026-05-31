@@ -713,7 +713,7 @@ export default function SeatManagementPage() {
             <div className="flex flex-col w-full max-w-6xl mx-auto">
                 {/* Header & Controls */}
                 {/* Header & Controls */}
-                <div className="flex flex-col gap-4 mb-6">
+                <div className="flex flex-col gap-4 mb-3">
                     <div className="flex items-center justify-between gap-2 overflow-hidden">
                         <div className="flex items-center gap-1.5 min-w-0">
                             <div className="w-1.5 h-5 sm:h-6 bg-yellow-400 rounded-full shrink-0"></div>
@@ -752,6 +752,10 @@ export default function SeatManagementPage() {
                     >
                         ← 이석현황 목록으로 돌아가기
                     </button>
+                    <p className="text-center text-xs text-red-500 -mt-2">
+                        학생이 자리에 없을 시 해당 학생 좌석을 더블터치 해 보세요.<br />
+                        이석현황을 확인 하실수 있습니다.
+                    </p>
                 </div>
 
                 {/* Layout Settings (Only in Edit Mode) */}
