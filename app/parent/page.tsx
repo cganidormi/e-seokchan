@@ -34,7 +34,7 @@ function ParentContent() {
     const [isSubscribed, setIsSubscribed] = useState(false);
 
     // 추가: 전광판 관련 상태
-    const [noticeText, setNoticeText] = useState('학생들의 외출, 외박 신청을 받으시고 1차 승인 여부를 결정하시면 2차 담임선생님의 승인을 받고 출타를 할 수 있습니다.');
+    const [noticeText, setNoticeText] = useState('자녀의 외출, 외박 신청 현황을 실시간으로 확인하실 수 있습니다. 신청 후 담당 교사 승인이 완료되면 알림을 드립니다.');
     const [isEditingNotice, setIsEditingNotice] = useState(false);
     const [editNoticeContent, setEditNoticeContent] = useState('');
     const [isSavingNotice, setIsSavingNotice] = useState(false);
@@ -228,20 +228,12 @@ function ParentContent() {
         }
     };
 
-    // Update App Icon Badge (Real-time pending count for Parents)
+    // Clear App Icon Badge since parent action is removed
     useEffect(() => {
-        if ('setAppBadge' in navigator && 'clearAppBadge' in navigator) {
-            const pendingCount = leaveHistory.filter((req: any) =>
-                req.status === '학부모승인대기'
-            ).length;
-
-            if (pendingCount > 0) {
-                (navigator as any).setAppBadge(pendingCount).catch((e: any) => console.error('Parent Badge error:', e));
-            } else {
-                (navigator as any).clearAppBadge().catch((e: any) => console.error('Parent Badge clear error:', e));
-            }
+        if ('clearAppBadge' in navigator) {
+            (navigator as any).clearAppBadge().catch((e: any) => console.error('Parent Badge clear error:', e));
         }
-    }, [leaveHistory]);
+    }, []);
 
     const handleInstallClick = async () => {
         if (!deferredPrompt) return;
@@ -296,58 +288,6 @@ function ParentContent() {
         }
     };
 
-    const handleParentAction = async (requestId: number, action: 'approve' | 'reject') => {
-        if (!confirm(action === 'approve' ? '1차 승인하시겠습니까?' : '반려하시겠습니까?')) return;
-
-        setLoading(true);
-        try {
-            const updateData = action === 'approve'
-                ? { status: '학부모승인', parent_approval_status: 'approved' }
-                : { status: '거절', parent_approval_status: 'rejected' };
-
-            const { error } = await supabase
-                .from('leave_requests')
-                .update(updateData)
-                .eq('id', requestId);
-
-            if (error) throw error;
-
-            // ---------------------------------------------------------
-            // Push Notification to Teacher (Parent Approved)
-            // ---------------------------------------------------------
-            if (action === 'approve') {
-                const { data: reqData } = await supabase.from('leave_requests').select('teacher_id, leave_type, student_id').eq('id', requestId).single();
-                if (reqData && reqData.teacher_id) {
-                    const { data: tSubs } = await supabase.from('push_subscriptions').select('subscription_json').eq('teacher_id', reqData.teacher_id);
-                    if (tSubs && tSubs.length > 0) {
-                        Promise.all(tSubs.map(sub =>
-                            fetch('/api/web-push', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    subscription: sub.subscription_json,
-                                    title: '학부모 승인 완료',
-                                    message: `[${reqData.leave_type}] 학부모 승인이 완료되었습니다. 최종 승인해주세요.`
-                                })
-                            }).catch(e => console.error(e))
-                        ));
-                    }
-                }
-            }
-            // ---------------------------------------------------------
-
-            toast.success(action === 'approve' ? '1차 승인이 완료되었습니다.' : '반려되었습니다.');
-
-            // Refresh Data
-            const t = localStorage.getItem('dormichan_parent_token');
-            if (t) fetchStudentData(t);
-
-        } catch (err) {
-            console.error(err);
-            toast.error('처리에 실패했습니다.');
-            setLoading(false);
-        }
-    };
 
     // 전광판 공지 수정 저장 (마스터 토큰 소유자만)
     const handleSaveNotice = async () => {
@@ -675,20 +615,17 @@ function ParentContent() {
                                         <div>
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${req.status === '승인' ? 'bg-green-100 text-green-700' :
                                                 (req.status === '거절' || req.status === '반려') ? 'bg-red-100 text-red-700' :
-                                                    req.status === '학부모승인대기' ? 'bg-orange-100 text-orange-700 animate-pulse' :
-                                                        'bg-yellow-100 text-yellow-700'
+                                                req.status === '신청' ? 'bg-yellow-100 text-yellow-700 animate-pulse' :
+                                                    'bg-gray-100 text-gray-700'
                                                 }`}>
-                                                {req.status === '학부모승인대기' ? '1차 승인 대기중' :
-                                                    req.status === '학부모승인' ? '2차 승인 대기중' :
-                                                        req.status === '거절' ? '1차 반려' :
-                                                            req.status === '반려' ? '2차 반려' :
-                                                                req.status}
+                                                {req.status === '신청' ? '교사 승인 대기중' :
+                                                    req.status === '거절' || req.status === '반려' ? '반려' :
+                                                        req.status}
                                             </span>
                                         </div>
                                     </div>
 
-                                    {/* 학부모 승인 버튼 영역 */}
-                                    {/* 학부모 승인 버튼 영역 */}
+                                    {/* 학부모 승인 버튼 영역 제거: 안내 메시지만 표시 */}
                                     {(() => {
                                         const now = new Date();
                                         const endTime = new Date(req.end_time);
@@ -704,39 +641,19 @@ function ParentContent() {
                                             );
                                         }
 
-                                        if (req.status === '학부모승인대기') {
+                                        if (req.status === '신청') {
                                             return (
-                                                <div className="flex gap-2 mt-2 pt-2 border-t border-gray-50">
-                                                    <button
-                                                        onClick={() => handleParentAction(req.id, 'approve')}
-                                                        className="flex-1 bg-green-500 text-white text-xs font-bold py-2 rounded-lg hover:bg-green-600 active:scale-95 transition-all"
-                                                    >
-                                                        1차 승인
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleParentAction(req.id, 'reject')}
-                                                        className="flex-1 bg-gray-100 text-gray-600 text-xs font-bold py-2 rounded-lg hover:bg-gray-200 active:scale-95 transition-all"
-                                                    >
-                                                        반려
-                                                    </button>
-                                                </div>
-                                            );
-                                        } else if (req.status === '학부모승인') {
-                                            return (
-                                                <div className="flex gap-2 mt-2 pt-2 border-t border-gray-50">
-                                                    <button
-                                                        onClick={() => handleParentAction(req.id, 'reject')}
-                                                        className="w-full bg-red-100 text-red-600 text-xs font-bold py-2 rounded-lg hover:bg-red-200 active:scale-95 transition-all"
-                                                    >
-                                                        승인 취소 (반려)
-                                                    </button>
+                                                <div className="mt-2 pt-2 border-t border-gray-50 text-center">
+                                                    <p className="text-xs text-gray-500 font-medium">
+                                                        교사의 승인을 대기 중입니다.
+                                                    </p>
                                                 </div>
                                             );
                                         } else if (req.status === '승인') {
                                             return (
                                                 <div className="mt-2 pt-2 border-t border-gray-50 text-center">
-                                                    <p className="text-xs text-gray-400 font-medium">
-                                                        ✅ 선생님 최종 승인이 완료되어 변경할 수 없습니다.
+                                                    <p className="text-xs text-green-600 font-bold">
+                                                        ✅ 선생님 승인이 완료되었습니다.
                                                     </p>
                                                 </div>
                                             );

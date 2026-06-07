@@ -163,7 +163,7 @@ export default function TeacherPage() {
     if ('setAppBadge' in navigator && 'clearAppBadge' in navigator && teacherId) {
       // Only count '신청' (Pending) status items ASSIGNED to this teacher
       const pendingCount = leaveRequests.filter(req =>
-        (req.status === '신청' || req.status === '학부모승인') && req.teacher_id === teacherId
+        req.status === '신청' && req.teacher_id === teacherId
       ).length;
 
       if (pendingCount > 0) {
@@ -242,7 +242,7 @@ export default function TeacherPage() {
           const now = new Date();
           const endTime = new Date(req.end_time);
           const isExpired = now > endTime;
-          const isPending = req.status === '신청' || req.status === '학부모승인대기' || req.status === '학부모승인' || req.status === '승인대기';
+          const isPending = req.status === '신청' || req.status === '승인대기';
 
           // 만료되었고 아직 처리중(Pending)이면 숨김
           if (isExpired && isPending) return false;
@@ -311,13 +311,9 @@ export default function TeacherPage() {
           let message = `자녀의 [${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
           let parentTitle = 'DormiCheck 학부모 알림';
 
-          if (newStatus === '학부모승인대기') {
-            message = `[${targetRequest.leave_type}] 선생님 승인 완료. 학부모님의 최종 승인이 필요합니다.`;
-          } else if (newStatus === '학부모승인') {
-            message = `[${targetRequest.leave_type}] 학부모님 승인 완료. 선생님의 최종 승인 대기 중입니다.`;
-          } else if (newStatus === '승인') {
-            message = `[${targetRequest.leave_type}] 최종 승인되었습니다. 즐거운 시간 보내세요!`;
-            parentTitle = `✅ [${targetRequest.leave_type}] 최종 승인 완료`;
+          if (newStatus === '승인') {
+            message = `[${targetRequest.leave_type}] 승인되었습니다. 즐거운 시간 보내세요!`;
+            parentTitle = `✅ [${targetRequest.leave_type}] 승인 완료`;
           } else if (newStatus === '복귀') {
             message = `[${targetRequest.leave_type}] 학생이 기숙사로 복귀했습니다.`;
           } else if (newStatus === '반려') {

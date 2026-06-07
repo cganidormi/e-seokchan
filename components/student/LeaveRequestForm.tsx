@@ -282,7 +282,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
             let finalStartTime = startDate?.toISOString();
             let finalEndTime = endDate?.toISOString();
-            let finalStatus = (leaveType === '외출' || leaveType === '외박') ? '학부모승인대기' : '신청';
+            let finalStatus = '신청';
             let finalPeriod = (leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움') ? null : periods.join(',');
 
             if (leaveType === '컴이석' || leaveType === '이석') {
@@ -554,23 +554,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 return;
             }
 
-            // ---------------------------------------------------------
-            // Push Notification to Parent (Outing/Overnight)
-            // ---------------------------------------------------------
-            if (leaveType === '외출' || leaveType === '외박') {
-                const studentName = (students.find(s => s.student_id === studentId)?.name) || studentId;
-                fetch('/api/parent/notify-leave', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        studentId: studentId,
-                        studentName: studentName,
-                        leaveType: leaveType,
-                        startTime: finalStartTime,
-                        endTime: finalEndTime
-                    })
-                }).catch(e => console.error('Parent Push Error:', e));
-            }
+
 
             // ---------------------------------------------------------
             // Push Notification to Teacher (New Request with Badge Support)

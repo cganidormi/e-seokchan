@@ -33,9 +33,9 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     const statusConfig = ({
         '신청': { dot: 'bg-blue-500', text: 'text-blue-500', label: '대기' },
         '승인': { dot: 'bg-green-500', text: 'text-green-500', label: '승인' },
-        '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '2차 반려' },
-        '학부모승인대기': { dot: 'bg-orange-500', text: 'text-orange-500', label: '학부모대기' },
-        '학부모승인': { dot: 'bg-sky-400', text: 'text-sky-400', label: '2차대기' },
+        '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
+        '거절': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
+        '취소': { dot: 'bg-gray-500', text: 'text-gray-500', label: '취소' },
         '복귀': { dot: 'bg-gray-400', text: 'text-gray-400', label: '복귀' },
     } as any)[req.status] || { dot: 'bg-gray-500', text: 'text-gray-500', label: req.status };
 
@@ -44,7 +44,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
 
     // Permission Check: Only the assigned teacher can edit, and only in 'active' view
     // '학부모승인' 상태도 교사가 처리해야 함 (사실상 '신청'과 동일하게 취급)
-    const canEdit = req.teacher_id === currentTeacherId && viewMode === 'active' && (req.status === '신청' || req.status === '학부모승인' || req.status === '승인');
+    const canEdit = req.teacher_id === currentTeacherId && viewMode === 'active' && (req.status === '신청' || req.status === '승인');
 
     const handleApprove = (e: React.MouseEvent) => {
         if (!canEdit) return;
@@ -64,15 +64,15 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     };
 
     return (
-    <div
-        onClick={onToggleExpand}
-        className={clsx(
-            "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
-            // 👇 기존 h-[80px] 또는 h-[96px]를 지우고 딱 이 줄로 바꾸세요!
-            isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-4 py-3 !h-[105px]", 
-            viewMode === 'past' && showOpacityForPast && "opacity-60"
-        )}
-    >
+<div
+    onClick={onToggleExpand}
+    className={clsx(
+        "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
+        // 👇 기존 h-[80px] 또는 h-[96px]를 지우고 딱 이 줄로 바꾸세요!
+        isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-4 py-3 !h-[60px]",
+        viewMode === 'past' && showOpacityForPast && "opacity-60"
+    )}
+>
             <div className="flex items-center w-full gap-2"> {/* Gap-3 -> Gap-2 */}
                 {/* 1. 이석 종류 & 상태 아이콘 */}
                 <div className="flex items-center gap-2 shrink-0"> {/* Removed w-[85px] */}
@@ -96,7 +96,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                                     className={clsx(
                                         "flex items-center px-1.5 py-0.5 rounded border border-opacity-30 transition-all duration-200 text-[10px] font-bold border-current",
                                         statusConfig.text,
-                                        canEdit && (req.status === '신청' || req.status === '학부모승인') ? "bg-blue-500/10" : "bg-white/5",
+                                        canEdit && req.status === '신청' ? "bg-blue-500/10" : "bg-white/5",
                                         !canEdit && "opacity-50 cursor-default"
                                     )}
                                     disabled={!canEdit}

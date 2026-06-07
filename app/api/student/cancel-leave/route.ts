@@ -43,7 +43,7 @@ export async function POST(request: Request) {
         const status = req.status;
 
         // 3. 상태별 로직 처리
-        if (status === '신청' || status === '학부모승인대기' || status === '승인전' || req.leave_type === '컴이석') {
+        if (status === '신청' || status === '승인전' || req.leave_type === '컴이석') {
             // [Case 1] 승인 전 (단순 삭제)
             // 1. 관계 테이블 먼저 삭제 (FK 제약조건 방지)
             await supabase
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
             if (deleteError) throw deleteError;
             return NextResponse.json({ message: '삭제되었습니다.', action: 'delete' });
 
-        } else if (status === '학부모승인' || status === '승인') {
+        } else if (status === '승인') {
             // [Case 2 & 3] 승인 후 (취소 처리 + 알림)
 
             // 3-1. 상태 업데이트 (취소)

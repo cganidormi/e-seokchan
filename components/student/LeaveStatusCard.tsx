@@ -97,11 +97,9 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
     const statusConfig = ({
         '신청': { dot: 'bg-blue-500', text: 'text-blue-500', label: '대기' },
         '승인': { dot: 'bg-green-500', text: 'text-green-500', label: '승인' },
-        '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '2차 반려' },
-        '거절': { dot: 'bg-red-500', text: 'text-red-500', label: '1차 반려' },
+        '반려': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
+        '거절': { dot: 'bg-red-500', text: 'text-red-500', label: '반려' },
         '취소': { dot: 'bg-gray-500', text: 'text-gray-500', label: '취소' },
-        '학부모승인대기': { dot: 'bg-orange-500', text: 'text-orange-500', label: '학부모대기' },
-        '학부모승인': { dot: 'bg-sky-400', text: 'text-sky-400', label: '2차 승인 대기중' },
         '복귀': { dot: 'bg-gray-400', text: 'text-gray-400', label: '복귀' },
     } as any)[req.status] || { dot: 'bg-gray-500', text: 'text-gray-500', label: req.status };
 
@@ -298,8 +296,6 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                             {req.student_id === currentStudentId &&
                                 req.leave_type !== '자리비움' && (
                                     req.status === '신청' ||
-                                    req.status === '학부모승인' ||
-                                    req.status === '학부모승인대기' ||
                                     req.status === '승인' ||
                                     req.status === '승인전' ||
                                     req.leave_type === '컴이석'
@@ -352,7 +348,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                                         const isMe = id === currentStudentId;
                                         const isMain = id === req.student_id;
                                         // Allow withdrawal if: I am this student, I am NOT the main applicant, and status is Approved/Pending/ParentPending
-                                        const canWithdraw = isMe && !isMain && (req.status === '승인' || req.status === '신청' || req.status === '학부모승인대기');
+                                        const canWithdraw = isMe && !isMain && (req.status === '승인' || req.status === '신청');
 
                                         return (
                                             <div key={id} className={clsx(

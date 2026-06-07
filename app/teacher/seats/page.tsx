@@ -229,13 +229,9 @@ export default function SeatManagementPage() {
                     let message = `자녀의 [${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
                     let parentTitle = 'DormiCheck 학부모 알림';
 
-                    if (newStatus === '학부모승인대기') {
-                        message = `[${targetRequest.leave_type}] 선생님 승인 완료. 학부모님의 최종 승인이 필요합니다.`;
-                    } else if (newStatus === '학부모승인') {
-                        message = `[${targetRequest.leave_type}] 학부모님 승인 완료. 선생님의 최종 승인 대기 중입니다.`;
-                    } else if (newStatus === '승인') {
-                        message = `[${targetRequest.leave_type}] 최종 승인되었습니다. 즐거운 시간 보내세요!`;
-                        parentTitle = `✅ [${targetRequest.leave_type}] 최종 승인 완료`;
+                    if (newStatus === '승인') {
+                        message = `[${targetRequest.leave_type}] 승인되었습니다. 즐거운 시간 보내세요!`;
+                        parentTitle = `✅ [${targetRequest.leave_type}] 승인 완료`;
                     } else if (newStatus === '복귀') {
                         message = `[${targetRequest.leave_type}] 학생이 기숙사로 복귀했습니다.`;
                     } else if (newStatus === '반려') {
