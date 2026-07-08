@@ -106,6 +106,60 @@ export default function DashboardMain() {
     // Refresh Trigger for Realtime
     const [refreshKey, setRefreshKey] = useState(0);
     const [allRawStudents, setAllRawStudents] = useState<any[]>([]);
+    const [nextMonthSearchQuery, setNextMonthSearchQuery] = useState('');
+
+    const handleToggleNextMonthApp = async (studentId: string, currentIsWeekly: boolean) => {
+        const now = new Date();
+        const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const targetYear = nextMonthDate.getFullYear();
+        const targetMonth = nextMonthDate.getMonth() + 1;
+
+        const student = allRawStudents.find(s => s.student_id === studentId);
+        if (!student) return;
+
+        const baseWeekendStatus = !!student.weekend;
+        const nextStatus = !currentIsWeekly;
+
+        try {
+            if (nextStatus === baseWeekendStatus) {
+                // 기본값과 같아지면 데이터베이스 레코드 제거
+                const { error } = await supabase
+                    .from('monthly_return_applications')
+                    .delete()
+                    .eq('student_id', studentId)
+                    .eq('target_year', targetYear)
+                    .eq('target_month', targetMonth);
+
+                if (error) throw error;
+            } else {
+                // 기본값과 달라지면 레코드 업서트
+                const { error } = await supabase
+                    .from('monthly_return_applications')
+                    .upsert({
+                        student_id: studentId,
+                        target_year: targetYear,
+                        target_month: targetMonth,
+                        is_weekly: nextStatus
+                    }, { onConflict: 'student_id, target_year, target_month' });
+
+                if (error) throw error;
+            }
+
+            toast.success(`${student.name} 학생의 ${targetMonth}월 귀가 상태가 ${nextStatus ? '매주귀가' : '격주귀가'}로 변경되었습니다.`);
+            
+            // 로컬 상태 즉각 갱신
+            setNextMonthApps(prev => {
+                const filtered = prev.filter(app => !(app.student_id === studentId && app.target_year === targetYear && app.target_month === targetMonth));
+                if (nextStatus !== baseWeekendStatus) {
+                    return [...filtered, { student_id: studentId, target_year: targetYear, target_month: targetMonth, is_weekly: nextStatus }];
+                }
+                return filtered;
+            });
+        } catch (error: any) {
+            console.error(error);
+            toast.error("변경 중 오류가 발생했습니다: " + error.message);
+        }
+    };
 
     const isSameDay = (d1: Date, d2: Date) => {
         return d1.getFullYear() === d2.getFullYear() &&
@@ -951,7 +1005,10 @@ export default function DashboardMain() {
             />
 
             {isWeeklyListModalOpen && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => setIsWeeklyListModalOpen(false)}>
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => {
+                    setIsWeeklyListModalOpen(false);
+                    setNextMonthSearchQuery('');
+                }}>
                     <div className="bg-white w-full max-w-[340px] rounded-[1.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                         <div className="bg-blue-700 px-5 py-3 text-white">
                             <div className="flex justify-between items-center mb-2">
@@ -963,7 +1020,10 @@ export default function DashboardMain() {
                                             return app ? app.is_weekly : !!s.weekend;
                                         }).length}명
                                     </span>
-                                    <button onClick={() => setIsWeeklyListModalOpen(false)} className="opacity-80 hover:opacity-100 p-1">✕</button>
+                                    <button onClick={() => {
+                                        setIsWeeklyListModalOpen(false);
+                                        setNextMonthSearchQuery('');
+                                    }} className="opacity-80 hover:opacity-100 p-1">✕</button>
                                 </div>
                             </div>
                             <div className="flex bg-white/10 p-1 rounded-xl text-[11px] font-bold">
@@ -981,6 +1041,19 @@ export default function DashboardMain() {
                                 </button>
                             </div>
                         </div>
+
+                        {viewMonthMode === 'next' && (
+                            <div className="px-4 pt-3 pb-2 border-b border-gray-100 bg-gray-50/50">
+                                <input
+                                    type="text"
+                                    placeholder="이름 또는 학번 검색..."
+                                    value={nextMonthSearchQuery}
+                                    onChange={(e) => setNextMonthSearchQuery(e.target.value)}
+                                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500 transition"
+                                />
+                            </div>
+                        )}
+
                         <div className="p-4 max-h-[50vh] overflow-y-auto overflow-x-hidden">
                             {viewMonthMode === 'current' ? (
                                 weeklyReturnees.length === 0 ? (
@@ -1003,25 +1076,46 @@ export default function DashboardMain() {
                             ) : (() => {
                                 const nextList = allRawStudents.filter(s => {
                                     const app = nextMonthApps.find(a => a.student_id === s.student_id);
-                                    return app ? app.is_weekly : !!s.weekend;
+                                    const isWeekly = app ? app.is_weekly : !!s.weekend;
+                                    
+                                    const query = nextMonthSearchQuery.trim().toLowerCase();
+                                    if (query) {
+                                        return s.name.toLowerCase().includes(query) || s.student_id.toLowerCase().includes(query);
+                                    }
+                                    return isWeekly;
                                 }).sort((a, b) => a.student_id.localeCompare(b.student_id));
 
-                                if (nextList.length === 0) return <p className="text-gray-400 text-center text-xs py-4">매주귀가자가 없습니다.</p>;
+                                if (nextList.length === 0) {
+                                    return <p className="text-gray-400 text-center text-xs py-4">검색 결과가 없습니다.</p>;
+                                }
 
                                 return (
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="flex flex-col gap-1.5">
                                         {nextList.map((s) => {
                                             const app = nextMonthApps.find(a => a.student_id === s.student_id);
+                                            const isWeekly = app ? app.is_weekly : !!s.weekend;
                                             const isChanging = app !== undefined && !!app.is_weekly !== !!s.weekend;
                                             return (
-                                                <div key={s.student_id} className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${isChanging ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
-                                                    <div className="flex-1 flex flex-col">
-                                                        <span className="text-[10px] font-bold text-blue-600 leading-none mb-0.5">{s.student_id}</span>
-                                                        <span className="text-xs font-bold text-gray-800">{s.name}</span>
+                                                <div key={s.student_id} className={`flex items-center justify-between px-3 py-2 rounded-xl border transition ${isWeekly ? 'bg-blue-50/50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[9px] font-bold text-gray-400 leading-none mb-0.5">{s.student_id}</span>
+                                                        <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                                                            {s.name}
+                                                            {isChanging && (
+                                                                <span className="text-[8px] font-black text-blue-600 bg-white px-1 py-0.5 rounded shadow-sm border border-blue-100">신규</span>
+                                                            )}
+                                                        </span>
                                                     </div>
-                                                    {isChanging && (
-                                                        <span className="text-[9px] font-black text-blue-600 bg-white px-1 py-0.5 rounded shadow-sm">신규</span>
-                                                    )}
+                                                    <button
+                                                        onClick={() => handleToggleNextMonthApp(s.student_id, isWeekly)}
+                                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-sm transition active:scale-95 border ${
+                                                            isWeekly
+                                                                ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                                                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        {isWeekly ? '매주귀가' : '격주귀가'}
+                                                    </button>
                                                 </div>
                                             );
                                         })}
@@ -1029,6 +1123,7 @@ export default function DashboardMain() {
                                 );
                             })()}
                         </div>
+
                         <div className="p-4 bg-gray-50 border-t border-gray-100">
                             <button
                                 onClick={() => setIsWeeklyListModalOpen(false)}
