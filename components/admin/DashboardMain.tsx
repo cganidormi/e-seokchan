@@ -120,6 +120,10 @@ export default function DashboardMain() {
         const baseWeekendStatus = !!student.weekend;
         const nextStatus = !currentIsWeekly;
 
+        if (!window.confirm(`${student.name}(${studentId}) 학생의 ${targetMonth}월 귀가 상태를 ${nextStatus ? '매주귀가' : '격주귀가'}(으)로 변경하시겠습니까?`)) {
+            return;
+        }
+
         try {
             if (nextStatus === baseWeekendStatus) {
                 // 기본값과 같아지면 데이터베이스 레코드 제거
@@ -1015,10 +1019,21 @@ export default function DashboardMain() {
                                 <h3 className="font-bold text-base">귀가자 명단</h3>
                                 <div className="flex items-center gap-2">
                                     <span className="bg-white/20 px-2 py-0.5 rounded-lg text-[11px] font-bold">
-                                        {viewMonthMode === 'current' ? weeklyReturnees.length : allRawStudents.filter(s => {
-                                            const app = nextMonthApps.find(a => a.student_id === s.student_id);
-                                            return app ? app.is_weekly : !!s.weekend;
-                                        }).length}명
+                                        {viewMonthMode === 'current' ? (
+                                            `${weeklyReturnees.length}명`
+                                        ) : (() => {
+                                            const activeCount = allRawStudents.filter(s => {
+                                                const app = nextMonthApps.find(a => a.student_id === s.student_id);
+                                                return app ? app.is_weekly : !!s.weekend;
+                                            }).length;
+                                            const excludedCount = allRawStudents.filter(s => {
+                                                const app = nextMonthApps.find(a => a.student_id === s.student_id);
+                                                return app !== undefined && !app.is_weekly && !!s.weekend;
+                                            }).length;
+                                            return excludedCount > 0 
+                                                ? `매주 ${activeCount}명 (제외 ${excludedCount}명)`
+                                                : `${activeCount}명`;
+                                        })()}
                                     </span>
                                     <button onClick={() => {
                                         setIsWeeklyListModalOpen(false);
@@ -1075,14 +1090,11 @@ export default function DashboardMain() {
                                 )
                             ) : (() => {
                                 const nextList = allRawStudents.filter(s => {
-                                    const app = nextMonthApps.find(a => a.student_id === s.student_id);
-                                    const isWeekly = app ? app.is_weekly : !!s.weekend;
-                                    
                                     const query = nextMonthSearchQuery.trim().toLowerCase();
                                     if (query) {
                                         return s.name.toLowerCase().includes(query) || s.student_id.toLowerCase().includes(query);
                                     }
-                                    return isWeekly;
+                                    return true;
                                 }).sort((a, b) => a.student_id.localeCompare(b.student_id));
 
                                 if (nextList.length === 0) {
@@ -1094,15 +1106,25 @@ export default function DashboardMain() {
                                         {nextList.map((s) => {
                                             const app = nextMonthApps.find(a => a.student_id === s.student_id);
                                             const isWeekly = app ? app.is_weekly : !!s.weekend;
-                                            const isChanging = app !== undefined && !!app.is_weekly !== !!s.weekend;
+                                            const isNew = app !== undefined && app.is_weekly && !s.weekend;
+                                            const isExcluded = app !== undefined && !app.is_weekly && !!s.weekend;
                                             return (
-                                                <div key={s.student_id} className={`flex items-center justify-between px-3 py-2 rounded-xl border transition ${isWeekly ? 'bg-blue-50/50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+                                                <div key={s.student_id} className={`flex items-center justify-between px-3 py-2 rounded-xl border transition ${
+                                                    isWeekly
+                                                        ? 'bg-blue-50/50 border-blue-100'
+                                                        : isExcluded
+                                                            ? 'bg-red-50/30 border-red-100/50'
+                                                            : 'bg-gray-50 border-gray-100'
+                                                }`}>
                                                     <div className="flex flex-col">
                                                         <span className="text-[9px] font-bold text-gray-400 leading-none mb-0.5">{s.student_id}</span>
                                                         <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
                                                             {s.name}
-                                                            {isChanging && (
+                                                            {isNew && (
                                                                 <span className="text-[8px] font-black text-blue-600 bg-white px-1 py-0.5 rounded shadow-sm border border-blue-100">신규</span>
+                                                            )}
+                                                            {isExcluded && (
+                                                                <span className="text-[8px] font-black text-red-600 bg-white px-1 py-0.5 rounded shadow-sm border border-red-100">제외</span>
                                                             )}
                                                         </span>
                                                     </div>
