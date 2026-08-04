@@ -706,10 +706,10 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         // 2. Standard Login Student & Rule Logic
                         const loginStudent = students.find(s => s.student_id === studentId);
 
-                        // Strict Single Person Rule for Outing/Overnight
-                        if (leaveType === '외출' || leaveType === '외박') {
+                        // Strict Single Person Rule for Outing/Overnight/Computer Leave
+                        if (leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움' || leaveType === '컴이석') {
                             if (newSelectedStudents.length > 1) {
-                                toast.error('외출/외박은 1인만 신청 가능합니다.');
+                                toast.error(`${leaveType}은(는) 1인만 신청 가능합니다.`);
                             }
                             // Force reset to only login student
                             if (loginStudent) newSelectedStudents = [loginStudent];
@@ -729,8 +729,8 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                             borderColor: '#e5e7eb',
                             boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
                             ':hover': { borderColor: '#fbbf24' },
-                            backgroundColor: (leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움') ? '#f3f4f6' : 'white', // Visual cue
-                            cursor: (leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움') ? 'not-allowed' : 'default',
+                            backgroundColor: (leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움' || leaveType === '컴이석') ? '#f3f4f6' : 'white', // Visual cue
+                            cursor: (leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움' || leaveType === '컴이석') ? 'not-allowed' : 'default',
                         }),
                         multiValue: (base) => ({ ...base, backgroundColor: '#fefce8', border: '1px solid #fde68a', borderRadius: '0.5rem', margin: '2px' }),
                         multiValueLabel: (base) => ({ ...base, color: '#854d0e', fontWeight: '600', padding: '2px 8px', fontSize: '0.875rem' }),
@@ -756,7 +756,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         }),
                     }}
                     placeholder="신청자 선택 (검색 가능)"
-                    isDisabled={leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움'} // Disable the input entirely based on requirement
+                    isDisabled={leaveType === '외출' || leaveType === '외박' || leaveType === '자리비움' || leaveType === '컴이석'} // Disable the input entirely based on requirement
                 />
             </div>
 
@@ -795,7 +795,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                 setReason('');
                                 setStartDate(new Date());
                                 setEndDate(new Date());
-                                if (item.id === '외출' || item.id === '외박' || item.id === '자리비움') {
+                                if (item.id === '외출' || item.id === '외박' || item.id === '자리비움' || item.id === '컴이석') {
                                     const loginStudent = students.find(s => s.student_id === studentId);
                                     if (loginStudent) setAddedStudents([loginStudent]);
                                 }
