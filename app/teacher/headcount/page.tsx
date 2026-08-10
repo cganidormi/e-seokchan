@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/supabaseClient';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -426,7 +426,7 @@ export default function HeadcountPage() {
             const res = await fetch('/api/teacher/save-room-assignments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ updates: [] })
+                body: JSON.stringify({ updates })
             });
 
             if (!res.ok) {
@@ -450,6 +450,39 @@ export default function HeadcountPage() {
             toast.error('초기화 중 오류가 발생했습니다.', { id: loading });
         }
     };
+
+    // Compute floor stats (총원, 현재원, 외박자)
+    const floorStats = useMemo(() => {
+        const layout = currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT));
+        let total = 0;
+        let overnightOut = 0;
+        const now = new Date();
+        const isWeekend = isWeeklyHomeTime(now);
+
+        Object.keys(layout).forEach(key => {
+            const roomNum = currentFloor * 100 + Number(key);
+            const roomData = roomStatus[roomNum];
+            if (!roomData) return;
+
+            (['left', 'right'] as const).forEach(pos => {
+                const slot = roomData[pos];
+                if (slot.name) {
+                    // 매주귀가 시간대에 매주귀가 학생은 총원에서 제외
+                    if (isWeekend && slot.isWeekend) return;
+                    total++;
+                    if (slot.leaveType === '외박') {
+                        overnightOut++;
+                    }
+                }
+            });
+        });
+
+        return {
+            total,
+            present: total - overnightOut,
+            overnightOut,
+        };
+    }, [roomStatus, currentFloor]);
 
     return (
         <div className="h-screen flex flex-col bg-black text-white font-sans selection:bg-orange-500 selection:text-white overflow-hidden">
@@ -518,6 +551,25 @@ export default function HeadcountPage() {
                             >
                                 ⚙️ 배정
                             </button>
+                        )}
+                    </div>
+
+                    {/* Floor Stats */}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-gray-500">{currentFloor}F</span>
+                        <div className="flex items-center gap-1 bg-gray-800/80 rounded-lg px-2 py-1 border border-white/10">
+                            <span className="text-[10px] text-gray-400">총원</span>
+                            <span className="text-xs font-black text-white tabular-nums">{floorStats.total}</span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-gray-800/80 rounded-lg px-2 py-1 border border-emerald-500/20">
+                            <span className="text-[10px] text-emerald-400">현재원</span>
+                            <span className="text-xs font-black text-emerald-300 tabular-nums">{floorStats.present}</span>
+                        </div>
+                        {floorStats.overnightOut > 0 && (
+                            <div className="flex items-center gap-1 bg-purple-900/40 rounded-lg px-2 py-1 border border-purple-500/30">
+                                <span className="text-[10px] text-purple-400">외박</span>
+                                <span className="text-xs font-black text-purple-300 tabular-nums">{floorStats.overnightOut}</span>
+                            </div>
                         )}
                     </div>
 
