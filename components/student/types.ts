@@ -8,6 +8,7 @@ export interface Student {
     weekend?: boolean;
     room_number?: number;
     room?: number;
+    bed_position?: 'left' | 'right' | null;
 }
 
 export interface Teacher {

@@ -36,9 +36,14 @@ export async function POST(request: Request) {
         // Parallel execution for speed
         // Store explicit results to debug failures
         const results = await Promise.all(updates.map(async (update) => {
+            const updatePayload: Record<string, any> = { room_number: update.room_number };
+            if (update.bed_position !== undefined) {
+                updatePayload.bed_position = update.bed_position;
+            }
+
             const { error } = await supabase
                 .from('students')
-                .update({ room_number: update.room_number })
+                .update(updatePayload)
                 .eq('student_id', update.student_id);
 
             return {

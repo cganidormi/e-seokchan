@@ -29,6 +29,8 @@ export default function StudentPage() {
   const [editNoticeContent, setEditNoticeContent] = useState('');
   const [isSavingNotice, setIsSavingNotice] = useState(false);
   const [targetStudentId, setTargetStudentId] = useState('all');
+  const [showRoomInfo, setShowRoomInfo] = useState(false);
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
 
   const router = useRouter(); // Initialized useRouter
 
@@ -105,12 +107,26 @@ export default function StudentPage() {
     };
   }, [studentId]);
 
-  // 1-2. Fetch and Subscribe to Student Notice Board
+  // 1-2. Fetch and Subscribe to Student Notice Board (with Room Visibility tag check)
   useEffect(() => {
+    const parseNoticeAndVisibility = (rawVal: string) => {
+      if (rawVal.includes('__ROOM_PUBLIC:true__')) {
+        setShowRoomInfo(true);
+        return rawVal.replace(/\n?__ROOM_PUBLIC:true__/, '').trim();
+      } else if (rawVal.includes('__ROOM_PUBLIC:false__')) {
+        setShowRoomInfo(false);
+        return rawVal.replace(/\n?__ROOM_PUBLIC:false__/, '').trim();
+      } else {
+        setShowRoomInfo(false);
+        return rawVal;
+      }
+    };
+
     const fetchNotice = async () => {
       const { data } = await supabase.from('system_settings').select('setting_value').eq('setting_key', 'student_notice').single();
       if (data && data.setting_value) {
-        setNoticeText(data.setting_value);
+        const cleanText = parseNoticeAndVisibility(data.setting_value);
+        setNoticeText(cleanText);
       }
     };
     fetchNotice();
@@ -122,7 +138,8 @@ export default function StudentPage() {
         { event: '*', schema: 'public', table: 'system_settings', filter: 'setting_key=eq.student_notice' },
         (payload: any) => {
           if (payload.new && payload.new.setting_value) {
-            setNoticeText(payload.new.setting_value);
+            const cleanText = parseNoticeAndVisibility(payload.new.setting_value);
+            setNoticeText(cleanText);
           }
         }
       )
@@ -380,6 +397,10 @@ export default function StudentPage() {
       return;
     }
     setIsSavingNotice(true);
+    const payloadNoticeText = targetStudentId === 'all'
+      ? `${editNoticeContent}\n__ROOM_PUBLIC:${showRoomInfo}__`
+      : editNoticeContent;
+
     try {
       const res = await fetch('/api/student/update-notice', {
         method: 'POST',
@@ -387,7 +408,7 @@ export default function StudentPage() {
         body: JSON.stringify({
           student_id: studentId,
           target_student_id: targetStudentId,
-          new_notice_text: editNoticeContent
+          new_notice_text: payloadNoticeText
         })
       });
       const result = await res.json();
@@ -411,6 +432,32 @@ export default function StudentPage() {
       toast.error(e.message);
     } finally {
       setIsSavingNotice(false);
+    }
+  };
+
+  const handleToggleRoomVisibility = async () => {
+    setIsUpdatingVisibility(true);
+    const nextState = !showRoomInfo;
+    const payloadNoticeText = `${noticeText}\n__ROOM_PUBLIC:${nextState}__`;
+    try {
+      const res = await fetch('/api/student/update-notice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentId,
+          target_student_id: 'all',
+          new_notice_text: payloadNoticeText
+        })
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.error || '설정 변경 실패');
+
+      toast.success(nextState ? '호실 정보가 전체 공개되었습니다.' : '호실 정보가 비공개 처리되었습니다.');
+      setShowRoomInfo(nextState);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setIsUpdatingVisibility(false);
     }
   };
 
@@ -503,11 +550,27 @@ export default function StudentPage() {
         </div>
         <div className="bg-white border-2 border-amber-300 rounded-xl p-3 shadow-sm w-full md:w-auto md:max-w-2xl relative">
           <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-xs font-bold text-white px-2 py-0.5 rounded shadow-sm ${isPersonalNotice ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`}>
                 {isPersonalNotice ? '💌 개인 편지' : '홍지관 안내문'}
               </span>
-              <span className="text-sm md:text-base font-extrabold text-amber-900">{bedInfoText}</span>
+              {(showRoomInfo || isNoticeAdmin) && (
+                <span className="text-sm md:text-base font-extrabold text-amber-900">{bedInfoText}</span>
+              )}
+              {isNoticeAdmin && (
+                <button
+                  onClick={handleToggleRoomVisibility}
+                  disabled={isUpdatingVisibility}
+                  className={`text-xs px-2 py-0.5 rounded font-bold transition whitespace-nowrap ml-1 ${
+                    showRoomInfo 
+                      ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
+                      : 'bg-rose-100 text-rose-800 hover:bg-rose-200'
+                  }`}
+                  title="호실 정보 공개/비공개 설정"
+                >
+                  {isUpdatingVisibility ? '...' : showRoomInfo ? '🟢 공개' : '🔴 비공개'}
+                </button>
+              )}
             </div>
             {isNoticeAdmin && !isEditingNotice && (
               <button

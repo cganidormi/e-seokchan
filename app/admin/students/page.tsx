@@ -199,14 +199,24 @@ export default function StudentsPage() {
       await supabase.from("monthly_return_applications").delete().eq("student_id", student_id);
     }
 
-    // 4. students_auth 삭제
+    // 4. students_auth 삭제 (서버 API 통해 RLS 우회)
     if (student_id) {
-      await supabase.from("students_auth").delete().eq("student_id", student_id);
+      await fetch('/api/admin/delete-student-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id }),
+      }).catch(() => { });
     }
 
     // 5. legacy students_auth 삭제 (더블 체크)
     const legacy_id = `${grade}${String(cls).padStart(2, "0")}${String(num).padStart(2, "0")}`;
-    await supabase.from("students_auth").delete().eq("student_id", legacy_id);
+    if (legacy_id !== student_id) {
+      await fetch('/api/admin/delete-student-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: legacy_id }),
+      }).catch(() => { });
+    }
 
     // 6. students 테이블에서 삭제
     const { error: stuError } = await supabase
@@ -281,23 +291,39 @@ export default function StudentsPage() {
         await supabase.from("leave_requests").delete().eq("student_id", o.student_id);
         await supabase.from("seat_assignments").delete().eq("student_id", o.student_id);
         await supabase.from("monthly_return_applications").delete().eq("student_id", o.student_id);
-        await supabase.from("students_auth").delete().eq("student_id", o.student_id);
+        await fetch('/api/admin/delete-student-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: o.student_id }),
+        }).catch(() => { });
       }
 
       const legacy_id = `${s.grade}${String(s.class).padStart(2, "0")}${String(s.number).padStart(2, "0")}`;
-      await supabase.from("students_auth").delete().eq("student_id", legacy_id);
+      await fetch('/api/admin/delete-student-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: legacy_id }),
+      }).catch(() => { });
 
       await supabase.from("students").delete().match({ grade: s.grade, class: s.class, number: s.number });
     }
 
     if (studentsToUpsert.length > 0) {
-      const { error: studentsErr } = await supabase
-        .from("students")
-        .upsert(studentsToUpsert, { onConflict: "grade,class,number" });
-
-      if (studentsErr) {
-        console.error(studentsErr);
-        toast.error(`${targetGrade}학년 정보 저장 실패`);
+      try {
+        const uResp = await fetch('/api/admin/upsert-students', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ students: studentsToUpsert }),
+        });
+        if (!uResp.ok) {
+          const uErr = await uResp.json();
+          console.error("Students DB upsert error:", uErr);
+          toast.error(`${targetGrade}학년 정보 저장 실패: ${uErr.error || ''} (${uErr.details || ''})`);
+          return;
+        }
+      } catch (e: any) {
+        console.error("Students DB network error:", e);
+        toast.error(`${targetGrade}학년 정보 저장 네트워크 오류: ${e.message}`);
         return;
       }
     }
@@ -365,11 +391,21 @@ export default function StudentsPage() {
       // 3. 새 이름이 있으면 계정 생성/업데이트 (서버 API 통해 RLS 우회)
       if (student_id) {
         const tempPassword = generateTempPassword();
-        await fetch('/api/admin/reset-student-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ student_id, new_password: tempPassword }),
-        });
+        try {
+          const resp = await fetch('/api/admin/reset-student-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ student_id, new_password: tempPassword }),
+          });
+          if (!resp.ok) {
+            const errData = await resp.json();
+            toast.error(`계정 생성 실패 (${s.name}): ${errData.error || ''} ${errData.details || ''}`);
+            console.error("Student auth creation failed:", errData);
+          }
+        } catch (e: any) {
+          toast.error(`계정 생성 네트워크 오류 (${s.name}): ${e.message}`);
+          console.error("Student auth network error:", e);
+        }
       }
     }
 
@@ -382,10 +418,20 @@ export default function StudentsPage() {
       // Fetch latest auth info for changed students to get passwords
       const studentIds = changed.map(s => toStudentId(s)).filter(Boolean) as string[];
       if (studentIds.length > 0) {
-        const { data: authData } = await supabase
-          .from("students_auth")
-          .select("student_id, temp_password")
-          .in("student_id", studentIds);
+        let authData: any[] = [];
+        try {
+          const authResp = await fetch('/api/admin/get-students-auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ student_ids: studentIds }),
+          });
+          if (authResp.ok) {
+            const authResult = await authResp.json();
+            authData = authResult.data || [];
+          }
+        } catch (e) {
+          console.error("Failed to fetch auth data for CSV:", e);
+        }
 
         if (authData && authData.length > 0) {
           const csvRows = [
@@ -442,10 +488,23 @@ export default function StudentsPage() {
 
     const studentIds = gradeStudents.map(s => s.name ? `${s.grade}${s.class}${String(s.number).padStart(2, "0")}${s.name}` : '').filter(Boolean);
 
-    const { data: authData } = await supabase
-      .from("students_auth")
-      .select("student_id, temp_password")
-      .in("student_id", studentIds);
+    let authData: any[] = [];
+    try {
+      const authResp = await fetch('/api/admin/get-students-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_ids: studentIds }),
+      });
+      if (authResp.ok) {
+        const authResult = await authResp.json();
+        authData = authResult.data || [];
+      } else {
+        const errData = await authResp.json();
+        toast.error(`계정 정보 조회 실패: ${errData.error || ''}`);
+      }
+    } catch (e: any) {
+      toast.error(`계정 정보 조회 네트워크 오류: ${e.message}`);
+    }
 
     const csvRows = [
       ["학년", "반", "번호", "이름", "아이디", "임시비밀번호", "학부모토큰"]

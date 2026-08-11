@@ -249,20 +249,36 @@ export default function HeadcountPage() {
 
                 ALL_ROOMS.forEach((roomNum) => {
                     const roomStudents = studentsByRoom[roomNum] || [];
+
+                    // 1. Explicit position mapping
+                    let leftStudent = roomStudents.find(s => s.bed_position === 'left');
+                    let rightStudent = roomStudents.find(s => s.bed_position === 'right');
+
+                    // 2. Fallback for existing students without bed_position set
+                    const unpositionedStudents = roomStudents.filter(s => !s.bed_position);
+                    if (unpositionedStudents.length > 0) {
+                        if (!leftStudent) {
+                            leftStudent = unpositionedStudents.shift();
+                        }
+                        if (!rightStudent && unpositionedStudents.length > 0) {
+                            rightStudent = unpositionedStudents.shift();
+                        }
+                    }
+
                     initialStatus[roomNum] = {
                         left: {
-                            status: roomStudents[0] && outStatus.has(roomStudents[0].student_id) ? 'out' : 'in',
-                            leaveType: roomStudents[0] ? outStatus.get(roomStudents[0].student_id) : undefined,
-                            name: roomStudents[0]?.name || '',
-                            student_id: roomStudents[0]?.student_id || '',
-                            isWeekend: roomStudents[0]?.weekend || false
+                            status: leftStudent && outStatus.has(leftStudent.student_id) ? 'out' : 'in',
+                            leaveType: leftStudent ? outStatus.get(leftStudent.student_id) : undefined,
+                            name: leftStudent?.name || '',
+                            student_id: leftStudent?.student_id || '',
+                            isWeekend: leftStudent?.weekend || false
                         },
                         right: {
-                            status: roomStudents[1] && outStatus.has(roomStudents[1].student_id) ? 'out' : 'in',
-                            leaveType: roomStudents[1] ? outStatus.get(roomStudents[1].student_id) : undefined,
-                            name: roomStudents[1]?.name || '',
-                            student_id: roomStudents[1]?.student_id || '',
-                            isWeekend: roomStudents[1]?.weekend || false
+                            status: rightStudent && outStatus.has(rightStudent.student_id) ? 'out' : 'in',
+                            leaveType: rightStudent ? outStatus.get(rightStudent.student_id) : undefined,
+                            name: rightStudent?.name || '',
+                            student_id: rightStudent?.student_id || '',
+                            isWeekend: rightStudent?.weekend || false
                         }
                     };
                 });
@@ -340,15 +356,15 @@ export default function HeadcountPage() {
         // Auto-save to database immediately
         const loading = toast.loading(`${studentId ? '학생 배정 저장 중...' : '배정 해제 중...'}`);
         try {
-            // The API takes an array of { student_id, room_number }
+            // The API takes an array of { student_id, room_number, bed_position }
             // If studentId is null, it means we are unassigning the current student.
-            const updates: { student_id: string, room_number: number | null }[] = [];
+            const updates: { student_id: string, room_number: number | null, bed_position: 'left' | 'right' | null }[] = [];
 
             if (studentId) {
-                updates.push({ student_id: studentId, room_number: room });
+                updates.push({ student_id: studentId, room_number: room, bed_position: position });
             } else if (currentStudentId) {
                 // Unassign current student
-                updates.push({ student_id: currentStudentId, room_number: null });
+                updates.push({ student_id: currentStudentId, room_number: null, bed_position: null });
             }
 
             const res = await fetch('/api/teacher/save-room-assignments', {
@@ -407,16 +423,16 @@ export default function HeadcountPage() {
 
         const loading = toast.loading('초기화 중...');
         try {
-            const updates: { student_id: string, room_number: null }[] = [];
+            const updates: { student_id: string, room_number: null, bed_position?: 'left' | 'right' | null }[] = [];
 
             Object.keys(roomStatus).forEach(key => {
                 const roomNum = Number(key);
                 const roomData = roomStatus[roomNum];
                 if (roomData.left.student_id) {
-                    updates.push({ student_id: roomData.left.student_id, room_number: null });
+                    updates.push({ student_id: roomData.left.student_id, room_number: null, bed_position: null });
                 }
                 if (roomData.right.student_id) {
-                    updates.push({ student_id: roomData.right.student_id, room_number: null });
+                    updates.push({ student_id: roomData.right.student_id, room_number: null, bed_position: null });
                 }
             });
 

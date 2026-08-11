@@ -59,14 +59,11 @@ export async function POST(request: Request) {
         let pushBody = new_notice_text.length > 30 ? new_notice_text.substring(0, 30) + '...' : new_notice_text;
 
         if (target_student_id === 'all') {
-            // 1. 전체 공지 업데이트
-            const { error: sysError } = await supabase.from('system_settings').upsert(
-                {
-                    setting_key: 'student_notice',
-                    setting_value: new_notice_text,
-                },
-                { onConflict: 'setting_key' }
-            );
+            // 1. 전체 공지 업데이트 (RLS INSERT 제약 우회를 위해 update로 안전하게 처리)
+            const { error: sysError } = await supabase
+                .from('system_settings')
+                .update({ setting_value: new_notice_text })
+                .eq('setting_key', 'student_notice');
             if (sysError) throw sysError;
 
             // 2. 모든 학생의 개별 공지 비우기 (초기화)
