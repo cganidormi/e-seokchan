@@ -646,7 +646,7 @@ export default function HeadcountPage() {
                             placeholder="🔍 학생 검색..."
                             enterKeyHint="search"
                             autoComplete="off"
-                            className="w-full px-2.5 py-1 text-xs bg-gray-800/90 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 transition-all"
+                            className="w-full px-2.5 py-1 text-[16px] sm:text-xs bg-gray-800/90 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 transition-all"
                         />
                         {searchQuery && (
                             <button
