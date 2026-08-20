@@ -181,6 +181,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                             enterKeyHint="search"
                             autoComplete="off"
                             className="w-full pl-10 pr-9 py-2.5 text-[16px] sm:text-sm bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 shadow-inner transition-all"
+                            style={{ fontSize: '16px' }}
                         />
                         {searchQuery && (
                             <button
