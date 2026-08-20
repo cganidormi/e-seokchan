@@ -18,7 +18,7 @@ if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
 
 export async function POST(request: Request) {
     try {
-        const { student_id, target_student_id, new_notice_text } = await request.json();
+        const { student_id, target_student_id, new_notice_text, send_push = true } = await request.json();
 
         // target_student_id는 'all' 이거나 특정 student_id (예: '3317홍길동')
         if (!student_id || typeof new_notice_text !== 'string' || !target_student_id) {
@@ -89,8 +89,8 @@ export async function POST(request: Request) {
             pushTitle = '📝 [개별 공지] 홍지관 안내문';
         }
 
-        // 알림 푸시 전송 (백그라운드에서 지연되지 않도록 await)
-        if (pushTargetQuery && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+        // 알림 푸시 전송 (send_push 가 true 일 때만 발송)
+        if (send_push && pushTargetQuery && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
             const { data: subs, error: subError } = await pushTargetQuery;
             if (!subError && subs && subs.length > 0) {
                 const payload = JSON.stringify({

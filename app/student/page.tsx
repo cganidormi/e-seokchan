@@ -27,6 +27,7 @@ export default function StudentPage() {
   const [noticeText, setNoticeText] = useState('각 호실에 호실점검 체크리스트가 있습니다. \n호실의 시설물을 꼭 직접 확인 하시고 체크리스트를 채운 후 사감선생님께 제출하세요.');
   const [isEditingNotice, setIsEditingNotice] = useState(false);
   const [editNoticeContent, setEditNoticeContent] = useState('');
+  const [sendPushNotification, setSendPushNotification] = useState(false);
   const [isSavingNotice, setIsSavingNotice] = useState(false);
   const [targetStudentId, setTargetStudentId] = useState('all');
   const [showRoomInfo, setShowRoomInfo] = useState(false);
@@ -408,13 +409,18 @@ export default function StudentPage() {
         body: JSON.stringify({
           student_id: studentId,
           target_student_id: targetStudentId,
-          new_notice_text: payloadNoticeText
+          new_notice_text: payloadNoticeText,
+          send_push: sendPushNotification
         })
       });
       const result = await res.json();
       if (!res.ok || !result.success) throw new Error(result.error || '저장 실패');
 
-      toast.success(targetStudentId === 'all' ? '전체 전광판이 업데이트되었습니다.' : '개별 학생에게 알림을 보냈습니다.');
+      if (sendPushNotification) {
+        toast.success(targetStudentId === 'all' ? '전체 공지가 업데이트되고 푸시 알림이 발송되었습니다.' : '개별 공지가 업데이트되고 푸시 알림이 발송되었습니다.');
+      } else {
+        toast.success('공지 내용만 조용히 업데이트되었습니다. (푸시 알림 미발송)');
+      }
       setIsEditingNotice(false);
 
       if (targetStudentId === 'all') {
@@ -615,11 +621,22 @@ export default function StudentPage() {
                 className="w-full text-sm p-2 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-400 min-h-[60px] resize-none text-gray-900 font-medium"
                 placeholder="공지내용 입력..."
               />
-              <div className="flex justify-end gap-2">
-                <button onClick={() => setIsEditingNotice(false)} className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-bold rounded hover:bg-gray-300">취소</button>
-                <button onClick={handleSaveNotice} disabled={isSavingNotice} className="px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded hover:bg-amber-600 disabled:opacity-50">
-                  {isSavingNotice ? '저장 중...' : '저장하기'}
-                </button>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                <label className="flex items-center gap-1.5 text-xs text-amber-900 font-bold cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={sendPushNotification}
+                    onChange={(e) => setSendPushNotification(e.target.checked)}
+                    className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300 accent-amber-500 cursor-pointer"
+                  />
+                  <span>📱 푸시 알림 함께 발송하기</span>
+                </label>
+                <div className="flex justify-end gap-2 shrink-0">
+                  <button onClick={() => setIsEditingNotice(false)} className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-bold rounded hover:bg-gray-300 cursor-pointer">취소</button>
+                  <button onClick={handleSaveNotice} disabled={isSavingNotice} className="px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded hover:bg-amber-600 disabled:opacity-50 cursor-pointer">
+                    {isSavingNotice ? '저장 중...' : '저장하기'}
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

@@ -128,9 +128,9 @@ const isWeeklyHomeTime = (date: Date) => {
 };
 
 export default function HeadcountPage() {
-    const [currentTime, setCurrentTime] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [currentFloor, setCurrentFloor] = useState(3);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Mode: 'check' (Toggle In/Out) | 'assign' (Change Student)
     const [mode, setMode] = useState<'check' | 'assign'>('check');
@@ -189,13 +189,6 @@ export default function HeadcountPage() {
     const [students, setStudents] = useState<Student[]>([]);
 
     useEffect(() => {
-        // Clock
-        const timer = setInterval(() => {
-            const now = new Date();
-            setCurrentTime(now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
-        }, 1000);
-        setCurrentTime(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
-
         // Fetch Data
         const fetchData = async () => {
             try {
@@ -305,8 +298,6 @@ export default function HeadcountPage() {
         };
 
         fetchData();
-
-        return () => clearInterval(timer);
     }, []);
 
     const toggleStatus = (roomNum: number, position: 'left' | 'right') => {
@@ -467,13 +458,23 @@ export default function HeadcountPage() {
         }
     };
 
-    // Compute floor stats (총원, 현재원, 외박자)
+    // Compute floor stats (각 층별 1학년, 2학년, 3학년 명수)
     const floorStats = useMemo(() => {
         const layout = currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT));
-        let total = 0;
-        let overnightOut = 0;
+        const counts = { 1: 0, 2: 0, 3: 0 };
         const now = new Date();
         const isWeekend = isWeeklyHomeTime(now);
+
+        const gradeMap = new Map<string, number>();
+        students.forEach(s => {
+            if (s.student_id) {
+                let g = s.grade;
+                if (!g && /^[1-3]/.test(s.student_id)) {
+                    g = parseInt(s.student_id[0], 10);
+                }
+                if (g) gradeMap.set(s.student_id, g);
+            }
+        });
 
         Object.keys(layout).forEach(key => {
             const roomNum = currentFloor * 100 + Number(key);
@@ -483,22 +484,67 @@ export default function HeadcountPage() {
             (['left', 'right'] as const).forEach(pos => {
                 const slot = roomData[pos];
                 if (slot.name) {
-                    // 매주귀가 시간대에 매주귀가 학생은 총원에서 제외
+                    // 매주귀가 시간대에 매주귀가 학생은 제외
                     if (isWeekend && slot.isWeekend) return;
-                    total++;
-                    if (slot.leaveType === '외박') {
-                        overnightOut++;
+
+                    let grade = slot.student_id ? gradeMap.get(slot.student_id) : undefined;
+                    if (!grade && slot.student_id && /^[1-3]/.test(slot.student_id)) {
+                        grade = parseInt(slot.student_id[0], 10);
+                    }
+                    if (!grade && /^[1-3]/.test(slot.name)) {
+                        grade = parseInt(slot.name[0], 10);
+                    }
+
+                    if (grade && (grade === 1 || grade === 2 || grade === 3)) {
+                        counts[grade as 1 | 2 | 3]++;
                     }
                 }
             });
         });
 
-        return {
-            total,
-            present: total - overnightOut,
-            overnightOut,
-        };
-    }, [roomStatus, currentFloor]);
+        return counts;
+    }, [roomStatus, currentFloor, students]);
+
+    // Student room search computation (이름 및 학번 검색)
+    const searchResults = useMemo(() => {
+        if (!searchQuery.trim()) return [];
+        const q = searchQuery.trim().toLowerCase();
+        const results: { displayName: string, roomNum: number, floor: number, position: 'left' | 'right' }[] = [];
+
+        Object.entries(roomStatus).forEach(([key, val]) => {
+            const roomNum = Number(key);
+            const floor = Math.floor(roomNum / 100);
+            (['left', 'right'] as const).forEach(pos => {
+                const slot = val[pos];
+                const nm = (slot.name || '').trim();
+                const sid = (slot.student_id || '').trim();
+
+                if (nm || sid) {
+                    let displayName = sid;
+                    if (!sid) {
+                        displayName = nm;
+                    } else if (nm && !sid.includes(nm)) {
+                        if (/^\d+$/.test(sid)) {
+                            displayName = `${sid} ${nm}`;
+                        } else {
+                            displayName = sid;
+                        }
+                    }
+
+                    if (displayName.toLowerCase().includes(q) || nm.toLowerCase().includes(q) || sid.toLowerCase().includes(q)) {
+                        results.push({
+                            displayName,
+                            roomNum,
+                            floor,
+                            position: pos
+                        });
+                    }
+                }
+            });
+        });
+
+        return results;
+    }, [searchQuery, roomStatus]);
 
     return (
         <div className="h-screen flex flex-col bg-black text-white font-sans selection:bg-orange-500 selection:text-white overflow-hidden">
@@ -507,33 +553,80 @@ export default function HeadcountPage() {
                 style: { background: '#1f2937', color: '#fff' }
             }} />
 
-            {/* Header - Fixed */}
-            <header className="flex-none p-4 pb-2 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 flex justify-between items-start shadow-xl">
-                <div className="flex flex-col gap-1">
+            {/* Header - Fixed & Fully Responsive */}
+            <header className="flex-none p-3 sm:p-4 pb-2 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 flex flex-col gap-2 shadow-xl">
+                {/* Top Row: Navigation & Mode Toggle */}
+                <div className="flex justify-between items-center w-full gap-2">
                     <button
                         onClick={() => router.push('/teacher')}
-                        className="self-start p-2 rounded text-sm hover:bg-gray-800/80 text-yellow-400 font-bold border border-yellow-400/30 flex items-center justify-center gap-2 mb-2 transition-all whitespace-nowrap"
+                        className="p-1.5 sm:p-2 rounded text-xs sm:text-sm hover:bg-gray-800/80 text-yellow-400 font-bold border border-yellow-400/30 flex items-center justify-center gap-1.5 transition-all whitespace-nowrap"
                     >
                         <span>⬅</span>
                         <span>교사 페이지</span>
                     </button>
-                    <div className="flex items-center gap-3">
-                        <span className="text-3xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">
-                            DormiCheck
-                        </span>
-                        <span className="bg-gray-800 text-gray-300 text-xs px-2 py-0.5 rounded border border-gray-700 font-mono">
-                            {currentTime}
-                        </span>
-                    </div>
 
-                    {/* Floor Selector Tabs */}
-                    <div className="flex gap-1 mt-1">
+                    <div className="flex items-center gap-2">
+                        {/* Mode Toggle */}
+                        <div className="flex bg-gray-800 rounded-lg p-0.5 sm:p-1 border border-gray-700">
+                            <button
+                                onClick={() => setMode('check')}
+                                className={clsx(
+                                    "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
+                                    mode === 'check' ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
+                                )}
+                            >
+                                📋 점검
+                            </button>
+                            {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자' || !teacherPosition) && (
+                                <button
+                                    onClick={() => setMode('assign')}
+                                    className={clsx(
+                                        "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
+                                        mode === 'assign' ? "bg-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white"
+                                    )}
+                                >
+                                    ⚙️ 배정
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        {mode === 'assign' && (
+                            <button
+                                onClick={handleResetAssignments}
+                                className="px-2 py-1 sm:py-1.5 text-red-400 font-bold text-xs bg-gray-800 rounded-lg border border-red-900/30 hover:bg-red-900/20 transition-all whitespace-nowrap"
+                            >
+                                ⚠️ 초기화
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Middle Row: Floor Grade Badges */}
+                <div className="flex items-center gap-1 sm:gap-1.5 whitespace-nowrap overflow-x-auto no-scrollbar">
+                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-blue-500/20 shrink-0 whitespace-nowrap">
+                        <span className="text-[9px] sm:text-[10px] text-blue-400 font-medium">1학년</span>
+                        <span className="text-[11px] sm:text-xs font-black text-blue-300 tabular-nums">{floorStats[1]}명</span>
+                    </div>
+                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-emerald-500/20 shrink-0 whitespace-nowrap">
+                        <span className="text-[9px] sm:text-[10px] text-emerald-400 font-medium">2학년</span>
+                        <span className="text-[11px] sm:text-xs font-black text-emerald-300 tabular-nums">{floorStats[2]}명</span>
+                    </div>
+                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-amber-500/20 shrink-0 whitespace-nowrap">
+                        <span className="text-[9px] sm:text-[10px] text-amber-400 font-medium">3학년</span>
+                        <span className="text-[11px] sm:text-xs font-black text-amber-300 tabular-nums">{floorStats[3]}명</span>
+                    </div>
+                </div>
+
+                {/* Bottom Row: Floor Selector Tabs & Student Search */}
+                <div className="flex items-center gap-2 w-full justify-between sm:justify-start">
+                    <div className="flex gap-1 shrink-0">
                         {[1, 2, 3, 4].map(floor => (
                             <button
                                 key={floor}
                                 onClick={() => setCurrentFloor(floor)}
                                 className={clsx(
-                                    "px-3 py-1 rounded text-xs font-bold transition-all border",
+                                    "px-2.5 sm:px-3 py-1 rounded text-xs font-bold transition-all border",
                                     currentFloor === floor
                                         ? "bg-orange-600 border-orange-500 text-white"
                                         : "bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700"
@@ -543,63 +636,57 @@ export default function HeadcountPage() {
                             </button>
                         ))}
                     </div>
-                </div>
 
-                <div className="flex flex-col items-end gap-2">
-                    {/* Mode Toggle */}
-                    <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-700">
-                        <button
-                            onClick={() => setMode('check')}
-                            className={clsx(
-                                "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
-                                mode === 'check' ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
-                            )}
-                        >
-                            📋 점검
-                        </button>
-                        {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자') && (
+                    {/* Search Input Box */}
+                    <div className="relative flex-1 max-w-[180px] sm:max-w-[220px]">
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="🔍 학생 검색..."
+                            enterKeyHint="search"
+                            autoComplete="off"
+                            className="w-full px-2.5 py-1 text-xs bg-gray-800/90 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 transition-all"
+                        />
+                        {searchQuery && (
                             <button
-                                onClick={() => setMode('assign')}
-                                className={clsx(
-                                    "px-3 py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
-                                    mode === 'assign' ? "bg-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white"
-                                )}
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs font-bold"
                             >
-                                ⚙️ 배정
+                                ✕
                             </button>
                         )}
-                    </div>
 
-                    {/* Floor Stats */}
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-gray-500">{currentFloor}F</span>
-                        <div className="flex items-center gap-1 bg-gray-800/80 rounded-lg px-2 py-1 border border-white/10">
-                            <span className="text-[10px] text-gray-400">총원</span>
-                            <span className="text-xs font-black text-white tabular-nums">{floorStats.total}</span>
-                        </div>
-                        <div className="flex items-center gap-1 bg-gray-800/80 rounded-lg px-2 py-1 border border-emerald-500/20">
-                            <span className="text-[10px] text-emerald-400">현재원</span>
-                            <span className="text-xs font-black text-emerald-300 tabular-nums">{floorStats.present}</span>
-                        </div>
-                        {floorStats.overnightOut > 0 && (
-                            <div className="flex items-center gap-1 bg-purple-900/40 rounded-lg px-2 py-1 border border-purple-500/30">
-                                <span className="text-[10px] text-purple-400">외박</span>
-                                <span className="text-xs font-black text-purple-300 tabular-nums">{floorStats.overnightOut}</span>
+                        {/* Dropdown Results */}
+                        {searchQuery.trim() && (
+                            <div className="absolute left-0 top-full mt-1 min-w-[180px] max-w-[240px] w-auto bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-50 max-h-56 overflow-y-auto whitespace-nowrap">
+                                {searchResults.length > 0 ? (
+                                    searchResults.map((res, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => {
+                                                setCurrentFloor(res.floor);
+                                                setSearchQuery('');
+                                                toast.success(`${res.displayName} → ${res.roomNum}호 (${res.position === 'left' ? 'L' : 'R'}침대)`);
+                                            }}
+                                            className="w-full text-left px-2.5 py-1.5 text-xs text-gray-200 hover:bg-orange-600/30 hover:text-white border-b border-gray-800 last:border-0 flex items-center justify-start gap-2 transition-colors cursor-pointer"
+                                        >
+                                            <span className="font-bold text-white truncate">
+                                                {res.displayName}
+                                            </span>
+                                            <span className="bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded text-[11px] font-mono border border-orange-500/30 shrink-0">
+                                                {res.roomNum}호 ({res.position === 'left' ? 'L' : 'R'})
+                                            </span>
+                                        </button>
+                                    ))
+                                ) : (
+                                    <div className="px-3 py-2 text-xs text-gray-400 text-center">
+                                        검색 결과 없음
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
-
-                    {/* Action Buttons (Stacked below toggle on mobile/desktop to save width) */}
-                    {mode === 'assign' && (
-                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-5">
-                            <button
-                                onClick={handleResetAssignments}
-                                className="px-3 py-1.5 text-red-400 font-bold text-xs bg-gray-800 rounded-lg border border-red-900/30 hover:bg-red-900/20 transition-all whitespace-nowrap"
-                            >
-                                ⚠️ 전체 초기화
-                            </button>
-                        </div>
-                    )}
                 </div>
             </header>
 

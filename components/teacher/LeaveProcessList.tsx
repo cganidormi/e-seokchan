@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import clsx from 'clsx';
+import { IoSearch } from 'react-icons/io5';
 import { LeaveRequest } from './types';
 import { LeaveProcessCard } from './LeaveProcessCard';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
@@ -12,8 +13,8 @@ interface LeaveProcessListProps {
     onCancel: (requestId: string | number) => void;
     teacherName: string;
     teacherId: string;
-    unifiedViewMode: 'my_active' | 'all_active' | 'past_all';
-    onTabChange: (mode: 'my_active' | 'all_active' | 'past_all') => void;
+    unifiedViewMode: 'my_active' | 'all_active' | 'past_all' | 'search_name';
+    onTabChange: (mode: 'my_active' | 'all_active' | 'past_all' | 'search_name') => void;
 }
 
 export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
@@ -26,6 +27,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     onTabChange,
 }) => {
     const [filterType, setFilterType] = useState('전체'); // Added filter type state
+    const [searchQuery, setSearchQuery] = useState(''); // Added student name search state
     const [expandedId, setExpandedId] = useState<string | number | null>(null);
     const [statusMenuId, setStatusMenuId] = useState<string | number | null>(null);
 
@@ -64,13 +66,6 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
         if (req.status === '취소' || req.status === '반려' || req.status === '복귀') return false;
         const endTime = new Date(req.end_time);
         if (endTime < now) return false;
-        // 시간대에 따른 숨김 로직 제거 (주말 및 야간에도 신청 내역 항상 노출)
-        // if (endTime.getHours() >= 23 && req.period) {
-        //     const isDaytime = req.period.includes('주간') || req.period.includes('오전') || req.period.includes('오후');
-        //     const isWeekend = now.getDay() === 0 || now.getDay() === 6;
-        //     if (isDaytime && !isWeekend && now.getHours() >= 19) return false;
-        //     if (isDaytime && isWeekend && now.getHours() >= 18) return false;
-        // }
         return true;
     };
 
@@ -78,13 +73,26 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
         // 1. Leave Type Filter
         if (filterType !== '전체' && req.leave_type !== filterType) return false;
 
+        // 2. Student Name / ID Search Filter
+        if (unifiedViewMode === 'search_name') {
+            const q = searchQuery.trim().toLowerCase();
+            if (!q) return false;
+
+            const mainStudentId = (req.student_id || '').toLowerCase();
+            const matchingSubStudent = req.leave_request_students?.some(s => (s.student_id || '').toLowerCase().includes(q));
+
+            if (!mainStudentId.includes(q) && !matchingSubStudent) {
+                return false;
+            }
+        }
+
         return true;
     }).sort((a, b) => {
         const timeA = new Date(a.start_time).getTime();
         const timeB = new Date(b.start_time).getTime();
-        // 'past_all' -> Descending (Recent first)
+        // 'past_all' or 'search_name' -> Descending (Recent first)
         // Others -> Ascending (Imminent first)
-        return unifiedViewMode === 'past_all' ? timeB - timeA : timeA - timeB;
+        return (unifiedViewMode === 'past_all' || unifiedViewMode === 'search_name') ? timeB - timeA : timeA - timeB;
     });
 
     return (
@@ -137,27 +145,54 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
 
             {/* 탭 전환 UI */}
             <div className="flex flex-col gap-3 mb-4">
-                {/* 3-Tab UI */}
-                <div className="flex p-1 bg-[#1a1a1a] rounded-xl w-full">
+                {/* 4-Tab UI */}
+                <div className="flex p-1 bg-[#1a1a1a] rounded-xl w-full gap-0.5">
                     {[
                         { id: 'my_active', label: '내 담당' },
                         { id: 'all_active', label: '전체 현황' },
                         { id: 'past_all', label: '지난 내역' },
+                        { id: 'search_name', label: '학생 검색' },
                     ].map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => onTabChange(tab.id as any)}
                             className={clsx(
-                                "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center",
+                                "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center whitespace-nowrap flex items-center justify-center gap-1",
                                 unifiedViewMode === tab.id
                                     ? "bg-blue-600 text-white shadow-sm"
                                     : "text-gray-500 hover:text-gray-300"
                             )}
                         >
-                            {tab.label}
+                            {tab.id === 'search_name' && <IoSearch className="w-3.5 h-3.5 shrink-0" />}
+                            <span>{tab.label}</span>
                         </button>
                     ))}
                 </div>
+
+                {/* 이름 검색 입력창 (이름검색 탭 선택 시 노출) */}
+                {unifiedViewMode === 'search_name' && (
+                    <div className="relative w-full">
+                        <IoSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="학생 이름 또는 학번 입력..."
+                            autoFocus
+                            enterKeyHint="search"
+                            autoComplete="off"
+                            className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 shadow-inner transition-all"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs font-bold"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {/* 이석 종류 필터 (가로 스크롤) */}
                 <div className="flex gap-2 justify-center overflow-x-auto no-scrollbar">
@@ -180,11 +215,16 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
 
             <div className="flex flex-col gap-3 pb-24">
                 {filtered.length === 0 ? (
-                    <div className="bg-[#1a1a1a] p-10 rounded-[2rem] border border-dashed border-white/10 text-center text-gray-600 text-xs italic">
+                    <div className="bg-[#1a1a1a] p-10 rounded-[2rem] border border-dashed border-white/10 text-center text-gray-400 text-xs italic">
                         {unifiedViewMode === 'my_active' && '처리할 내 담당 이석 내역이 없습니다.'}
                         {unifiedViewMode === 'all_active' && '현재 처리할 이석 내역이 없습니다.'}
                         {unifiedViewMode === 'past_all' && '지난 내역이 없습니다.'}
-                        {filterType !== '전체' && <p>('{filterType}' 필터 적용됨)</p>}
+                        {unifiedViewMode === 'search_name' && (
+                            !searchQuery.trim()
+                                ? '💡 상단 검색창에 학생의 이름이나 학번을 입력해 주세요.'
+                                : `'${searchQuery}' 검색 결과가 없습니다.`
+                        )}
+                        {filterType !== '전체' && <p className="mt-1 text-amber-400/80">('{filterType}' 필터 적용됨)</p>}
                     </div>
                 ) : (
                     filtered.map((req) => (

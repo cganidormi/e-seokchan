@@ -703,37 +703,49 @@ export default function SeatManagementPage() {
     };
 
     return (
-        <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
+        <div className="p-4 md:p-6 pb-16 sm:pb-20 bg-gray-100 min-h-screen">
             <Toaster />
 
             <div className="flex flex-col w-full max-w-6xl mx-auto">
                 {/* Header & Controls */}
                 {/* Header & Controls */}
                 <div className="flex flex-col gap-4 mb-3">
-                    <div className="flex items-center justify-between gap-2 overflow-hidden">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                            <div className="w-1.5 h-5 sm:h-6 bg-yellow-400 rounded-full shrink-0"></div>
-                            <h1 className="text-base sm:text-xl font-extrabold text-gray-800 flex items-center gap-1 sm:gap-2 truncate">
-                                제{selectedRoom}실 현황모니터
-                                <select
-                                    value={selectedRoom}
-                                    onChange={(e) => setSelectedRoom(Number(e.target.value))}
-                                    className="ml-1 sm:ml-2 bg-transparent text-xs sm:text-sm font-bold text-gray-400 focus:outline-none cursor-pointer hover:text-gray-600 transition-colors"
-                                >
-                                    <option value={1}>(1실 변경)</option>
-                                    <option value={2}>(2실 변경)</option>
-                                    <option value={3}>(3실 변경)</option>
-                                </select>
-                            </h1>
+                    <div className="flex items-center justify-between gap-2 w-full">
+                        {/* Title & Room Segment Selector */}
+                        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-6 bg-yellow-400 rounded-full shrink-0"></div>
+                                <h1 className="text-base sm:text-xl font-black text-gray-800 whitespace-nowrap">
+                                    현황모니터
+                                </h1>
+                            </div>
+
+                            {/* Room Selector Segment Tabs */}
+                            <div className="flex items-center gap-1 bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner">
+                                {[1, 2, 3].map((room) => (
+                                    <button
+                                        key={room}
+                                        onClick={() => setSelectedRoom(room)}
+                                        className={clsx(
+                                            "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap",
+                                            selectedRoom === room
+                                                ? "bg-yellow-400 text-yellow-950 shadow-md scale-105"
+                                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-300/60"
+                                        )}
+                                    >
+                                        제{room}실
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
-                        {/* Seat Management Toggle (Compact - Top Right) - Only for Authorized Roles */}
+                        {/* Seat Management Toggle (Top Right Corner) - Only for Authorized Roles */}
                         {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자') && (
                             <button
                                 onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
                                 className={clsx(
-                                    "px-2 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-colors flex items-center gap-1 whitespace-nowrap shrink-0",
-                                    mode === 'edit' ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                    "px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-sm ml-auto self-start sm:self-center",
+                                    mode === 'edit' ? "bg-gray-800 text-white" : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
                                 )}
                             >
                                 <span>{mode === 'edit' ? '모니터로 돌아가기' : '⚙️ 좌석 관리'}</span>

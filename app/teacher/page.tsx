@@ -22,7 +22,7 @@ export default function TeacherPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [showQR, setShowQR] = useState(false);
-  const [unifiedViewMode, setUnifiedViewMode] = useState<'my_active' | 'all_active' | 'past_all'>('my_active');
+  const [unifiedViewMode, setUnifiedViewMode] = useState<'my_active' | 'all_active' | 'past_all' | 'search_name'>('my_active');
 
   const router = useRouter();
 
@@ -184,7 +184,7 @@ export default function TeacherPage() {
   const fetchLeaveRequests = async (
     id: string, 
     name: string, 
-    mode: 'my_active' | 'all_active' | 'past_all' = 'my_active'
+    mode: 'my_active' | 'all_active' | 'past_all' | 'search_name' = 'my_active'
   ) => {
     try {
       const nowStr = new Date().toISOString();
@@ -212,6 +212,13 @@ export default function TeacherPage() {
         query = query
           .or(`end_time.lt.${nowStr},status.in.(복귀,취소,반려)`)
           .gte('created_at', threeDaysAgo)
+          .order('created_at', { ascending: false })
+          .limit(500);
+      } else if (mode === 'search_name') {
+        // 학생 검색 모드: 최근 14일간의 이석 내역 전체 조회
+        const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+        query = query
+          .gte('created_at', fourteenDaysAgo)
           .order('created_at', { ascending: false })
           .limit(500);
       }
