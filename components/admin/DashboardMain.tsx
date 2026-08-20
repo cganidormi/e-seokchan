@@ -239,7 +239,12 @@ export default function DashboardMain() {
 
             // --- Process 1: Students & Weekly Returnees ---
             const rawStudents = studentsRes.data || [];
-            const students = rawStudents.filter((s: any) => !(s.grade === 3 && s.class === 3 && s.number === 17 && s.name === '홍길동'));
+            const students = rawStudents.filter((s: any) => !(
+                (s.grade === 3 && s.class === 3 && s.number === 17 && s.name === '홍길동') ||
+                (s.grade === 3 && s.class === 3 && s.number === 18 && s.name === '이순신') ||
+                s.student_id === '3317홍길동' ||
+                s.student_id === '3318이순신'
+            ));
             const totalStudents = students.length;
 
             const weekly = students.filter((s: any) => s.weekend).sort((a: any, b: any) => {

@@ -81,7 +81,12 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                 });
 
                 const merged = studentsData
-                    .filter(s => !(s.grade === 3 && s.class === 3 && s.number === 17 && s.name === '홍길동'))
+                    .filter(s => !(
+                        (s.grade === 3 && s.class === 3 && s.number === 17 && s.name === '홍길동') ||
+                        (s.grade === 3 && s.class === 3 && s.number === 18 && s.name === '이순신') ||
+                        s.student_id === '3317홍길동' ||
+                        s.student_id === '3318이순신'
+                    ))
                     .map(s => {
                         const details = violationMap.get(s.student_id) || [];
                         const sortedDetails = [...details].sort((a, b) => 
