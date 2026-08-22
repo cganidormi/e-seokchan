@@ -222,7 +222,7 @@ export default function HeadcountPage() {
                     .from('leave_requests')
                     .select('student_id, status, leave_type, start_time, end_time, leave_request_students(student_id)')
                     .eq('status', '승인')
-                    .eq('leave_type', '외박')
+                    .in('leave_type', ['외박', '외출'])
                     .lte('start_time', nowStr)
                     .gte('end_time', nowStr);
 
@@ -298,6 +298,20 @@ export default function HeadcountPage() {
         };
 
         fetchData();
+
+        const channel = supabase
+            .channel('headcount_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, () => {
+                fetchData();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, () => {
+                fetchData();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     const toggleStatus = (roomNum: number, position: 'left' | 'right') => {
@@ -458,23 +472,26 @@ export default function HeadcountPage() {
         }
     };
 
-    // Compute floor stats (각 층별 1학년, 2학년, 3학년 명수)
-    const floorStats = useMemo(() => {
-        const layout = currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT));
-        const counts = { 1: 0, 2: 0, 3: 0 };
-        const now = new Date();
-        const isWeekend = isWeeklyHomeTime(now);
-
-        const gradeMap = new Map<string, number>();
+    const gradeMap = useMemo(() => {
+        const map = new Map<string, number>();
         students.forEach(s => {
             if (s.student_id) {
                 let g = s.grade;
                 if (!g && /^[1-3]/.test(s.student_id)) {
                     g = parseInt(s.student_id[0], 10);
                 }
-                if (g) gradeMap.set(s.student_id, g);
+                if (g) map.set(s.student_id, g);
             }
         });
+        return map;
+    }, [students]);
+
+    // Compute floor stats (각 층별 1학년, 2학년, 3학년 명수)
+    const floorStats = useMemo(() => {
+        const layout = currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT));
+        const counts = { 1: 0, 2: 0, 3: 0 };
+        const now = new Date();
+        const isWeekend = isWeeklyHomeTime(now);
 
         Object.keys(layout).forEach(key => {
             const roomNum = currentFloor * 100 + Number(key);
@@ -486,6 +503,9 @@ export default function HeadcountPage() {
                 if (slot.name) {
                     // 매주귀가 시간대에 매주귀가 학생은 제외
                     if (isWeekend && slot.isWeekend) return;
+
+                    // 현재 외박 또는 외출 상태인 학생 제외 (기숙사 잔류 인원만 카운트)
+                    if (slot.status === 'out') return;
 
                     let grade = slot.student_id ? gradeMap.get(slot.student_id) : undefined;
                     if (!grade && slot.student_id && /^[1-3]/.test(slot.student_id)) {
@@ -503,7 +523,7 @@ export default function HeadcountPage() {
         });
 
         return counts;
-    }, [roomStatus, currentFloor, students]);
+    }, [roomStatus, currentFloor, gradeMap]);
 
     // Student room search computation (이름 및 학번 검색)
     const searchResults = useMemo(() => {
@@ -604,18 +624,21 @@ export default function HeadcountPage() {
 
                 {/* Middle Row: Floor Grade Badges */}
                 <div className="flex items-center gap-1 sm:gap-1.5 whitespace-nowrap overflow-x-auto no-scrollbar">
-                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-blue-500/20 shrink-0 whitespace-nowrap">
-                        <span className="text-[9px] sm:text-[10px] text-blue-400 font-medium">1학년</span>
-                        <span className="text-[11px] sm:text-xs font-black text-blue-300 tabular-nums">{floorStats[1]}명</span>
+                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-yellow-500/20 shrink-0 whitespace-nowrap">
+                        <span className="text-[9px] sm:text-[10px] text-yellow-400 font-medium">1학년</span>
+                        <span className="text-[11px] sm:text-xs font-black text-yellow-300 tabular-nums">{floorStats[1]}명</span>
                     </div>
-                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-emerald-500/20 shrink-0 whitespace-nowrap">
-                        <span className="text-[9px] sm:text-[10px] text-emerald-400 font-medium">2학년</span>
-                        <span className="text-[11px] sm:text-xs font-black text-emerald-300 tabular-nums">{floorStats[2]}명</span>
+                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-sky-500/20 shrink-0 whitespace-nowrap">
+                        <span className="text-[9px] sm:text-[10px] text-sky-400 font-medium">2학년</span>
+                        <span className="text-[11px] sm:text-xs font-black text-sky-300 tabular-nums">{floorStats[2]}명</span>
                     </div>
-                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-amber-500/20 shrink-0 whitespace-nowrap">
-                        <span className="text-[9px] sm:text-[10px] text-amber-400 font-medium">3학년</span>
-                        <span className="text-[11px] sm:text-xs font-black text-amber-300 tabular-nums">{floorStats[3]}명</span>
+                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-red-500/20 shrink-0 whitespace-nowrap">
+                        <span className="text-[9px] sm:text-[10px] text-red-400 font-medium">3학년</span>
+                        <span className="text-[11px] sm:text-xs font-black text-red-300 tabular-nums">{floorStats[3]}명</span>
                     </div>
+                    <span className="text-[10px] sm:text-xs text-gray-400 font-medium ml-1.5 shrink-0">
+                        * 외출, 외박 제외한 현재원 입니다.
+                    </span>
                 </div>
 
                 {/* Bottom Row: Floor Selector Tabs & Student Search */}
@@ -712,6 +735,17 @@ export default function HeadcountPage() {
                                 const idx = Number(key);
                                 const roomNum = currentFloor * 100 + idx;
                                 const roomData = roomStatus[roomNum] || { left: { status: 'in', name: '', student_id: '' }, right: { status: 'in', name: '', student_id: '' } };
+
+                                const leftGrade = roomData.left.student_id
+                                    ? gradeMap.get(roomData.left.student_id) || (/^[1-3]/.test(roomData.left.student_id) ? parseInt(roomData.left.student_id[0], 10) : undefined)
+                                    : (/^[1-3]/.test(roomData.left.name) ? parseInt(roomData.left.name[0], 10) : undefined);
+
+                                const rightGrade = roomData.right.student_id
+                                    ? gradeMap.get(roomData.right.student_id) || (/^[1-3]/.test(roomData.right.student_id) ? parseInt(roomData.right.student_id[0], 10) : undefined)
+                                    : (/^[1-3]/.test(roomData.right.name) ? parseInt(roomData.right.name[0], 10) : undefined);
+
+                                const roomGrade = leftGrade || rightGrade;
+
                                 const layout = currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT));
                                 const pos = layout[idx];
 
@@ -746,20 +780,31 @@ export default function HeadcountPage() {
                                         )}
                                     >
                                         {/* Room Number Header */}
-                                        <div className="flex justify-center items-center px-1 py-0.5 shrink-0">
+                                        <div className="flex justify-center items-center px-1 py-0.5 shrink-0 gap-1.5">
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handleRoomNumberClick(roomNum);
                                                 }}
                                                 className={clsx(
-                                                    "font-bold tracking-tight text-white/90 hover:text-yellow-400 hover:scale-110 transition-all cursor-pointer bg-white/5 px-2 rounded-full border border-white/10 active:scale-95",
-                                                    isSideBySide ? "text-[10px]" : "text-[11px]"
+                                                    "inline-flex items-center justify-center text-center h-6 px-2.5 rounded-full border border-white/20 bg-white/10 text-white font-extrabold tracking-tight hover:text-yellow-400 hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0 shadow-md leading-none",
+                                                    isSideBySide ? "text-xs sm:text-sm" : "text-xs sm:text-sm"
                                                 )}
                                                 title="생활지도 기록"
                                             >
-                                                {roomNum}
+                                                <span className="inline-block -translate-y-[1px]">{roomNum}</span>
                                             </button>
+                                            {roomGrade && (
+                                                <span className={clsx(
+                                                    "inline-flex items-center justify-center text-center h-6 px-2.5 rounded-full border font-extrabold tracking-tight shrink-0 shadow-md leading-none transition-all",
+                                                    isSideBySide ? "text-xs sm:text-sm" : "text-xs sm:text-sm",
+                                                    roomGrade === 1 && "text-yellow-300 border-yellow-400/50 bg-yellow-500/20",
+                                                    roomGrade === 2 && "text-sky-300 border-sky-400/50 bg-sky-500/20",
+                                                    roomGrade === 3 && "text-red-300 border-red-400/50 bg-red-500/20"
+                                                )}>
+                                                    <span className="inline-block -translate-y-[1px]">{roomGrade}학년</span>
+                                                </span>
+                                            )}
                                         </div>
 
                                         <div className={clsx(
