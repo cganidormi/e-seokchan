@@ -84,8 +84,10 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                     .filter(s => !(
                         (s.grade === 3 && s.class === 3 && s.number === 17 && s.name === '홍길동') ||
                         (s.grade === 3 && s.class === 3 && s.number === 18 && s.name === '이순신') ||
+                        (s.grade === 1 && s.class === 2 && s.number === 8 && s.name === '이성진') ||
                         s.student_id === '3317홍길동' ||
-                        s.student_id === '3318이순신'
+                        s.student_id === '3318이순신' ||
+                        s.student_id === '1208이성진'
                     ))
                     .map(s => {
                         const details = violationMap.get(s.student_id) || [];

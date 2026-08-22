@@ -15,8 +15,23 @@ import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
 interface DashboardStats {
     totalStudents: number;
     totalTeachers: number;
-    studentsByGrade: { grade: number; count: number; overnight: number; current: number }[];
-    studentsByFloor: { floor: number; capacity: number; assigned: number; current: number; overnight: number }[];
+    studentsByGrade: {
+        grade: number;
+        count: number;
+        overnight: number;
+        short: number;
+        current: number;
+        femaleCount?: number;
+        femaleOvernight?: number;
+        femaleShort?: number;
+        femaleCurrent?: number;
+        maleCount?: number;
+        maleOvernight?: number;
+        maleShort?: number;
+        maleCurrent?: number;
+    }[];
+    studentsByFloor: { floor: number; capacity: number; assigned: number; overnight: number; short: number; current: number }[];
+    unassignedCount?: number;
     currentLeaves: { overnight: number; short: number };
     violationCount: number;
     violationList: { id: number; student_id: string; student_name: string; checked_at: string; note: string }[];
@@ -107,6 +122,8 @@ export default function DashboardMain() {
     const [refreshKey, setRefreshKey] = useState(0);
     const [allRawStudents, setAllRawStudents] = useState<any[]>([]);
     const [nextMonthSearchQuery, setNextMonthSearchQuery] = useState('');
+    const [currentMonthSearchQuery, setCurrentMonthSearchQuery] = useState('');
+    const [showOnlyWeeklyCurrent, setShowOnlyWeeklyCurrent] = useState(false);
 
     const handleToggleNextMonthApp = async (studentId: string, currentIsWeekly: boolean) => {
         const now = new Date();
@@ -159,6 +176,42 @@ export default function DashboardMain() {
                 }
                 return filtered;
             });
+        } catch (error: any) {
+            console.error(error);
+            toast.error("변경 중 오류가 발생했습니다: " + error.message);
+        }
+    };
+
+    const handleToggleCurrentMonthApp = async (studentId: string, currentIsWeekly: boolean) => {
+        const student = allRawStudents.find(s => s.student_id === studentId);
+        if (!student) return;
+
+        const nextStatus = !currentIsWeekly;
+
+        if (!window.confirm(`${student.name}(${studentId}) 학생의 현재월 귀가 상태를 ${nextStatus ? '매주귀가' : '격주귀가'}(으)로 변경하시겠습니까?`)) {
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('students')
+                .update({ weekend: nextStatus })
+                .eq('student_id', studentId);
+
+            if (error) throw error;
+
+            toast.success(`${student.name} 학생의 현재월 귀가 상태가 ${nextStatus ? '매주귀가' : '격주귀가'}로 변경되었습니다.`);
+
+            setAllRawStudents(prev => prev.map(s => s.student_id === studentId ? { ...s, weekend: nextStatus } : s));
+            setWeeklyReturnees(prev => {
+                if (nextStatus) {
+                    if (prev.some(s => s.student_id === studentId)) return prev;
+                    return [...prev, { ...student, weekend: nextStatus }].sort((a, b) => a.student_id.localeCompare(b.student_id));
+                } else {
+                    return prev.filter(s => s.student_id !== studentId);
+                }
+            });
+            setRefreshKey(prev => prev + 1);
         } catch (error: any) {
             console.error(error);
             toast.error("변경 중 오류가 발생했습니다: " + error.message);
@@ -220,7 +273,7 @@ export default function DashboardMain() {
                 supabase.from("students").select("*"),
                 supabase.from("teachers").select("*", { count: "exact", head: true }),
                 supabase.from("leave_requests")
-                    .select("student_id, leave_type, start_time, end_time")
+                    .select("student_id, leave_type, start_time, end_time, leave_request_students(student_id)")
                     .eq("status", "승인")
                     .lte("start_time", endOfDay.toISOString())
                     .gte("end_time", startOfDay.toISOString()),
@@ -242,8 +295,10 @@ export default function DashboardMain() {
             const students = rawStudents.filter((s: any) => !(
                 (s.grade === 3 && s.class === 3 && s.number === 17 && s.name === '홍길동') ||
                 (s.grade === 3 && s.class === 3 && s.number === 18 && s.name === '이순신') ||
+                (s.grade === 1 && s.class === 2 && s.number === 8 && s.name === '이성진') ||
                 s.student_id === '3317홍길동' ||
-                s.student_id === '3318이순신'
+                s.student_id === '3318이순신' ||
+                s.student_id === '1208이성진'
             ));
             const totalStudents = students.length;
 
@@ -262,14 +317,24 @@ export default function DashboardMain() {
             const isWeeklyReturnTime = isWeeklyReturnPeriod(isTodayDate ? now : selectedDate);
 
             const combinedOvernightIds = new Set<string>();
+            const combinedShortIds = new Set<string>();
+
             activeLeaves.forEach((l: any) => {
-                if (l.leave_type === '외박') {
-                    if (isTodayDate) {
-                        const start = new Date(l.start_time);
-                        const end = new Date(l.end_time);
-                        if (now >= start && now <= end) combinedOvernightIds.add(l.student_id);
-                    } else {
-                        combinedOvernightIds.add(l.student_id);
+                const isLeaveActive = isTodayDate ? (
+                    now >= new Date(l.start_time) && now <= new Date(l.end_time)
+                ) : true;
+
+                if (isLeaveActive) {
+                    if (l.leave_type === '외박') {
+                        if (l.student_id) combinedOvernightIds.add(l.student_id);
+                        l.leave_request_students?.forEach((co: any) => {
+                            if (co.student_id) combinedOvernightIds.add(co.student_id);
+                        });
+                    } else if (l.leave_type === '외출') {
+                        if (l.student_id) combinedShortIds.add(l.student_id);
+                        l.leave_request_students?.forEach((co: any) => {
+                            if (co.student_id) combinedShortIds.add(co.student_id);
+                        });
                     }
                 }
             });
@@ -278,53 +343,90 @@ export default function DashboardMain() {
             }
 
             const overnight = combinedOvernightIds.size;
-            const short = new Set(activeLeaves.filter((l: any) => l.leave_type === '외출').map((l: any) => l.student_id)).size;
-
-            const countLeaves = (subsetStudents: any[], type?: '외박' | '외출') => {
-                const subsetIds = new Set(subsetStudents.map((s: any) => s.student_id));
-                if (type === '외박') {
-                    let count = 0;
-                    combinedOvernightIds.forEach(id => { if (subsetIds.has(id)) count++; });
-                    return count;
-                }
-                const relevantLeaves = activeLeaves.filter((l: any) => {
-                    if (!subsetIds.has(l.student_id)) return false;
-                    if (type) return l.leave_type === type;
-                    return true;
-                });
-                return new Set(relevantLeaves.map((l: any) => l.student_id)).size;
-            };
+            const short = combinedShortIds.size;
 
             // --- Process 3: Grade Stats ---
             const gradeStats = [1, 2, 3].map(g => {
                 const gradeStudents = students.filter((s: any) => s.grade === g);
                 const total = gradeStudents.length;
-                const overnightCount = countLeaves(gradeStudents, '외박');
+                const gradeStudentIds = new Set(gradeStudents.map((s: any) => s.student_id));
+                let overnightCount = 0;
+                let shortCount = 0;
+                combinedOvernightIds.forEach(id => { if (gradeStudentIds.has(id)) overnightCount++; });
+                combinedShortIds.forEach(id => { if (gradeStudentIds.has(id)) shortCount++; });
+
+                // Gender breakdown (1층 = 여학생, 2~4층 = 남학생)
+                const femaleStudents = gradeStudents.filter((s: any) => {
+                    const room = s.room_number || s.room;
+                    if (!room) return false;
+                    const rNum = typeof room === 'number' ? room : parseInt(room, 10);
+                    return !isNaN(rNum) && rNum >= 100 && rNum < 200;
+                });
+                const maleStudents = gradeStudents.filter((s: any) => {
+                    const room = s.room_number || s.room;
+                    if (!room) return true;
+                    const rNum = typeof room === 'number' ? room : parseInt(room, 10);
+                    return isNaN(rNum) || rNum >= 200;
+                });
+
+                const femaleIds = new Set(femaleStudents.map((s: any) => s.student_id));
+                const maleIds = new Set(maleStudents.map((s: any) => s.student_id));
+
+                let femaleOvernight = 0;
+                let femaleShort = 0;
+                combinedOvernightIds.forEach(id => { if (femaleIds.has(id)) femaleOvernight++; });
+                combinedShortIds.forEach(id => { if (femaleIds.has(id)) femaleShort++; });
+
+                let maleOvernight = 0;
+                let maleShort = 0;
+                combinedOvernightIds.forEach(id => { if (maleIds.has(id)) maleOvernight++; });
+                combinedShortIds.forEach(id => { if (maleIds.has(id)) maleShort++; });
+
                 return {
                     grade: g,
                     count: total,
                     overnight: overnightCount,
-                    current: Math.max(0, total - overnightCount)
+                    short: shortCount,
+                    current: Math.max(0, total - overnightCount - shortCount),
+                    femaleCount: femaleStudents.length,
+                    femaleOvernight,
+                    femaleShort,
+                    femaleCurrent: Math.max(0, femaleStudents.length - femaleOvernight - femaleShort),
+                    maleCount: maleStudents.length,
+                    maleOvernight,
+                    maleShort,
+                    maleCurrent: Math.max(0, maleStudents.length - maleOvernight - maleShort)
                 };
             });
 
             // --- Process 4: Floor Stats ---
             const floorStats = [1, 2, 3, 4].map(floor => {
-                const floorStudents = students.filter((s: any) =>
-                    s.room_number >= floor * 100 && s.room_number < (floor + 1) * 100
-                );
+                const floorStudents = students.filter((s: any) => {
+                    const room = s.room_number || s.room;
+                    if (!room) return false;
+                    const rNum = typeof room === 'number' ? room : parseInt(room, 10);
+                    return !isNaN(rNum) && rNum >= floor * 100 && rNum < (floor + 1) * 100;
+                });
                 const assignedCount = floorStudents.length;
                 const floorStudentIds = new Set(floorStudents.map((s: any) => s.student_id));
                 let floorOvernightCount = 0;
+                let floorShortCount = 0;
                 combinedOvernightIds.forEach(id => { if (floorStudentIds.has(id)) floorOvernightCount++; });
+                combinedShortIds.forEach(id => { if (floorStudentIds.has(id)) floorShortCount++; });
+
                 return {
                     floor,
                     capacity: assignedCount,
                     assigned: assignedCount,
-                    current: Math.max(0, assignedCount - floorOvernightCount),
-                    overnight: floorOvernightCount
+                    overnight: floorOvernightCount,
+                    short: floorShortCount,
+                    current: Math.max(0, assignedCount - floorOvernightCount - floorShortCount)
                 };
             });
+
+            // Unassigned students count (no room assigned)
+            const unassignedStudents = students.filter((s: any) => !(s.room_number || s.room));
+            const unassignedCount = unassignedStudents.length;
 
             // --- Process 5: Violations ---
             const violations = violationsRes.data || [];
@@ -348,6 +450,7 @@ export default function DashboardMain() {
                 totalTeachers: teachersRes.count || 0,
                 studentsByGrade: gradeStats,
                 studentsByFloor: floorStats,
+                unassignedCount,
                 currentLeaves: { overnight: overnight, short: short },
                 violationCount: violations.length,
                 violationList
@@ -596,6 +699,7 @@ export default function DashboardMain() {
                         <div className="flex flex-wrap justify-center gap-3 md:gap-6 text-xs md:text-sm font-bold whitespace-nowrap">
                             <span>정원 : {stats.totalStudents}명</span>
                             <span className="text-red-400">외박자 : {stats.currentLeaves.overnight}명</span>
+                            <span className="text-emerald-400">외출자 : {stats.currentLeaves.short}명</span>
                             <span>현재원 : {stats.studentsByGrade.reduce((acc, curr) => acc + curr.current, 0)}명</span>
                         </div>
                     </div>
@@ -611,19 +715,72 @@ export default function DashboardMain() {
                                     {g.grade}
                                 </div>
                                 <div className="flex flex-col items-center gap-0.5 text-center w-full">
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] text-gray-400 font-medium transform scale-90">총원</span>
-                                        <strong className="text-xs text-gray-800 leading-none">{g.count}</strong>
+                                    <div className="flex flex-col items-center">
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-[9px] text-gray-400 font-medium transform scale-90">총원</span>
+                                            <span className="text-xs font-black text-gray-800 leading-none">{g.count}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 whitespace-nowrap leading-none mt-0.5">
+                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[8px] font-medium text-gray-400">여</span>
+                                                <span className="text-[10px] font-bold text-gray-700 leading-none">{g.femaleCount || 0}</span>
+                                            </span>
+                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[8px] font-medium text-gray-400">남</span>
+                                                <span className="text-[10px] font-bold text-gray-700 leading-none">{g.maleCount || 0}</span>
+                                            </span>
+                                        </div>
                                     </div>
                                     <div className="w-4 h-px bg-gray-100 my-0.5"></div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] text-gray-400 font-medium transform scale-90">외박</span>
-                                        <strong className="text-xs text-red-500 leading-none">{g.overnight}</strong>
+                                    <div className="flex flex-col items-center">
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-[9px] text-gray-400 font-medium transform scale-90">외박</span>
+                                            <span className="text-xs font-black text-red-500 leading-none">{g.overnight}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 whitespace-nowrap leading-none mt-0.5">
+                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[8px] font-medium text-gray-400">여</span>
+                                                <span className="text-[10px] font-bold text-red-500 leading-none">{g.femaleOvernight || 0}</span>
+                                            </span>
+                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[8px] font-medium text-gray-400">남</span>
+                                                <span className="text-[10px] font-bold text-red-500 leading-none">{g.maleOvernight || 0}</span>
+                                            </span>
+                                        </div>
                                     </div>
                                     <div className="w-4 h-px bg-gray-100 my-0.5"></div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] text-gray-400 font-medium transform scale-90">현재</span>
-                                        <strong className="text-xs text-blue-600 leading-none">{g.current}</strong>
+                                    <div className="flex flex-col items-center">
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-[9px] text-gray-400 font-medium transform scale-90">외출</span>
+                                            <span className="text-xs font-black text-emerald-600 leading-none">{g.short}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 whitespace-nowrap leading-none mt-0.5">
+                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[8px] font-medium text-gray-400">여</span>
+                                                <span className="text-[10px] font-bold text-emerald-600 leading-none">{g.femaleShort || 0}</span>
+                                            </span>
+                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[8px] font-medium text-gray-400">남</span>
+                                                <span className="text-[10px] font-bold text-emerald-600 leading-none">{g.maleShort || 0}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+                                    <div className="flex flex-col items-center">
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-[9px] text-gray-400 font-medium transform scale-90">현재</span>
+                                            <span className="text-xs font-black text-blue-600 leading-none">{g.current}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 whitespace-nowrap leading-none mt-0.5">
+                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[8px] font-medium text-gray-400">여</span>
+                                                <span className="text-[10px] font-bold text-blue-600 leading-none">{g.femaleCurrent || 0}</span>
+                                            </span>
+                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[8px] font-medium text-gray-400">남</span>
+                                                <span className="text-[10px] font-bold text-blue-600 leading-none">{g.maleCurrent || 0}</span>
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -636,13 +793,18 @@ export default function DashboardMain() {
                                 </div>
                                 <div className="flex flex-col items-center gap-0.5 text-center w-full">
                                     <div className="flex flex-col">
-                                        <span className="text-[9px] text-gray-400 font-medium transform scale-90">정원</span>
-                                        <strong className="text-xs text-gray-800 leading-none">{f.capacity}</strong>
+                                        <span className="text-[9px] text-gray-400 font-medium transform scale-90">배정</span>
+                                        <strong className="text-xs text-gray-800 leading-none">{f.assigned}</strong>
                                     </div>
                                     <div className="w-4 h-px bg-gray-100 my-0.5"></div>
                                     <div className="flex flex-col">
                                         <span className="text-[9px] text-gray-400 font-medium transform scale-90">외박</span>
                                         <strong className="text-xs text-red-500 leading-none">{f.overnight}</strong>
+                                    </div>
+                                    <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] text-gray-400 font-medium transform scale-90">외출</span>
+                                        <strong className="text-xs text-emerald-600 leading-none">{f.short}</strong>
                                     </div>
                                     <div className="w-4 h-px bg-gray-100 my-0.5"></div>
                                     <div className="flex flex-col">
@@ -652,88 +814,101 @@ export default function DashboardMain() {
                                 </div>
                             </div>
                         ))}
+                        {stats.unassignedCount && stats.unassignedCount > 0 ? (
+                            <div key="unassigned-card" className="flex-1 bg-amber-50/60 py-2 rounded-[1rem] border border-amber-200/60 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between gap-1 min-w-0" title="호실 미배정 학생">
+                                <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-[9px] font-bold text-amber-700 border border-amber-200">
+                                    미배정
+                                </div>
+                                <div className="flex flex-col items-center gap-0.5 text-center w-full">
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] text-amber-600 font-medium transform scale-90">인원</span>
+                                        <strong className="text-xs text-amber-800 leading-none">{stats.unassignedCount}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
 
-                    {/* Monthly Returnee Status */}
-                    <div className="bg-white p-6 rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-50 mb-4">
-                        <div className="flex justify-between items-center mb-4">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-orange-50 p-2 rounded-xl text-orange-500"><FaHome /></div>
-                                <h3 className="font-bold text-gray-800 text-[12px]">이번달 매주귀가자 현황</h3>
-                            </div>
-                            <button
-                                onClick={() => setIsWeeklyListModalOpen(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-[10px] font-bold"
-                            >
-                                <FaUsers size={12} />
-                                귀가자 명단
-                            </button>
-                        </div>
-
-                        <div className="space-y-1">
-                            {[1, 2, 3].map(grade => {
-                                const gradeInfo = stats.studentsByGrade.find(g => g.grade === grade);
-                                const gradeTotal = gradeInfo?.count || 0;
-                                const gradeWeekly = weeklyReturnees.filter(s => s.grade === grade).length;
-                                const gradeDorm = gradeTotal - gradeWeekly;
-
-                                return (
-                                    <div key={grade} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors">
+                                {/* Monthly Returnee Status */}
+                                <div className="bg-white p-6 rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-50 mb-4">
+                                    <div className="flex justify-between items-center mb-4">
                                         <div className="flex items-center gap-3">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[12px] ${grade === 1 ? 'bg-blue-100 text-blue-600' :
-                                                grade === 2 ? 'bg-purple-100 text-purple-600' :
-                                                    'bg-orange-100 text-orange-600'
-                                                }`}>
-                                                {grade}
-                                            </div>
-                                            <span className="font-bold text-gray-700 text-[12px]">{grade}학년</span>
+                                            <div className="bg-orange-50 p-2 rounded-xl text-orange-500"><FaHome /></div>
+                                            <h3 className="font-bold text-gray-800 text-[12px]">이번달 매주귀가자 현황</h3>
                                         </div>
-                                        <div className="flex items-center gap-3 text-[12px] font-medium">
-                                            <div className="flex flex-col items-center min-w-[30px]">
-                                                <span className="text-[12px] text-gray-400 mb-0.5">총원</span>
-                                                <span className="text-gray-800 font-bold text-[12px]">{gradeTotal}</span>
-                                            </div>
-                                            <div className="w-px h-6 bg-gray-200"></div>
-                                            <div className="flex flex-col items-center min-w-[30px]">
-                                                <span className="text-[12px] text-gray-400 mb-0.5">매주귀가</span>
-                                                <span className="text-orange-500 font-bold text-[12px]">{gradeWeekly}</span>
-                                            </div>
-                                            <div className="w-px h-6 bg-gray-200"></div>
-                                            <div className="flex flex-col items-center min-w-[30px]">
-                                                <span className="text-[12px] text-gray-400 mb-0.5">기숙</span>
-                                                <span className="text-blue-500 font-bold text-[12px]">{gradeDorm}</span>
-                                            </div>
-                                        </div>
+                                        <button
+                                            onClick={() => setIsWeeklyListModalOpen(true)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-[10px] font-bold"
+                                        >
+                                            <FaUsers size={12} />
+                                            귀가자 명단
+                                        </button>
                                     </div>
-                                );
-                            })}
 
-                            <div className="flex items-center justify-between p-3 bg-gray-900 rounded-2xl shadow-sm mt-1">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-[12px] bg-gray-700 text-white">
-                                        ALL
+                                    <div className="space-y-1">
+                                        {[1, 2, 3].map(grade => {
+                                            const gradeInfo = stats.studentsByGrade.find(g => g.grade === grade);
+                                            const gradeTotal = gradeInfo?.count || 0;
+                                            const gradeWeekly = weeklyReturnees.filter(s => s.grade === grade).length;
+                                            const gradeDorm = gradeTotal - gradeWeekly;
+
+                                            return (
+                                                <div key={grade} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[12px] ${grade === 1 ? 'bg-blue-100 text-blue-600' :
+                                                            grade === 2 ? 'bg-purple-100 text-purple-600' :
+                                                                'bg-orange-100 text-orange-600'
+                                                            }`}>
+                                                            {grade}
+                                                        </div>
+                                                        <span className="font-bold text-gray-700 text-[12px]">{grade}학년</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 text-[12px] font-medium">
+                                                        <div className="flex flex-col items-center min-w-[30px]">
+                                                            <span className="text-[12px] text-gray-400 mb-0.5">총원</span>
+                                                            <span className="text-gray-800 font-bold text-[12px]">{gradeTotal}</span>
+                                                        </div>
+                                                        <div className="w-px h-6 bg-gray-200"></div>
+                                                        <div className="flex flex-col items-center min-w-[30px]">
+                                                            <span className="text-[12px] text-gray-400 mb-0.5">매주귀가</span>
+                                                            <span className="text-orange-500 font-bold text-[12px]">{gradeWeekly}</span>
+                                                        </div>
+                                                        <div className="w-px h-6 bg-gray-200"></div>
+                                                        <div className="flex flex-col items-center min-w-[30px]">
+                                                            <span className="text-[12px] text-gray-400 mb-0.5">기숙</span>
+                                                            <span className="text-blue-500 font-bold text-[12px]">{gradeDorm}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+
+                                        <div className="flex items-center justify-between p-3 bg-gray-900 rounded-2xl shadow-sm mt-1">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-[12px] bg-gray-700 text-white">
+                                                    ALL
+                                                </div>
+                                                <span className="font-bold text-white text-[12px]">전학년</span>
+                                            </div>
+                                            <div className="flex items-center gap-3 text-[12px] font-medium text-white">
+                                                <div className="flex flex-col items-center min-w-[30px]">
+                                                    <span className="text-[12px] text-gray-400 mb-0.5">총원</span>
+                                                    <span className="font-bold text-[12px]">{stats.totalStudents}</span>
+                                                </div>
+                                                <div className="w-px h-6 bg-gray-700"></div>
+                                                <div className="flex flex-col items-center min-w-[30px]">
+                                                    <span className="text-[12px] text-gray-400 mb-0.5">매주귀가</span>
+                                                    <span className="text-orange-400 font-bold text-[12px]">{weeklyReturnees.length}</span>
+                                                </div>
+                                                <div className="w-px h-6 bg-gray-700"></div>
+                                                <div className="flex flex-col items-center min-w-[30px]">
+                                                    <span className="text-[12px] text-gray-400 mb-0.5">기숙</span>
+                                                    <span className="text-blue-400 font-bold text-[12px]">{stats.totalStudents - weeklyReturnees.length}</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <span className="font-bold text-white text-[12px]">전학년</span>
                                 </div>
-                                <div className="flex items-center gap-3 text-[12px] font-medium text-white">
-                                    <div className="flex flex-col items-center min-w-[30px]">
-                                        <span className="text-[12px] text-gray-400 mb-0.5">총원</span>
-                                        <span className="font-bold text-[12px]">{stats.totalStudents}</span>
-                                    </div>
-                                    <div className="w-px h-6 bg-gray-700"></div>
-                                    <div className="flex flex-col items-center min-w-[30px]">
-                                        <span className="text-[12px] text-gray-400 mb-0.5">매주귀가</span>
-                                        <span className="text-orange-400 font-bold text-[12px]">{weeklyReturnees.length}</span>
-                                    </div>
-                                    <div className="w-px h-6 bg-gray-700"></div>
-                                    <div className="flex flex-col items-center min-w-[30px]">
-                                        <span className="text-[12px] text-gray-400 mb-0.5">기숙</span>
-                                        <span className="text-blue-400 font-bold text-[12px]">{stats.totalStudents - weeklyReturnees.length}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
                     {/* Violation Counter & List */}
                     <div className="bg-rose-50/60 p-3 rounded-2xl border border-rose-100 flex flex-col gap-2">
@@ -1040,9 +1215,10 @@ export default function DashboardMain() {
                                                 : `${activeCount}명`;
                                         })()}
                                     </span>
-                                    <button onClick={() => {
+                                     <button onClick={() => {
                                         setIsWeeklyListModalOpen(false);
                                         setNextMonthSearchQuery('');
+                                        setCurrentMonthSearchQuery('');
                                     }} className="opacity-80 hover:opacity-100 p-1">✕</button>
                                 </div>
                             </div>
@@ -1062,38 +1238,85 @@ export default function DashboardMain() {
                             </div>
                         </div>
 
-                        {viewMonthMode === 'next' && (
-                            <div className="px-4 pt-3 pb-2 border-b border-gray-100 bg-gray-50/50">
-                                <input
-                                    type="text"
-                                    placeholder="이름 또는 학번 검색..."
-                                    value={nextMonthSearchQuery}
-                                    onChange={(e) => setNextMonthSearchQuery(e.target.value)}
-                                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500 transition"
-                                />
-                            </div>
-                        )}
+                        <div className="px-4 pt-3 pb-2 border-b border-gray-100 bg-gray-50/50 flex items-center gap-2">
+                            <input
+                                type="text"
+                                placeholder="이름 또는 학번 검색..."
+                                value={viewMonthMode === 'current' ? currentMonthSearchQuery : nextMonthSearchQuery}
+                                onChange={(e) => {
+                                    if (viewMonthMode === 'current') {
+                                        setCurrentMonthSearchQuery(e.target.value);
+                                    } else {
+                                        setNextMonthSearchQuery(e.target.value);
+                                    }
+                                }}
+                                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500 transition"
+                            />
+                            {viewMonthMode === 'current' && (
+                                <button
+                                    onClick={() => setShowOnlyWeeklyCurrent(prev => !prev)}
+                                    className={`whitespace-nowrap px-3 py-2 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
+                                        showOnlyWeeklyCurrent
+                                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <span>매주귀가자만</span>
+                                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${showOnlyWeeklyCurrent ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                                        {weeklyReturnees.length}명
+                                    </span>
+                                </button>
+                            )}
+                        </div>
 
                         <div className="p-4 max-h-[50vh] overflow-y-auto overflow-x-hidden">
-                            {viewMonthMode === 'current' ? (
-                                weeklyReturnees.length === 0 ? (
-                                    <p className="text-gray-400 text-center text-xs py-4">매주귀가자가 없습니다.</p>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {[...weeklyReturnees]
-                                            .sort((a, b) => a.student_id.localeCompare(b.student_id))
-                                            .map((s) => (
-                                                <div key={s.student_id} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-100">
+                            {viewMonthMode === 'current' ? (() => {
+                                const currentList = allRawStudents.filter(s => {
+                                    if (showOnlyWeeklyCurrent && !s.weekend) return false;
+                                    const query = currentMonthSearchQuery.trim().toLowerCase();
+                                    if (query) {
+                                        return s.name.toLowerCase().includes(query) || s.student_id.toLowerCase().includes(query);
+                                    }
+                                    return true;
+                                }).sort((a, b) => a.student_id.localeCompare(b.student_id));
+
+                                if (currentList.length === 0) {
+                                    return <p className="text-gray-400 text-center text-xs py-4">검색 결과가 없습니다.</p>;
+                                }
+
+                                return (
+                                    <div className="flex flex-col gap-1.5">
+                                        {currentList.map((s) => {
+                                            const isWeekly = !!s.weekend;
+                                            return (
+                                                <div key={s.student_id} className={`flex items-center justify-between px-3 py-2 rounded-xl border transition ${
+                                                    isWeekly ? 'bg-blue-50/50 border-blue-100' : 'bg-gray-50 border-gray-100'
+                                                }`}>
                                                     <div className="flex flex-col">
-                                                        <span className="text-[10px] font-bold text-blue-600 leading-none mb-0.5">{s.student_id}</span>
-                                                        <span className="text-xs font-bold text-gray-800">{s.name}</span>
+                                                        <span className="text-[9px] font-bold text-gray-400 leading-none mb-0.5">{s.student_id}</span>
+                                                        <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                                                            {s.name}
+                                                            {isWeekly && (
+                                                                <span className="text-[8px] font-black text-blue-600 bg-white px-1 py-0.5 rounded shadow-sm border border-blue-100">매주귀가</span>
+                                                            )}
+                                                        </span>
                                                     </div>
+                                                    <button
+                                                        onClick={() => handleToggleCurrentMonthApp(s.student_id, isWeekly)}
+                                                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-sm transition active:scale-95 border ${
+                                                            isWeekly
+                                                                ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
+                                                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                                        }`}
+                                                    >
+                                                        {isWeekly ? '매주귀가' : '격주귀가'}
+                                                    </button>
                                                 </div>
-                                            ))
-                                        }
+                                            );
+                                        })}
                                     </div>
-                                )
-                            ) : (() => {
+                                );
+                            })() : (() => {
                                 const nextList = allRawStudents.filter(s => {
                                     const query = nextMonthSearchQuery.trim().toLowerCase();
                                     if (query) {
