@@ -123,13 +123,13 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                 onClick={onToggleExpand}
                 className={clsx(
                     "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
-                    isExpanded ? "rounded-[2rem] p-4 sm:p-5" : "rounded-[2rem] px-2.5 sm:px-4 h-[60px]",
+                    isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-4 h-[60px]",
                     isPast && "opacity-60 grayscale-[40%] saturate-50 contrast-90 backdrop-blur-sm bg-[#121212]/90"
                 )}
             >
-                <div className="flex items-center w-full gap-1 sm:gap-2">
-                    {/* 1. 상태 아이콘 & 이석 종류 (컬럼 1: 타이트한 고정 너비 62px/70px) */}
-                    <div className="flex items-center gap-1 shrink-0 w-[62px] sm:w-[70px]">
+                <div className="flex items-center w-full gap-2">
+                    {/* 1. 상태 아이콘 & 이석 종류 (컬럼 1: 타이트한 고정 너비 70px) */}
+                    <div className="flex items-center gap-1.5 shrink-0 w-[70px]">
                         <div className={clsx(
                             "w-2 h-2 rounded-full shrink-0",
                             statusConfig.dot,
@@ -146,10 +146,10 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         </div>
                     </div>
 
-                    {/* 2. 학생 정보 (컬럼 2: 좌측 정렬 & 밀착 55px/65px) */}
+                    {/* 2. 학생 정보 (컬럼 2: 좌측 정렬 & 밀착 65px) */}
                     <div
                         className={clsx(
-                            "flex flex-col gap-0.5 shrink-0 justify-center items-start w-[55px] sm:w-[65px]",
+                            "flex flex-col gap-0.5 shrink-0 justify-center items-start w-[65px]",
                             canEdit && "cursor-pointer p-1 -m-1 rounded hover:bg-white/5 group relative"
                         )}
                         onClick={canEdit ? openManageModal : undefined}
@@ -165,8 +165,8 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         )}
                     </div>
 
-                    {/* 3. 날짜 & 교시 / 시간 (컬럼 3: 고정 너비 105px/125px) */}
-                    <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-[105px] sm:w-[125px]">
+                    {/* 3. 날짜 & 교시 / 시간 (컬럼 3: 고정 너비 125px) */}
+                    <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-[125px]">
                         {(() => {
                             const start = new Date(req.start_time);
                             const day = start.getDay();
@@ -191,7 +191,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                                         <div className="flex flex-col gap-1 justify-center">
                                             {groups.map((group, gIdx) => (
                                                 <div key={gIdx} className="flex gap-1 items-center">
-                                                    <span className="text-[10px] sm:text-[11px] text-gray-400 font-medium w-[28px] sm:w-[32px] shrink-0 text-left whitespace-nowrap">
+                                                    <span className="text-[11px] text-gray-400 font-medium w-[32px] shrink-0 text-left whitespace-nowrap">
                                                         {gIdx === 0 ? `${start.getMonth() + 1}.${start.getDate()}` : ""}
                                                     </span>
                                                     <div className="flex gap-1 items-center">
