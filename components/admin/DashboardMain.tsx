@@ -74,13 +74,49 @@ interface Patient {
     created_at: string;
 }
 
-const isWeeklyReturnPeriod = (date: Date) => {
-    const day = date.getDay();
-    const timeValue = date.getHours() * 100 + date.getMinutes();
-    if (day === 5) return timeValue >= 1530;
-    if (day === 6) return true;
-    if (day === 0) return timeValue <= 1850;
-    return false;
+const isWeeklyReturnPeriod = (date: Date, holidaySet: Set<string> = new Set()) => {
+    const getFormatDateStr = (d: Date) => {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const d = new Date(date);
+    const day = d.getDay(); // 0: Sun, 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri, 6: Sat
+
+    let fri = new Date(d);
+    if (day === 0) fri.setDate(d.getDate() - 2);
+    else if (day === 1) fri.setDate(d.getDate() - 3);
+    else if (day === 2) fri.setDate(d.getDate() - 4);
+    else if (day === 3) fri.setDate(d.getDate() + 2);
+    else if (day === 4) fri.setDate(d.getDate() + 1);
+    else if (day === 5) fri.setDate(d.getDate());
+    else if (day === 6) fri.setDate(d.getDate() - 1);
+
+    const friStr = getFormatDateStr(fri);
+    const isFriHoliday = holidaySet.has(friStr);
+
+    const start = new Date(fri);
+    if (isFriHoliday) {
+        start.setDate(fri.getDate() - 1);
+    }
+    start.setHours(15, 30, 0, 0);
+
+    const mon = new Date(fri);
+    mon.setDate(fri.getDate() + 3);
+    const monStr = getFormatDateStr(mon);
+    const isMonHoliday = holidaySet.has(monStr);
+
+    const end = new Date(fri);
+    if (isMonHoliday) {
+        end.setDate(fri.getDate() + 3);
+    } else {
+        end.setDate(fri.getDate() + 2);
+    }
+    end.setHours(18, 50, 0, 0);
+
+    return date >= start && date <= end;
 };
 
 export default function DashboardMain() {
@@ -279,7 +315,8 @@ export default function DashboardMain() {
                 violationsRes,
                 roomsRes,
                 seatsRes,
-                nextMonthAppsRes
+                nextMonthAppsRes,
+                holidaysRes
             ] = await Promise.all([
                 supabase.from("students").select("*"),
                 supabase.from("teachers").select("*", { count: "exact", head: true }),
@@ -298,7 +335,8 @@ export default function DashboardMain() {
                 supabase.from("monthly_return_applications")
                     .select("*")
                     .eq("target_year", targetYear)
-                    .eq("target_month", targetMonth)
+                    .eq("target_month", targetMonth),
+                supabase.from("special_holidays").select("date")
             ]);
 
             // --- Process 1: Students & Weekly Returnees ---
@@ -325,8 +363,9 @@ export default function DashboardMain() {
             // --- Process 2: Leaves ---
             const activeLeaves = leavesRes.data || [];
             setAllLeaveRequests(activeLeaves);
+            const holidaySet = new Set<string>(holidaysRes.data?.map((h: any) => h.date) || []);
             const isTodayDate = isSameDay(now, selectedDate);
-            const isWeeklyReturnTime = isWeeklyReturnPeriod(isTodayDate ? now : selectedDate);
+            const isWeeklyReturnTime = isWeeklyReturnPeriod(isTodayDate ? now : selectedDate, holidaySet);
 
             const combinedOvernightIds = new Set<string>();
             const combinedShortIds = new Set<string>();
