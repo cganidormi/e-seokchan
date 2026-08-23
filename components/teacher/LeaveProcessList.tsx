@@ -160,10 +160,12 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                                 "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center whitespace-nowrap flex items-center justify-center gap-1",
                                 unifiedViewMode === tab.id
                                     ? "bg-blue-600 text-white shadow-sm"
-                                    : "text-gray-500 hover:text-gray-300"
+                                    : tab.id === 'search_name'
+                                        ? "text-white hover:text-gray-200 font-extrabold"
+                                        : "text-gray-500 hover:text-gray-300"
                             )}
                         >
-                            {tab.id === 'search_name' && <IoSearch className="w-3.5 h-3.5 shrink-0" />}
+                            {tab.id === 'search_name' && <IoSearch className="w-3.5 h-3.5 shrink-0 text-white" />}
                             <span>{tab.label}</span>
                         </button>
                     ))}

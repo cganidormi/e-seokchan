@@ -1523,6 +1523,7 @@ export default function DashboardMain() {
                                         onCancel={() => {}}
                                         viewMode="active"
                                         currentTeacherId=""
+                                        hideActionButtons={true}
                                     />
                                 ));
                             })()}

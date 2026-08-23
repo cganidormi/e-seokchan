@@ -16,6 +16,7 @@ interface LeaveProcessCardProps {
     viewMode: 'active' | 'past';
     currentTeacherId: string;
     showOpacityForPast?: boolean;
+    hideActionButtons?: boolean;
 }
 
 export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
@@ -28,7 +29,8 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     onCancel,
     viewMode,
     currentTeacherId,
-    showOpacityForPast = true
+    showOpacityForPast = true,
+    hideActionButtons = false
 }) => {
     const statusConfig = ({
         '신청': { dot: 'bg-blue-500', text: 'text-blue-500', label: '대기' },
@@ -221,7 +223,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                 </div>
 
                 {/* 5. 취소 및 복귀 버튼 (우측 끝) - 모든 교사에게 개방 */}
-                {viewMode === 'active' && (
+                {viewMode === 'active' && !hideActionButtons && (
                     <div className="ml-auto flex items-center gap-2 shrink-0">
                         {/* 
                            조기 복귀 Logic:
