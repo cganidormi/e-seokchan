@@ -69,13 +69,13 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     className={clsx(
         "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
         // 👇 기존 h-[80px] 또는 h-[96px]를 지우고 딱 이 줄로 바꾸세요!
-        isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-4 py-3 !h-[60px]",
+        isExpanded ? "rounded-[2rem] p-4 sm:p-5" : "rounded-[2rem] px-2.5 sm:px-4 py-3 !h-[60px]",
         viewMode === 'past' && showOpacityForPast && "opacity-60 grayscale-[40%] saturate-50 contrast-90 backdrop-blur-sm bg-[#121212]/90"
     )}
 >
-            <div className="flex items-center w-full gap-2">
-                {/* 1. 이석 종류 & 상태 아이콘 (컬럼 1: 타이트한 고정 너비 70px) */}
-                <div className="flex items-center gap-1.5 shrink-0 w-[70px]">
+            <div className="flex items-center w-full gap-1 sm:gap-2">
+                {/* 1. 이석 종류 & 상태 아이콘 (컬럼 1: 타이트한 고정 너비 62px/70px) */}
+                <div className="flex items-center gap-1 shrink-0 w-[62px] sm:w-[70px]">
                     <div className={clsx(
                         "w-2 h-2 rounded-full shrink-0",
                         statusConfig.dot,
@@ -128,8 +128,8 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                     </div>
                 </div>
 
-                {/* 2. 학생 정보 (컬럼 2: 좌측 정렬 & 밀착 65px) */}
-                <div className="flex flex-col gap-0.5 shrink-0 justify-center items-start w-[65px]">
+                {/* 2. 학생 정보 (컬럼 2: 좌측 정렬 & 밀착 55px/65px) */}
+                <div className="flex flex-col gap-0.5 shrink-0 justify-center items-start w-[55px] sm:w-[65px]">
                     <span className="text-gray-200 text-xs leading-tight whitespace-nowrap font-bold truncate max-w-full">
                         {req.student_id}
                     </span>
@@ -140,8 +140,8 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                     )}
                 </div>
 
-                {/* 3. 날짜 & 교시 / 시간 (컬럼 3: 고정 너비 125px) */}
-                <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-[125px]">
+                {/* 3. 날짜 & 교시 / 시간 (컬럼 3: 고정 너비 105px/125px) */}
+                <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-[105px] sm:w-[125px]">
                     {(() => {
                         const start = new Date(req.start_time);
                         const now = new Date();
@@ -160,7 +160,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                                     <div className="flex flex-col gap-1 justify-center">
                                         {groups.map((group, gIdx) => (
                                             <div key={gIdx} className="flex gap-1 items-center">
-                                                <span className="text-[11px] text-gray-400 font-medium w-[32px] shrink-0 text-left whitespace-nowrap">
+                                                <span className="text-[10px] sm:text-[11px] text-gray-400 font-medium w-[28px] sm:w-[32px] shrink-0 text-left whitespace-nowrap">
                                                     {gIdx === 0 ? `${start.getMonth() + 1}.${start.getDate()}` : ""}
                                                 </span>
                                                 <div className="flex gap-1 items-center">
@@ -197,12 +197,12 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                                 <div className="flex flex-col gap-0.5 leading-tight justify-center">
                                     <div className="flex flex-col gap-0.5 justify-center">
                                         <div className="flex items-center gap-[3px]">
-                                            <span className="text-gray-400 text-[11px] w-[32px] shrink-0 text-left whitespace-nowrap">{fDate(start)}</span>
-                                            <span className="text-yellow-400 text-[11px] font-bold">{fTime(start)}</span>
+                                            <span className="text-gray-400 text-[10px] sm:text-[11px] w-[28px] sm:w-[32px] shrink-0 text-left whitespace-nowrap">{fDate(start)}</span>
+                                            <span className="text-yellow-400 text-[10px] sm:text-[11px] font-bold">{fTime(start)}</span>
                                         </div>
                                         <div className="flex items-center gap-[3px]">
-                                            <span className="text-gray-400 text-[11px] w-[32px] shrink-0 text-left whitespace-nowrap">{fDate(end)}</span>
-                                            <span className="text-orange-400 text-[11px] font-bold">{fTime(end)}</span>
+                                            <span className="text-gray-400 text-[10px] sm:text-[11px] w-[28px] sm:w-[32px] shrink-0 text-left whitespace-nowrap">{fDate(end)}</span>
+                                            <span className="text-orange-400 text-[10px] sm:text-[11px] font-bold">{fTime(end)}</span>
                                         </div>
                                     </div>
                                 </div>

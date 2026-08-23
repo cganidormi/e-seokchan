@@ -1420,7 +1420,7 @@ export default function DashboardMain() {
             {/* Overnight / Short Outing Student List Modal */}
             {leaveListModal.isOpen && (
                 <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200"
                     onClick={() => {
                         setLeaveListModal(prev => ({ ...prev, isOpen: false }));
                         setExpandedLeaveId(null);
@@ -1458,7 +1458,7 @@ export default function DashboardMain() {
                             />
                         </div>
 
-                        <div className="p-4 max-h-[60vh] overflow-y-auto flex flex-col gap-3.5 bg-gray-100/60">
+                        <div className="p-2 sm:p-4 max-h-[60vh] overflow-y-auto flex flex-col gap-2.5 sm:gap-3.5 bg-gray-100/60 min-w-0">
                             {(() => {
                                 const targetLeaveType = leaveListModal.type === 'overnight' ? '외박' : '외출';
                                 
