@@ -9,6 +9,7 @@ import Select from 'react-select';
 import { Student } from '@/components/student/types';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
+import DashboardMain from '@/components/admin/DashboardMain';
 
 // Room Layout Configuration (Row, Col) based on floor plan
 // Abstracted using last 2 digits (01-25)
@@ -139,6 +140,7 @@ export default function HeadcountPage() {
 
     // History Modal State
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [isTodayModalOpen, setIsTodayModalOpen] = useState(false);
     const [historyStudent, setHistoryStudent] = useState<{ name: string, student_id: string } | null>(null);
     const [historyRecords, setHistoryRecords] = useState<any[]>([]);
     const [teacherPosition, setTeacherPosition] = useState<string>('');
@@ -600,13 +602,29 @@ export default function HeadcountPage() {
             <header className="flex-none p-3 sm:p-4 pb-2 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 flex flex-col gap-2 shadow-xl">
                 {/* Top Row: Navigation & Mode Toggle */}
                 <div className="flex justify-between items-center w-full gap-2">
-                    <button
-                        onClick={() => router.push('/teacher')}
-                        className="p-1.5 sm:p-2 rounded text-xs sm:text-sm hover:bg-gray-800/80 text-yellow-400 font-bold border border-yellow-400/30 flex items-center justify-center gap-1.5 transition-all whitespace-nowrap"
-                    >
-                        <span>⬅</span>
-                        <span>교사 페이지</span>
-                    </button>
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <button
+                            onClick={() => router.push('/teacher')}
+                            className="flex items-center gap-2 bg-white px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm border border-yellow-400/50 text-yellow-600 hover:bg-yellow-50 transition-all active:scale-95 text-xs font-bold whitespace-nowrap"
+                        >
+                            <span>⬅</span>
+                            <span>교사 페이지</span>
+                        </button>
+                        <button
+                            onClick={() => setIsTodayModalOpen(true)}
+                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1 px-2.5 sm:px-3.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm whitespace-nowrap cursor-pointer"
+                        >
+                            <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0">
+                                <div className="p-[1.5px] bg-white rounded-full">
+                                    <img src="/dorm.jpg" alt="Icon" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover" />
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-start leading-tight">
+                                <span>오늘의 홍지관</span>
+                                <span className="text-[9px] sm:text-[10px] font-normal text-gray-500">(매주귀가자 명단)</span>
+                            </div>
+                        </button>
+                    </div>
 
                     <div className="flex items-center gap-2">
                         {/* Mode Toggle */}
@@ -1168,6 +1186,52 @@ export default function HeadcountPage() {
                 initialSelectedStudentIds={disciplineRoomStudentIds}
                 roomNumber={disciplineRoomNum}
             />
+
+            {/* Today Headcount Popup Modal */}
+            {isTodayModalOpen && (
+                <div
+                    className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200"
+                    onClick={() => setIsTodayModalOpen(false)}
+                >
+                    <div
+                        className="bg-[#FDFDFD] text-gray-800 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="p-3.5 sm:p-4 bg-gray-900 text-white flex justify-between items-center shadow-md">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500">
+                                    <div className="p-[1.5px] bg-gray-900 rounded-full">
+                                        <img src="/dorm.jpg" alt="Profile" className="w-6 h-6 rounded-full object-cover" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-sm sm:text-base text-white">오늘의 홍지관 인원현황</h3>
+                                    <p className="text-[10px] text-gray-400">외박자 · 외출자 및 학년/층별 실시간 현황</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setIsTodayModalOpen(false)}
+                                className="hover:bg-white/20 p-1.5 rounded-full transition-colors text-white font-bold"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto">
+                            <DashboardMain />
+                        </div>
+
+                        <div className="p-3 bg-gray-100 border-t border-gray-200 flex justify-end">
+                            <button
+                                onClick={() => setIsTodayModalOpen(false)}
+                                className="px-5 py-2 bg-gray-900 text-white rounded-xl font-bold text-xs hover:bg-gray-800 transition-colors shadow-sm cursor-pointer"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }
