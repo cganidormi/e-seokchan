@@ -160,8 +160,27 @@ export default function SeatManagementPage() {
             const uniqueMap = new Map();
             combined.forEach(req => uniqueMap.set(req.id, req));
 
+            const now = new Date();
+            const isRecordPast = (rec: any) => {
+                if (rec.status === '복귀' || rec.status === '취소' || rec.status === '반려' || rec.status === '거절') return true;
+                if (rec.end_time && new Date(rec.end_time) < now) return true;
+                return false;
+            };
+
             const sortedRecords = Array.from(uniqueMap.values())
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .sort((a, b) => {
+                    const aPast = isRecordPast(a);
+                    const bPast = isRecordPast(b);
+
+                    // 1. Active requests first (aPast false before bPast true)
+                    if (!aPast && bPast) return -1;
+                    if (aPast && !bPast) return 1;
+
+                    // 2. Secondary sort: Recent start_time/created_at first
+                    const timeA = new Date(a.start_time || a.created_at).getTime();
+                    const timeB = new Date(b.start_time || b.created_at).getTime();
+                    return timeB - timeA;
+                })
                 .slice(0, 30); // 30 entries
 
             // Fetch teacher names
@@ -1363,7 +1382,7 @@ export default function SeatManagementPage() {
                                             onCancel={handleCancelRequest}
                                             viewMode={viewMode}
                                             currentTeacherId={teacherId}
-                                            showOpacityForPast={false}
+                                            showOpacityForPast={true}
                                         />
                                     );
                                 })

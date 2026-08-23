@@ -10,6 +10,8 @@ import {
 } from "react-icons/fa";
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
+import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
+import { LeaveRequest } from '@/components/teacher/types';
 
 // Types
 interface DashboardStats {
@@ -124,6 +126,14 @@ export default function DashboardMain() {
     const [nextMonthSearchQuery, setNextMonthSearchQuery] = useState('');
     const [currentMonthSearchQuery, setCurrentMonthSearchQuery] = useState('');
     const [showOnlyWeeklyCurrent, setShowOnlyWeeklyCurrent] = useState(false);
+
+    // Overnight / Outing Student List Modal States
+    const [allLeaveRequests, setAllLeaveRequests] = useState<any[]>([]);
+    const [expandedLeaveId, setExpandedLeaveId] = useState<string | number | null>(null);
+    const [overnightStudentIds, setOvernightStudentIds] = useState<string[]>([]);
+    const [shortStudentIds, setShortStudentIds] = useState<string[]>([]);
+    const [leaveListModal, setLeaveListModal] = useState<{ isOpen: boolean; title: string; type: 'overnight' | 'short'; studentIds: string[] }>({ isOpen: false, title: '', type: 'overnight', studentIds: [] });
+    const [leaveModalSearchQuery, setLeaveModalSearchQuery] = useState('');
 
     const handleToggleNextMonthApp = async (studentId: string, currentIsWeekly: boolean) => {
         const now = new Date();
@@ -273,7 +283,7 @@ export default function DashboardMain() {
                 supabase.from("students").select("*"),
                 supabase.from("teachers").select("*", { count: "exact", head: true }),
                 supabase.from("leave_requests")
-                    .select("student_id, leave_type, start_time, end_time, leave_request_students(student_id)")
+                    .select("*, leave_request_students(student_id)")
                     .eq("status", "승인")
                     .lte("start_time", endOfDay.toISOString())
                     .gte("end_time", startOfDay.toISOString()),
@@ -313,6 +323,7 @@ export default function DashboardMain() {
 
             // --- Process 2: Leaves ---
             const activeLeaves = leavesRes.data || [];
+            setAllLeaveRequests(activeLeaves);
             const isTodayDate = isSameDay(now, selectedDate);
             const isWeeklyReturnTime = isWeeklyReturnPeriod(isTodayDate ? now : selectedDate);
 
@@ -344,6 +355,8 @@ export default function DashboardMain() {
 
             const overnight = combinedOvernightIds.size;
             const short = combinedShortIds.size;
+            setOvernightStudentIds(Array.from(combinedOvernightIds));
+            setShortStudentIds(Array.from(combinedShortIds));
 
             // --- Process 3: Grade Stats ---
             const gradeStats = [1, 2, 3].map(g => {
@@ -647,6 +660,18 @@ export default function DashboardMain() {
             {/* Header */}
             <div className="sticky top-0 bg-[#FDFDFD]/80 backdrop-blur-xl z-40 border-b border-gray-100/50 transition-all">
                 <div className="px-6 py-4 max-w-xl mx-auto md:max-w-4xl flex items-center justify-between">
+                    {/* Left: 교사 홈으로 버튼 */}
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => window.location.href = '/teacher'}
+                            className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-yellow-400/50 text-yellow-600 hover:bg-yellow-50 transition-all active:scale-95 text-xs font-bold"
+                        >
+                            <span>⬅</span>
+                            <span>교사 홈으로</span>
+                        </button>
+                    </div>
+
+                    {/* Right: 달력 바 */}
                     <div
                         className="relative group cursor-pointer"
                         onClick={() => dateInputRef.current?.showPicker()}
@@ -667,16 +692,6 @@ export default function DashboardMain() {
                             }}
                         />
                     </div>
-
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => window.location.href = '/teacher'}
-                            className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-yellow-400/50 text-yellow-600 hover:bg-yellow-50 transition-all active:scale-95 text-xs font-bold"
-                        >
-                            <span>⬅</span>
-                            <span>교사 홈으로</span>
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -695,12 +710,32 @@ export default function DashboardMain() {
                     </div>
 
                     {/* Total Summary */}
-                    <div className="bg-gray-900 text-white p-3 rounded-2xl shadow-sm flex justify-center items-center px-4">
-                        <div className="flex flex-wrap justify-center gap-3 md:gap-6 text-xs md:text-sm font-bold whitespace-nowrap">
-                            <span>정원 : {stats.totalStudents}명</span>
-                            <span className="text-red-400">외박자 : {stats.currentLeaves.overnight}명</span>
-                            <span className="text-emerald-400">외출자 : {stats.currentLeaves.short}명</span>
-                            <span>현재원 : {stats.studentsByGrade.reduce((acc, curr) => acc + curr.current, 0)}명</span>
+                    <div className="bg-gray-900 text-white p-2.5 rounded-2xl shadow-sm flex items-center justify-between px-3 md:px-5 whitespace-nowrap overflow-x-auto no-scrollbar">
+                        <div className="flex items-center justify-between w-full gap-1.5 sm:gap-3 text-[11px] sm:text-xs md:text-sm font-bold whitespace-nowrap">
+                            <span className="shrink-0 text-gray-300">정원 : {stats.totalStudents}명</span>
+                            <button
+                                onClick={() => {
+                                    setLeaveListModal({ isOpen: true, title: '외박자 명단', type: 'overnight', studentIds: overnightStudentIds });
+                                    setLeaveModalSearchQuery('');
+                                }}
+                                className="text-red-400 hover:text-red-300 hover:bg-white/10 px-2 py-0.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 border border-red-500/40 group shrink-0"
+                                title="클릭하여 외박자 명단 보기"
+                            >
+                                <span className="underline underline-offset-4 decoration-red-500/60 group-hover:decoration-red-300">외박자 : {stats.currentLeaves.overnight}명</span>
+                                <span className="text-[9px] sm:text-[10px] bg-red-500/25 group-hover:bg-red-500/40 text-red-200 px-1.5 py-0.5 rounded-md font-semibold tracking-tighter">상세</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setLeaveListModal({ isOpen: true, title: '외출자 명단', type: 'short', studentIds: shortStudentIds });
+                                    setLeaveModalSearchQuery('');
+                                }}
+                                className="text-emerald-400 hover:text-emerald-300 hover:bg-white/10 px-2 py-0.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 border border-emerald-500/40 group shrink-0"
+                                title="클릭하여 외출자 명단 보기"
+                            >
+                                <span className="underline underline-offset-4 decoration-emerald-500/60 group-hover:decoration-emerald-300">외출자 : {stats.currentLeaves.short}명</span>
+                                <span className="text-[9px] sm:text-[10px] bg-emerald-500/25 group-hover:bg-emerald-500/40 text-emerald-200 px-1.5 py-0.5 rounded-md font-semibold tracking-tighter">상세</span>
+                            </button>
+                            <span className="shrink-0 text-gray-300">현재원 : {stats.studentsByGrade.reduce((acc, curr) => acc + curr.current, 0)}명</span>
                         </div>
                     </div>
 
@@ -715,71 +750,67 @@ export default function DashboardMain() {
                                     {g.grade}
                                 </div>
                                 <div className="flex flex-col items-center gap-0.5 text-center w-full">
+                                    {/* 총원 */}
                                     <div className="flex flex-col items-center">
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-[9px] text-gray-400 font-medium transform scale-90">총원</span>
-                                            <span className="text-xs font-black text-gray-800 leading-none">{g.count}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 whitespace-nowrap leading-none mt-0.5">
-                                            <span className="inline-flex items-baseline gap-0.5">
+                                        <span className="text-[9px] text-gray-400 font-medium leading-none">총원</span>
+                                        <span className="text-xs font-black text-gray-800 leading-none mt-0.5">{g.count}</span>
+                                        <div className="flex items-center gap-1.5 whitespace-nowrap leading-none mt-1">
+                                            <div className="flex flex-col items-center">
                                                 <span className="text-[8px] font-medium text-gray-400">여</span>
-                                                <span className="text-[10px] font-bold text-gray-700 leading-none">{g.femaleCount || 0}</span>
-                                            </span>
-                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[9px] font-bold text-gray-700 leading-none mt-0.5">{g.femaleCount || 0}</span>
+                                            </div>
+                                            <div className="flex flex-col items-center">
                                                 <span className="text-[8px] font-medium text-gray-400">남</span>
-                                                <span className="text-[10px] font-bold text-gray-700 leading-none">{g.maleCount || 0}</span>
-                                            </span>
+                                                <span className="text-[9px] font-bold text-gray-700 leading-none mt-0.5">{g.maleCount || 0}</span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+                                    {/* 외박 */}
                                     <div className="flex flex-col items-center">
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-[9px] text-gray-400 font-medium transform scale-90">외박</span>
-                                            <span className="text-xs font-black text-red-500 leading-none">{g.overnight}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 whitespace-nowrap leading-none mt-0.5">
-                                            <span className="inline-flex items-baseline gap-0.5">
+                                        <span className="text-[9px] text-gray-400 font-medium leading-none">외박</span>
+                                        <span className="text-xs font-black text-red-500 leading-none mt-0.5">{g.overnight}</span>
+                                        <div className="flex items-center gap-1.5 whitespace-nowrap leading-none mt-1">
+                                            <div className="flex flex-col items-center">
                                                 <span className="text-[8px] font-medium text-gray-400">여</span>
-                                                <span className="text-[10px] font-bold text-red-500 leading-none">{g.femaleOvernight || 0}</span>
-                                            </span>
-                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[9px] font-bold text-red-500 leading-none mt-0.5">{g.femaleOvernight || 0}</span>
+                                            </div>
+                                            <div className="flex flex-col items-center">
                                                 <span className="text-[8px] font-medium text-gray-400">남</span>
-                                                <span className="text-[10px] font-bold text-red-500 leading-none">{g.maleOvernight || 0}</span>
-                                            </span>
+                                                <span className="text-[9px] font-bold text-red-500 leading-none mt-0.5">{g.maleOvernight || 0}</span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+                                    {/* 외출 */}
                                     <div className="flex flex-col items-center">
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-[9px] text-gray-400 font-medium transform scale-90">외출</span>
-                                            <span className="text-xs font-black text-emerald-600 leading-none">{g.short}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 whitespace-nowrap leading-none mt-0.5">
-                                            <span className="inline-flex items-baseline gap-0.5">
+                                        <span className="text-[9px] text-gray-400 font-medium leading-none">외출</span>
+                                        <span className="text-xs font-black text-emerald-600 leading-none mt-0.5">{g.short}</span>
+                                        <div className="flex items-center gap-1.5 whitespace-nowrap leading-none mt-1">
+                                            <div className="flex flex-col items-center">
                                                 <span className="text-[8px] font-medium text-gray-400">여</span>
-                                                <span className="text-[10px] font-bold text-emerald-600 leading-none">{g.femaleShort || 0}</span>
-                                            </span>
-                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[9px] font-bold text-emerald-600 leading-none mt-0.5">{g.femaleShort || 0}</span>
+                                            </div>
+                                            <div className="flex flex-col items-center">
                                                 <span className="text-[8px] font-medium text-gray-400">남</span>
-                                                <span className="text-[10px] font-bold text-emerald-600 leading-none">{g.maleShort || 0}</span>
-                                            </span>
+                                                <span className="text-[9px] font-bold text-emerald-600 leading-none mt-0.5">{g.maleShort || 0}</span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+                                    {/* 현재 */}
                                     <div className="flex flex-col items-center">
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-[9px] text-gray-400 font-medium transform scale-90">현재</span>
-                                            <span className="text-xs font-black text-blue-600 leading-none">{g.current}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 whitespace-nowrap leading-none mt-0.5">
-                                            <span className="inline-flex items-baseline gap-0.5">
+                                        <span className="text-[9px] text-gray-400 font-medium leading-none">현재</span>
+                                        <span className="text-xs font-black text-blue-600 leading-none mt-0.5">{g.current}</span>
+                                        <div className="flex items-center gap-1.5 whitespace-nowrap leading-none mt-1">
+                                            <div className="flex flex-col items-center">
                                                 <span className="text-[8px] font-medium text-gray-400">여</span>
-                                                <span className="text-[10px] font-bold text-blue-600 leading-none">{g.femaleCurrent || 0}</span>
-                                            </span>
-                                            <span className="inline-flex items-baseline gap-0.5">
+                                                <span className="text-[9px] font-bold text-blue-600 leading-none mt-0.5">{g.femaleCurrent || 0}</span>
+                                            </div>
+                                            <div className="flex flex-col items-center">
                                                 <span className="text-[8px] font-medium text-gray-400">남</span>
-                                                <span className="text-[10px] font-bold text-blue-600 leading-none">{g.maleCurrent || 0}</span>
-                                            </span>
+                                                <span className="text-[9px] font-bold text-blue-600 leading-none mt-0.5">{g.maleCurrent || 0}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -787,7 +818,7 @@ export default function DashboardMain() {
                         ))}
                         <div className="w-px bg-gray-200 mx-0.5 my-2"></div>
                         {stats.studentsByFloor.map(f => (
-                            <div key={`f-${f.floor}`} className="flex-1 bg-white py-2 rounded-[1rem] border border-gray-100 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between gap-1 hover:bg-gray-50 transition-colors cursor-pointer group min-w-0">
+                            <div key={`f-${f.floor}`} className="flex-1 bg-white py-2 rounded-[1rem] border border-gray-100 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] flex flex-col items-center justify-start gap-1 hover:bg-gray-50 transition-colors cursor-pointer group min-w-0">
                                 <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-[10px] font-bold text-indigo-500 border border-indigo-100">
                                     {f.floor}F
                                 </div>
@@ -815,7 +846,7 @@ export default function DashboardMain() {
                             </div>
                         ))}
                         {stats.unassignedCount && stats.unassignedCount > 0 ? (
-                            <div key="unassigned-card" className="flex-1 bg-amber-50/60 py-2 rounded-[1rem] border border-amber-200/60 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between gap-1 min-w-0" title="호실 미배정 학생">
+                            <div key="unassigned-card" className="flex-1 bg-amber-50/60 py-2 rounded-[1rem] border border-amber-200/60 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] flex flex-col items-center justify-start gap-1 min-w-0" title="호실 미배정 학생">
                                 <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-[9px] font-bold text-amber-700 border border-amber-200">
                                     미배정
                                 </div>
@@ -1378,6 +1409,132 @@ export default function DashboardMain() {
                             <button
                                 onClick={() => setIsWeeklyListModalOpen(false)}
                                 className="w-full py-2.5 bg-gray-200 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-300 transition-colors"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Overnight / Short Outing Student List Modal */}
+            {leaveListModal.isOpen && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => {
+                        setLeaveListModal(prev => ({ ...prev, isOpen: false }));
+                        setExpandedLeaveId(null);
+                    }}
+                >
+                    <div
+                        className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className={`p-4 text-white flex justify-between items-center ${leaveListModal.type === 'overnight' ? 'bg-red-600' : 'bg-emerald-600'}`}>
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-base">{leaveListModal.title}</h3>
+                                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">
+                                    {leaveListModal.studentIds.length}명
+                                </span>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setLeaveListModal(prev => ({ ...prev, isOpen: false }));
+                                    setExpandedLeaveId(null);
+                                }}
+                                className="hover:bg-white/20 p-1.5 rounded-full transition-colors"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-3 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+                            <input
+                                type="text"
+                                placeholder="이름 또는 학번 검색..."
+                                value={leaveModalSearchQuery}
+                                onChange={(e) => setLeaveModalSearchQuery(e.target.value)}
+                                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500 transition"
+                            />
+                        </div>
+
+                        <div className="p-4 max-h-[60vh] overflow-y-auto flex flex-col gap-3.5 bg-gray-100/60">
+                            {(() => {
+                                const targetLeaveType = leaveListModal.type === 'overnight' ? '외박' : '외출';
+                                
+                                const requestMap = new Map<string | number, any>();
+                                
+                                leaveListModal.studentIds.forEach((sid) => {
+                                    const matches = allLeaveRequests.filter((l: any) => {
+                                        if (l.leave_type !== targetLeaveType) return false;
+                                        if (l.student_id === sid) return true;
+                                        if (l.leave_request_students?.some((co: any) => co.student_id === sid)) return true;
+                                        return false;
+                                    });
+
+                                    if (matches.length > 0) {
+                                        matches.forEach(m => requestMap.set(m.id, m));
+                                    } else {
+                                        const syntheticId = `weekly-${sid}`;
+                                        if (!requestMap.has(syntheticId)) {
+                                            requestMap.set(syntheticId, {
+                                                id: syntheticId,
+                                                student_id: sid,
+                                                leave_type: '외박',
+                                                status: '승인',
+                                                start_time: selectedDate.toISOString(),
+                                                end_time: selectedDate.toISOString(),
+                                                reason: '정기 매주귀가',
+                                                leave_request_students: []
+                                            });
+                                        }
+                                    }
+                                });
+
+                                const studentMap = new Map();
+                                allRawStudents.forEach(s => studentMap.set(s.student_id, s.name));
+
+                                const filtered = Array.from(requestMap.values()).filter(req => {
+                                    const q = leaveModalSearchQuery.trim().toLowerCase();
+                                    if (!q) return true;
+                                    const mainId = (req.student_id || '').toLowerCase();
+                                    const mainName = (studentMap.get(req.student_id) || '').toLowerCase();
+                                    const subMatch = req.leave_request_students?.some((co: any) => {
+                                        const subId = (co.student_id || '').toLowerCase();
+                                        const subName = (studentMap.get(co.student_id) || '').toLowerCase();
+                                        return subId.includes(q) || subName.includes(q);
+                                    });
+                                    return mainId.includes(q) || mainName.includes(q) || subMatch;
+                                });
+
+                                if (filtered.length === 0) {
+                                    return <p className="text-gray-400 text-center text-xs py-8">해당하는 이석 기록이 없습니다.</p>;
+                                }
+
+                                return filtered.map((req) => (
+                                    <LeaveProcessCard
+                                        key={req.id}
+                                        req={req as LeaveRequest}
+                                        isExpanded={expandedLeaveId === req.id}
+                                        onToggleExpand={() => setExpandedLeaveId(expandedLeaveId === req.id ? null : req.id)}
+                                        isMenuOpen={false}
+                                        onToggleMenu={(e) => e.stopPropagation()}
+                                        onUpdateStatus={() => {}}
+                                        onCancel={() => {}}
+                                        viewMode="active"
+                                        currentTeacherId=""
+                                    />
+                                ));
+                            })()}
+                        </div>
+
+                        <div className="p-3 bg-gray-50 border-t border-gray-100">
+                            <button
+                                onClick={() => {
+                                    setLeaveListModal(prev => ({ ...prev, isOpen: false }));
+                                    setExpandedLeaveId(null);
+                                }}
+                                className="w-full py-2 bg-gray-200 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-300 transition-colors"
                             >
                                 닫기
                             </button>

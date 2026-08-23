@@ -70,22 +70,19 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
         "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
         // 👇 기존 h-[80px] 또는 h-[96px]를 지우고 딱 이 줄로 바꾸세요!
         isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-4 py-3 !h-[60px]",
-        viewMode === 'past' && showOpacityForPast && "opacity-60"
+        viewMode === 'past' && showOpacityForPast && "opacity-60 grayscale-[40%] saturate-50 contrast-90 backdrop-blur-sm bg-[#121212]/90"
     )}
 >
-            <div className="flex items-center w-full gap-2"> {/* Gap-3 -> Gap-2 */}
-                {/* 1. 이석 종류 & 상태 아이콘 */}
-                <div className="flex items-center gap-2 shrink-0"> {/* Removed w-[85px] */}
+            <div className="flex items-center w-full gap-2">
+                {/* 1. 이석 종류 & 상태 아이콘 (컬럼 1: 타이트한 고정 너비 70px) */}
+                <div className="flex items-center gap-1.5 shrink-0 w-[70px]">
                     <div className={clsx(
-                        "w-2 h-2 rounded-full",
+                        "w-2 h-2 rounded-full shrink-0",
                         statusConfig.dot,
                         (req.status === '신청' || req.status === '학부모승인' || req.status === '승인대기' || req.status === '학부모승인대기') && "animate-pulse shadow-[0_0_8px_rgba(56,189,248,0.6)]"
                     )}></div>
 
-                    <div className={clsx(
-                        "flex items-center gap-2",
-                        ['이석', '컴이석', '자리비움'].includes(req.leave_type!) ? "w-[65px]" : "w-auto"
-                    )}>
+                    <div className="flex items-center gap-1 min-w-0">
                         <span className="text-white font-bold text-xs text-left whitespace-nowrap">{req.leave_type}</span>
 
                         {req.leave_type !== '컴이석' && req.leave_type !== '자리비움' && (
@@ -131,98 +128,95 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                     </div>
                 </div>
 
-                <div className="flex flex-1 items-center gap-2 min-w-0"> {/* Gap-2 standard */}
-                    <div className="flex flex-col gap-1 shrink-0 justify-center min-w-[3rem]">
-                        <div className="flex flex-col items-center justify-center">
-                            <span className="text-gray-200 text-xs leading-tight whitespace-nowrap flex items-center gap-1 font-bold">
-                                {req.student_id}
-                            </span>
-                            {allStudents.length > 1 && (
-                                <span className="text-gray-300 text-[10px] leading-tight whitespace-nowrap font-medium">
-                                    외 {allStudents.length - 1}명
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                    {/* 3. 시간 (Time - 학생 페이지와 동일한 램프 스타일) */}
-                    <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center">
-                        {(() => {
-                            const start = new Date(req.start_time);
-                            // ... (Time logic omitted for brevity as it is unchanged, but ensuring full function)
-                            const now = new Date();
-                            const day = start.getDay();
-                            const isWeekend = day === 0 || day === 6;
+                {/* 2. 학생 정보 (컬럼 2: 좌측 정렬 & 밀착 65px) */}
+                <div className="flex flex-col gap-0.5 shrink-0 justify-center items-start w-[65px]">
+                    <span className="text-gray-200 text-xs leading-tight whitespace-nowrap font-bold truncate max-w-full">
+                        {req.student_id}
+                    </span>
+                    {allStudents.length > 1 && (
+                        <span className="text-gray-300 text-[10px] leading-tight whitespace-nowrap font-medium">
+                            외 {allStudents.length - 1}명
+                        </span>
+                    )}
+                </div>
 
-                            if (req.period) {
-                                const groups = isWeekend
-                                    ? [{ label: '오전', periods: ['1', '2', '3'] }, { label: '오후', periods: ['4', '5', '6'] }, { label: '야간', periods: ['1', '2', '3'] }]
-                                    : [{ label: '주간', periods: ['6', '7', '8', '9'] }, { label: '야간', periods: ['1', '2', '3', '4'] }];
+                {/* 3. 날짜 & 교시 / 시간 (컬럼 3: 고정 너비 125px) */}
+                <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-[125px]">
+                    {(() => {
+                        const start = new Date(req.start_time);
+                        const now = new Date();
+                        const day = start.getDay();
+                        const isWeekend = day === 0 || day === 6;
 
-                                const activePeriods = req.period.split(',').map(p => p.trim());
+                        if (req.period) {
+                            const groups = isWeekend
+                                ? [{ label: '오전', periods: ['1', '2', '3'] }, { label: '오후', periods: ['4', '5', '6'] }, { label: '야간', periods: ['1', '2', '3'] }]
+                                : [{ label: '주간', periods: ['6', '7', '8', '9'] }, { label: '야간', periods: ['1', '2', '3', '4'] }];
 
-                                return (
-                                    <div className="flex flex-col gap-1.5 justify-center">
-                                        <div className="flex flex-col gap-1 justify-center">
-                                            {groups.map((group, gIdx) => (
-                                                <div key={gIdx} className="flex gap-1 items-center">
-                                                    <span className="text-[11px] text-gray-400 font-medium w-7 text-left">
-                                                        {gIdx === 0 ? start.toLocaleDateString([], { month: 'numeric', day: 'numeric' }) : ""}
-                                                    </span>
-                                                    <div className="flex gap-1 items-center">
-                                                        {group.periods.map(p => {
-                                                            const periodLabel = `${group.label}${p}교시`;
-                                                            const isActive = activePeriods.includes(periodLabel);
-                                                            return (
-                                                                <div
-                                                                    key={p}
-                                                                    className={clsx(
-                                                                        "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all",
-                                                                        isActive
-                                                                            ? "bg-yellow-400 text-black shadow-[0_0_8px_rgba(250,204,21,0.6)]"
-                                                                            : "bg-white/5 text-white/20 border border-white/5"
-                                                                    )}
-                                                                >
-                                                                    {p}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
+                            const activePeriods = req.period.split(',').map(p => p.trim());
+
+                            return (
+                                <div className="flex flex-col gap-1.5 justify-center">
+                                    <div className="flex flex-col gap-1 justify-center">
+                                        {groups.map((group, gIdx) => (
+                                            <div key={gIdx} className="flex gap-1 items-center">
+                                                <span className="text-[11px] text-gray-400 font-medium w-[32px] shrink-0 text-left whitespace-nowrap">
+                                                    {gIdx === 0 ? `${start.getMonth() + 1}.${start.getDate()}` : ""}
+                                                </span>
+                                                <div className="flex gap-1 items-center">
+                                                    {group.periods.map(p => {
+                                                        const periodLabel = `${group.label}${p}교시`;
+                                                        const isActive = activePeriods.includes(periodLabel);
+                                                        return (
+                                                            <div
+                                                                key={p}
+                                                                className={clsx(
+                                                                    "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all",
+                                                                    isActive
+                                                                        ? "bg-yellow-400 text-black shadow-[0_0_8px_rgba(250,204,21,0.6)]"
+                                                                        : "bg-white/5 text-white/20 border border-white/5"
+                                                                )}
+                                                            >
+                                                                {p}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                            ))}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        } else {
+                            const end = req.leave_type === '자리비움'
+                                ? new Date(new Date(req.start_time).getTime() + 10 * 60000)
+                                : new Date(req.end_time);
+                            const fTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                            const fDate = (d: Date) => `${d.getMonth() + 1}.${d.getDate()}`;
+                            return (
+                                <div className="flex flex-col gap-0.5 leading-tight justify-center">
+                                    <div className="flex flex-col gap-0.5 justify-center">
+                                        <div className="flex items-center gap-[3px]">
+                                            <span className="text-gray-400 text-[11px] w-[32px] shrink-0 text-left whitespace-nowrap">{fDate(start)}</span>
+                                            <span className="text-yellow-400 text-[11px] font-bold">{fTime(start)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-[3px]">
+                                            <span className="text-gray-400 text-[11px] w-[32px] shrink-0 text-left whitespace-nowrap">{fDate(end)}</span>
+                                            <span className="text-orange-400 text-[11px] font-bold">{fTime(end)}</span>
                                         </div>
                                     </div>
-                                );
-                            } else {
-                                const end = req.leave_type === '자리비움'
-                                    ? new Date(new Date(req.start_time).getTime() + 10 * 60000)
-                                    : new Date(req.end_time);
-                                const fTime = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                                const fDate = (d: Date) => d.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
-                                return (
-                                    <div className="flex flex-col gap-0.5 leading-tight justify-center">
-                                        <div className="flex flex-col gap-0.5 justify-center">
-                                            <div className="flex items-center gap-[3px]"> {/* Gap-1.5 -> Gap-[3px] */}
-                                                <span className="text-gray-400 text-[11px] w-7 text-left">{fDate(start)}</span>
-                                                <span className="text-yellow-400 text-[11px] font-bold">{fTime(start)}</span>
-                                            </div>
-                                            <div className="flex items-center gap-[3px]"> {/* Gap-1.5 -> Gap-[3px] */}
-                                                <span className="text-gray-400 text-[11px] w-7 text-left">{fDate(end)}</span>
-                                                <span className="text-orange-400 text-[11px] font-bold">{fTime(end)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            }
-                        })()}
-                    </div>
+                                </div>
+                            );
+                        }
+                    })()}
+                </div>
 
-                    {/* 4. 사유 (Reason) */}
+                {/* 4. 사유 (컬럼 4: 나머지 영역) */}
+                <div className="flex flex-1 items-center min-w-0">
                     {req.reason && (
-                        <div className="flex items-center shrink-1 min-w-0"> {/* Enforced shrinking */}
-                            <span className="text-gray-400 text-xs font-medium truncate max-w-[60px] sm:max-w-[80px]" title={req.reason}> {/* Truncate added */}
-                                {req.reason}
-                            </span>
-                        </div>
+                        <span className="text-gray-400 text-xs font-medium truncate w-full" title={req.reason}>
+                            {req.reason}
+                        </span>
                     )}
                 </div>
 

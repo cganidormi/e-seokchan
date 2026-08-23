@@ -165,10 +165,29 @@ export default function HeadcountPage() {
                 .select('*')
                 .eq('student_id', studentId)
                 .order('created_at', { ascending: false })
-                .limit(20);
+                .limit(30);
 
             if (data) {
-                setHistoryRecords(data);
+                const now = new Date();
+                const isRecordPast = (rec: any) => {
+                    if (rec.status === '복귀' || rec.status === '취소' || rec.status === '반려' || rec.status === '거절') return true;
+                    if (rec.end_time && new Date(rec.end_time) < now) return true;
+                    return false;
+                };
+
+                const sorted = [...data].sort((a, b) => {
+                    const aPast = isRecordPast(a);
+                    const bPast = isRecordPast(b);
+
+                    if (!aPast && bPast) return -1;
+                    if (aPast && !bPast) return 1;
+
+                    const timeA = new Date(a.start_time || a.created_at).getTime();
+                    const timeB = new Date(b.start_time || b.created_at).getTime();
+                    return timeB - timeA;
+                });
+
+                setHistoryRecords(sorted);
                 setHistoryStudent({ student_id: studentId, name });
                 setIsHistoryModalOpen(true);
             }
@@ -486,10 +505,14 @@ export default function HeadcountPage() {
         return map;
     }, [students]);
 
-    // Compute floor stats (각 층별 1학년, 2학년, 3학년 명수)
+    // Compute floor stats (각 층별 1학년, 2학년, 3학년 현재원 / 정원 명수)
     const floorStats = useMemo(() => {
         const layout = currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT));
-        const counts = { 1: 0, 2: 0, 3: 0 };
+        const counts = {
+            1: { present: 0, total: 0 },
+            2: { present: 0, total: 0 },
+            3: { present: 0, total: 0 }
+        };
         const now = new Date();
         const isWeekend = isWeeklyHomeTime(now);
 
@@ -501,12 +524,6 @@ export default function HeadcountPage() {
             (['left', 'right'] as const).forEach(pos => {
                 const slot = roomData[pos];
                 if (slot.name) {
-                    // 매주귀가 시간대에 매주귀가 학생은 제외
-                    if (isWeekend && slot.isWeekend) return;
-
-                    // 현재 외박 또는 외출 상태인 학생 제외 (기숙사 잔류 인원만 카운트)
-                    if (slot.status === 'out') return;
-
                     let grade = slot.student_id ? gradeMap.get(slot.student_id) : undefined;
                     if (!grade && slot.student_id && /^[1-3]/.test(slot.student_id)) {
                         grade = parseInt(slot.student_id[0], 10);
@@ -516,7 +533,13 @@ export default function HeadcountPage() {
                     }
 
                     if (grade && (grade === 1 || grade === 2 || grade === 3)) {
-                        counts[grade as 1 | 2 | 3]++;
+                        counts[grade as 1 | 2 | 3].total++;
+
+                        // 매주귀가 시간대에 매주귀가 학생 제외 or 현재 외박/외출 학생 제외
+                        const isOut = slot.status === 'out' || (isWeekend && slot.isWeekend);
+                        if (!isOut) {
+                            counts[grade as 1 | 2 | 3].present++;
+                        }
                     }
                 }
             });
@@ -626,19 +649,28 @@ export default function HeadcountPage() {
                 <div className="flex items-center gap-1 sm:gap-1.5 whitespace-nowrap overflow-x-auto no-scrollbar">
                     <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-yellow-500/20 shrink-0 whitespace-nowrap">
                         <span className="text-[9px] sm:text-[10px] text-yellow-400 font-medium">1학년</span>
-                        <span className="text-[11px] sm:text-xs font-black text-yellow-300 tabular-nums">{floorStats[1]}명</span>
+                        <span className="text-[11px] sm:text-xs font-black text-yellow-300 tabular-nums">
+                            {floorStats[1].present}/{floorStats[1].total}명
+                        </span>
                     </div>
                     <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-sky-500/20 shrink-0 whitespace-nowrap">
                         <span className="text-[9px] sm:text-[10px] text-sky-400 font-medium">2학년</span>
-                        <span className="text-[11px] sm:text-xs font-black text-sky-300 tabular-nums">{floorStats[2]}명</span>
+                        <span className="text-[11px] sm:text-xs font-black text-sky-300 tabular-nums">
+                            {floorStats[2].present}/{floorStats[2].total}명
+                        </span>
                     </div>
                     <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-red-500/20 shrink-0 whitespace-nowrap">
                         <span className="text-[9px] sm:text-[10px] text-red-400 font-medium">3학년</span>
-                        <span className="text-[11px] sm:text-xs font-black text-red-300 tabular-nums">{floorStats[3]}명</span>
+                        <span className="text-[11px] sm:text-xs font-black text-red-300 tabular-nums">
+                            {floorStats[3].present}/{floorStats[3].total}명
+                        </span>
                     </div>
-                    <span className="text-[10px] sm:text-xs text-gray-400 font-medium ml-1.5 shrink-0">
-                        * 외출, 외박 제외한 현재원 입니다.
-                    </span>
+                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-gray-700 shrink-0 whitespace-nowrap">
+                        <span className="text-[9px] sm:text-[10px] text-gray-300 font-medium">{currentFloor}층 합계</span>
+                        <span className="text-[11px] sm:text-xs font-black text-white tabular-nums">
+                            {floorStats[1].present + floorStats[2].present + floorStats[3].present}/{floorStats[1].total + floorStats[2].total + floorStats[3].total}명
+                        </span>
+                    </div>
                 </div>
 
                 {/* Bottom Row: Floor Selector Tabs & Student Search */}
