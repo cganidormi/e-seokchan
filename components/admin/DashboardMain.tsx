@@ -8,6 +8,7 @@ import {
     FaFirstAid, FaHome, FaPlus, FaTrash, FaBell, FaCheck, FaUsers,
     FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt, FaChartBar
 } from "react-icons/fa";
+import { HiHome } from 'react-icons/hi';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
 import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
@@ -664,10 +665,10 @@ export default function DashboardMain() {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => window.location.href = '/teacher'}
-                            className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm border border-yellow-400/50 text-yellow-600 hover:bg-yellow-50 transition-all active:scale-95 text-xs font-bold"
+                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold p-2 sm:p-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                            title="교사 홈으로 이동"
                         >
-                            <span>⬅</span>
-                            <span>교사 홈으로</span>
+                            <HiHome className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
                         </button>
                     </div>
 

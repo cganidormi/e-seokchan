@@ -460,7 +460,7 @@ export default function TeacherPage() {
 
         <button
           onClick={() => router.push('/today')}
-          className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1 px-3.5 rounded-xl shadow-sm transition-all flex items-center gap-2 text-sm"
+          className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1 px-3.5 rounded-xl shadow-sm transition-all flex items-center gap-2 text-sm cursor-pointer"
         >
           <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0">
             <div className="p-[1.5px] bg-white rounded-full">

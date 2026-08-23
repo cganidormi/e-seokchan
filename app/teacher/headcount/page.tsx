@@ -10,6 +10,7 @@ import { Student } from '@/components/student/types';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import DashboardMain from '@/components/admin/DashboardMain';
+import { HiHome } from 'react-icons/hi';
 
 // Room Layout Configuration (Row, Col) based on floor plan
 // Abstracted using last 2 digits (01-25)
@@ -602,13 +603,13 @@ export default function HeadcountPage() {
             <header className="flex-none p-3 sm:p-4 pb-2 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 flex flex-col gap-2 shadow-xl">
                 {/* Top Row: Navigation & Mode Toggle */}
                 <div className="flex justify-between items-center w-full gap-2">
-                    <div className="flex items-center gap-1.5 sm:gap-2">
+                    <div className="flex items-stretch gap-1.5 sm:gap-2">
                         <button
                             onClick={() => router.push('/teacher')}
-                            className="flex items-center gap-2 bg-white px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm border border-yellow-400/50 text-yellow-600 hover:bg-yellow-50 transition-all active:scale-95 text-xs font-bold whitespace-nowrap"
+                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold px-2.5 sm:px-3 rounded-xl shadow-sm transition-all flex items-center justify-center cursor-pointer"
+                            title="교사 홈으로 이동"
                         >
-                            <span>⬅</span>
-                            <span>교사 페이지</span>
+                            <HiHome className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
                         </button>
                         <button
                             onClick={() => setIsTodayModalOpen(true)}
