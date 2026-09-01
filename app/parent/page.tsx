@@ -7,6 +7,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import WeeklyReturnApplicationCard from '@/components/student/WeeklyReturnApplicationCard';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import AnniversaryBanner from '@/components/parent/ParentsDayCelebration';
+import LoadingScreen from '@/components/LoadingScreen';
 
 // 헬퍼: VAPID 키를 Uint8Array로 변환
 function urlBase64ToUint8Array(base64String: string) {
@@ -337,7 +338,7 @@ function ParentContent() {
 
     // 1. Loading
     if (loading && isChecked) {
-        return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="animate-spin text-4xl">⏳</div></div>;
+        return <LoadingScreen />;
     }
 
     // 2. Install Gate (Blocking Screen)
@@ -691,7 +692,7 @@ function ParentContent() {
 
 export default function ParentPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="animate-spin text-4xl">⏳</div></div>}>
+        <Suspense fallback={<LoadingScreen />}>
             <ParentContent />
         </Suspense>
     );

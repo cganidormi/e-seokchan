@@ -11,6 +11,7 @@ import { LeaveProcessList } from '@/components/teacher/LeaveProcessList';
 import { LeaveRequest } from '@/components/teacher/types';
 import { NotificationPermissionBanner } from '@/components/NotificationPermissionBanner';
 import PullToRefresh from '@/components/PullToRefresh';
+import LoadingScreen from '@/components/LoadingScreen';
 import AnniversaryBanner from '@/components/parent/ParentsDayCelebration';
 
 export default function TeacherPage() {
@@ -395,11 +396,7 @@ export default function TeacherPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!teacherId) {

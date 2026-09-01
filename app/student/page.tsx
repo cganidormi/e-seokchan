@@ -13,6 +13,7 @@ import { NotificationPermissionBanner } from '@/components/NotificationPermissio
 import PullToRefresh from '@/components/PullToRefresh';
 import AnniversaryBanner from '@/components/parent/ParentsDayCelebration';
 import { MdLockReset } from 'react-icons/md';
+import LoadingScreen from '@/components/LoadingScreen';
 
 export default function StudentPage() {
   const [studentId, setStudentId] = useState('');
@@ -478,11 +479,7 @@ export default function StudentPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   const currentStudent = students.find(s => s.student_id === studentId) || null;
