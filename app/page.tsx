@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Toaster, toast } from 'react-hot-toast';
 import InstallGuide from './components/InstallGuide';
 import { IoShareOutline, IoAddOutline } from "react-icons/io5";
+import LoadingScreen from '@/components/LoadingScreen';
 
 export default function Home() {
   const router = useRouter();
@@ -18,6 +19,13 @@ export default function Home() {
   useEffect(() => {
     // 0. Extract & Persist Parent Token (CRITICAL for PWA)
     const searchParams = new URLSearchParams(window.location.search);
+
+    // Support Preview Mode for Testing Loading Screen
+    if (searchParams.get('preview_loading') === 'true' || searchParams.get('preview') === 'loading') {
+      setIsLoading(true);
+      return;
+    }
+
     const token = searchParams.get('token');
     if (token) {
       localStorage.setItem('dormichan_parent_token', token);
@@ -101,12 +109,7 @@ export default function Home() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-white">
-        <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-500 font-medium">이석찬으로 이동 중...</p>
-      </div>
-    );
+    return <LoadingScreen message="이석찬으로 이동 중..." />;
   }
 
   return (

@@ -333,21 +333,33 @@ export default function StudentSeatPage() {
             <div className="flex flex-col w-full max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="flex flex-col gap-4 mb-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
-                            <h1 className="text-xl font-extrabold text-gray-800 flex items-center gap-2">
-                                제 {selectedRoom} 실 현황 모니터
-                                <select
-                                    value={selectedRoom}
-                                    onChange={(e) => setSelectedRoom(Number(e.target.value))}
-                                    className="ml-2 bg-transparent text-sm font-bold text-gray-400 focus:outline-none cursor-pointer hover:text-gray-600 transition-colors"
-                                >
-                                    <option value={1}>(1실 변경)</option>
-                                    <option value={2}>(2실 변경)</option>
-                                    <option value={3}>(3실 변경)</option>
-                                </select>
-                            </h1>
+                    <div className="flex items-center justify-between gap-2 w-full">
+                        {/* Title & Room Segment Selector */}
+                        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-6 bg-yellow-400 rounded-full shrink-0"></div>
+                                <h1 className="text-base sm:text-xl font-black text-gray-800 whitespace-nowrap">
+                                    현황모니터
+                                </h1>
+                            </div>
+
+                            {/* Room Selector Segment Tabs */}
+                            <div className="flex items-center gap-1 bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner">
+                                {[1, 2, 3].map((room) => (
+                                    <button
+                                        key={room}
+                                        onClick={() => setSelectedRoom(room)}
+                                        className={clsx(
+                                            "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap",
+                                            selectedRoom === room
+                                                ? "bg-yellow-400 text-yellow-950 shadow-md scale-105"
+                                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-300/60"
+                                        )}
+                                    >
+                                        제{room}실
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
