@@ -107,14 +107,15 @@ export default function SeatManagementPage() {
     const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
 
     // Roll Call Check State
-    const [checkedSeats, setCheckedSeats] = useState<Set<number>>(new Set());
+    const [checkedSeats, setCheckedSeats] = useState<Set<string>>(new Set());
 
-    const toggleSeatCheck = (seatNum: number) => {
+    const toggleSeatCheck = (roomNum: number, seatNum: number) => {
+        const key = `${roomNum}-${seatNum}`;
         const next = new Set(checkedSeats);
-        if (next.has(seatNum)) {
-            next.delete(seatNum);
+        if (next.has(key)) {
+            next.delete(key);
         } else {
-            next.add(seatNum);
+            next.add(key);
         }
         setCheckedSeats(next);
     };
@@ -337,12 +338,13 @@ export default function SeatManagementPage() {
         // Fetch Teacher Name & Position from Session
         const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
         if (loginId) {
-            supabase.from('teachers').select('id, name, position').eq('teacher_id', loginId).single()
+            supabase.from('teachers').select('id, name, position').ilike('name', `%${loginId}%`)
                 .then(({ data }) => {
-                    if (data) {
-                        setTeacherId(data.id);
-                        setTeacherName(data.name);
-                        setTeacherPosition(data.position);
+                    if (data && data.length > 0) {
+                        const teacher = data.find(t => t.name.trim() === loginId.trim()) || data[0];
+                        setTeacherId(teacher.id);
+                        setTeacherName(teacher.name);
+                        setTeacherPosition(teacher.position);
                     }
                 });
         }
@@ -989,7 +991,8 @@ export default function SeatManagementPage() {
                                     }
 
                                     // Roll Call Highlight Override
-                                    if (checkedSeats.has(seatNum)) {
+                                    const seatKey = `${selectedRoom}-${seatNum}`;
+                                    if (checkedSeats.has(seatKey)) {
                                         headerBgClass = "bg-yellow-400";
                                         studentIdTextColor = "text-black";
                                     }
@@ -1016,7 +1019,7 @@ export default function SeatManagementPage() {
                                                         setSelectedSeat(seatNum);
                                                         setIsModalOpen(true);
                                                     } else if (mode === 'monitor') {
-                                                        toggleSeatCheck(seatNum);
+                                                        toggleSeatCheck(selectedRoom, seatNum);
                                                     }
                                                 }}
                                                 className={clsx(
@@ -1382,6 +1385,7 @@ export default function SeatManagementPage() {
                                             onCancel={handleCancelRequest}
                                             viewMode={viewMode}
                                             currentTeacherId={teacherId}
+                                            teacherPosition={teacherPosition}
                                             showOpacityForPast={true}
                                         />
                                     );

@@ -90,9 +90,17 @@ export default function StudentPage() {
         })
         .subscribe();
 
+      // Periodic check for unapproved leave reminders for student
+      const checkStudentReminders = () => {
+        fetch('/api/cron/remind-unapproved-student', { method: 'POST' }).catch(e => console.error('Student remind check error:', e));
+      };
+      checkStudentReminders();
+      const studentTimer = setInterval(checkStudentReminders, 2 * 60 * 1000);
+
       return () => {
         supabase.removeChannel(channel);
         supabase.removeChannel(studentsChannel);
+        clearInterval(studentTimer);
       };
     }
   }, []);

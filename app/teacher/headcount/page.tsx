@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/supabaseClient';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,6 +9,7 @@ import Select from 'react-select';
 import { Student } from '@/components/student/types';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
+import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
 import DashboardMain from '@/components/admin/DashboardMain';
 import { HiHome } from 'react-icons/hi';
 
@@ -130,6 +131,7 @@ const isWeeklyHomeTime = (date: Date) => {
 };
 
 export default function HeadcountPage() {
+    const transformRef = useRef<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [currentFloor, setCurrentFloor] = useState(3);
     const [searchQuery, setSearchQuery] = useState('');
@@ -142,6 +144,7 @@ export default function HeadcountPage() {
     // History Modal State
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [isTodayModalOpen, setIsTodayModalOpen] = useState(false);
+    const [isViolationModalOpen, setIsViolationModalOpen] = useState(false);
     const [historyStudent, setHistoryStudent] = useState<{ name: string, student_id: string } | null>(null);
     const [historyRecords, setHistoryRecords] = useState<any[]>([]);
     const [teacherPosition, setTeacherPosition] = useState<string>('');
@@ -588,7 +591,6 @@ export default function HeadcountPage() {
                 }
             });
         });
-
         return results;
     }, [searchQuery, roomStatus]);
 
@@ -602,38 +604,44 @@ export default function HeadcountPage() {
             {/* Header - Fixed & Fully Responsive */}
             <header className="flex-none p-3 sm:p-4 pb-2 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 flex flex-col gap-2 shadow-xl">
                 {/* Top Row: Navigation & Mode Toggle */}
-                <div className="flex justify-between items-center w-full gap-2">
-                    <div className="flex items-stretch gap-1.5 sm:gap-2">
+                <div className="flex justify-between items-center w-full gap-1 sm:gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0 min-w-0">
                         <button
                             onClick={() => router.push('/teacher')}
-                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold px-2.5 sm:px-3 rounded-xl shadow-sm transition-all flex items-center justify-center cursor-pointer"
+                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold p-1.5 sm:p-2 rounded-xl shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
                             title="교사 홈으로 이동"
                         >
-                            <HiHome className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+                            <HiHome className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                         </button>
                         <button
                             onClick={() => setIsTodayModalOpen(true)}
-                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1 px-2.5 sm:px-3.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm whitespace-nowrap cursor-pointer"
+                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1 px-1.5 sm:px-3 rounded-xl shadow-sm transition-all flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap cursor-pointer shrink-0"
                         >
-                            <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0">
-                                <div className="p-[1.5px] bg-white rounded-full">
-                                    <img src="/dorm.jpg" alt="Icon" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover" />
+                            <div className="p-[1px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0">
+                                <div className="p-[1px] bg-white rounded-full">
+                                    <img src="/dorm.jpg" alt="Icon" className="w-3.5 h-3.5 sm:w-5 sm:h-5 rounded-full object-cover" />
                                 </div>
                             </div>
                             <div className="flex flex-col items-start leading-tight">
                                 <span>오늘의 홍지관</span>
-                                <span className="text-[9px] sm:text-[10px] font-normal text-gray-500">(매주귀가자 명단)</span>
+                                <span className="text-[8px] sm:text-[10px] font-normal text-gray-500 hidden xs:inline">(매주귀가자 명단)</span>
                             </div>
+                        </button>
+                        <button
+                            onClick={() => setIsViolationModalOpen(true)}
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-1 px-2 sm:px-3 rounded-xl text-xs sm:text-sm whitespace-nowrap cursor-pointer border border-rose-500 shrink-0 shadow-sm"
+                        >
+                            위반
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                         {/* Mode Toggle */}
                         <div className="flex bg-gray-800 rounded-lg p-0.5 sm:p-1 border border-gray-700">
                             <button
                                 onClick={() => setMode('check')}
                                 className={clsx(
-                                    "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
+                                    "px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
                                     mode === 'check' ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
                                 )}
                             >
@@ -643,7 +651,7 @@ export default function HeadcountPage() {
                                 <button
                                     onClick={() => setMode('assign')}
                                     className={clsx(
-                                        "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
+                                        "px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
                                         mode === 'assign' ? "bg-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white"
                                     )}
                                 >
@@ -656,7 +664,7 @@ export default function HeadcountPage() {
                         {mode === 'assign' && (
                             <button
                                 onClick={handleResetAssignments}
-                                className="px-2 py-1 sm:py-1.5 text-red-400 font-bold text-xs bg-gray-800 rounded-lg border border-red-900/30 hover:bg-red-900/20 transition-all whitespace-nowrap"
+                                className="px-1.5 sm:px-2 py-1 sm:py-1.5 text-red-400 font-bold text-xs bg-gray-800 rounded-lg border border-red-900/30 hover:bg-red-900/20 transition-all whitespace-nowrap"
                             >
                                 ⚠️ 초기화
                             </button>
@@ -665,42 +673,42 @@ export default function HeadcountPage() {
                 </div>
 
                 {/* Middle Row: Floor Grade Badges */}
-                <div className="flex items-center gap-1 sm:gap-1.5 whitespace-nowrap overflow-x-auto no-scrollbar">
-                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-yellow-500/20 shrink-0 whitespace-nowrap">
+                <div className="flex items-center justify-between w-full gap-1 whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-0.5 sm:gap-1 bg-gray-800/90 rounded-lg px-1 sm:px-2 py-0.5 border border-yellow-500/25 flex-1 min-w-0 whitespace-nowrap">
                         <span className="text-[9px] sm:text-[10px] text-yellow-400 font-medium">1학년</span>
-                        <span className="text-[11px] sm:text-xs font-black text-yellow-300 tabular-nums">
+                        <span className="text-[11px] sm:text-xs font-bold text-yellow-300 tabular-nums">
                             {floorStats[1].present}/{floorStats[1].total}명
                         </span>
                     </div>
-                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-sky-500/20 shrink-0 whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-0.5 sm:gap-1 bg-gray-800/90 rounded-lg px-1 sm:px-2 py-0.5 border border-sky-500/25 flex-1 min-w-0 whitespace-nowrap">
                         <span className="text-[9px] sm:text-[10px] text-sky-400 font-medium">2학년</span>
-                        <span className="text-[11px] sm:text-xs font-black text-sky-300 tabular-nums">
+                        <span className="text-[11px] sm:text-xs font-bold text-sky-300 tabular-nums">
                             {floorStats[2].present}/{floorStats[2].total}명
                         </span>
                     </div>
-                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-red-500/20 shrink-0 whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-0.5 sm:gap-1 bg-gray-800/90 rounded-lg px-1 sm:px-2 py-0.5 border border-red-500/25 flex-1 min-w-0 whitespace-nowrap">
                         <span className="text-[9px] sm:text-[10px] text-red-400 font-medium">3학년</span>
-                        <span className="text-[11px] sm:text-xs font-black text-red-300 tabular-nums">
+                        <span className="text-[11px] sm:text-xs font-bold text-red-300 tabular-nums">
                             {floorStats[3].present}/{floorStats[3].total}명
                         </span>
                     </div>
-                    <div className="flex items-center gap-0.5 sm:gap-1 bg-gray-800/80 rounded-lg px-1.5 sm:px-2 py-0.5 sm:py-1 border border-gray-700 shrink-0 whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-0.5 sm:gap-1 bg-gray-800/90 rounded-lg px-1 sm:px-2 py-0.5 border border-gray-700 flex-1 min-w-0 whitespace-nowrap">
                         <span className="text-[9px] sm:text-[10px] text-gray-300 font-medium">{currentFloor}층 합계</span>
-                        <span className="text-[11px] sm:text-xs font-black text-white tabular-nums">
+                        <span className="text-[11px] sm:text-xs font-bold text-white tabular-nums">
                             {floorStats[1].present + floorStats[2].present + floorStats[3].present}/{floorStats[1].total + floorStats[2].total + floorStats[3].total}명
                         </span>
                     </div>
                 </div>
 
                 {/* Bottom Row: Floor Selector Tabs & Student Search */}
-                <div className="flex items-center gap-2 w-full justify-between sm:justify-start">
+                <div className="flex items-center gap-1.5 sm:gap-2 w-full justify-between">
                     <div className="flex gap-1 shrink-0">
                         {[1, 2, 3, 4].map(floor => (
                             <button
                                 key={floor}
                                 onClick={() => setCurrentFloor(floor)}
                                 className={clsx(
-                                    "px-2.5 sm:px-3 py-1 rounded text-xs font-bold transition-all border",
+                                    "px-2 sm:px-3 py-1 rounded text-xs font-bold transition-all border",
                                     currentFloor === floor
                                         ? "bg-orange-600 border-orange-500 text-white"
                                         : "bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700"
@@ -712,7 +720,7 @@ export default function HeadcountPage() {
                     </div>
 
                     {/* Search Input Box */}
-                    <div className="relative flex-1 max-w-[180px] sm:max-w-[220px]">
+                    <div className="relative flex-1 max-w-[160px] sm:max-w-[220px] min-w-[120px] shrink-0 ml-auto">
                         <input
                             type="text"
                             value={searchQuery}
@@ -734,7 +742,7 @@ export default function HeadcountPage() {
 
                         {/* Dropdown Results */}
                         {searchQuery.trim() && (
-                            <div className="absolute left-0 top-full mt-1 min-w-[180px] max-w-[240px] w-auto bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-50 max-h-56 overflow-y-auto whitespace-nowrap">
+                            <div className="absolute right-0 top-full mt-1 min-w-[180px] max-w-[240px] w-auto bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-50 max-h-56 overflow-y-auto whitespace-nowrap">
                                 {searchResults.length > 0 ? (
                                     searchResults.map((res, idx) => (
                                         <button
@@ -743,6 +751,12 @@ export default function HeadcountPage() {
                                                 setCurrentFloor(res.floor);
                                                 setSearchQuery('');
                                                 toast.success(`${res.displayName} → ${res.roomNum}호 (${res.position === 'left' ? 'L' : 'R'}침대)`);
+
+                                                setTimeout(() => {
+                                                    if (transformRef.current) {
+                                                        transformRef.current.zoomToElement(`room-${res.roomNum}`, 1.2, 500);
+                                                    }
+                                                }, 150);
                                             }}
                                             className="w-full text-left px-2.5 py-1.5 text-xs text-gray-200 hover:bg-orange-600/30 hover:text-white border-b border-gray-800 last:border-0 flex items-center justify-start gap-2 transition-colors cursor-pointer"
                                         >
@@ -768,6 +782,7 @@ export default function HeadcountPage() {
             {/* Main Content - Zoomable Area */}
             <div className="flex-1 relative overflow-hidden bg-[#121212] w-full h-full">
                 <TransformWrapper
+                    ref={transformRef}
                     initialScale={0.3}
                     minScale={0.2}
                     maxScale={2}
@@ -821,6 +836,7 @@ export default function HeadcountPage() {
                                 return (
                                     <div
                                         key={roomNum}
+                                        id={`room-${roomNum}`}
                                         style={{
                                             gridColumn: pos?.col,
                                             gridRow: pos?.row
@@ -1233,6 +1249,12 @@ export default function HeadcountPage() {
                     </div>
                 </div>
             )}
-        </div >
+
+            <ViolationStatsModal
+                isOpen={isViolationModalOpen}
+                onClose={() => setIsViolationModalOpen(false)}
+                initialFilter="today"
+            />
+        </div>
     );
 }

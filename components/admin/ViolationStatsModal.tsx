@@ -5,12 +5,14 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { supabase } from '@/supabaseClient';
-import { FaChartBar, FaSearch, FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt } from 'react-icons/fa';
+import toast from 'react-hot-toast';
+import { FaChartBar, FaSearch, FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt, FaTrash } from 'react-icons/fa';
 import { Student } from '@/components/student/types';
 
 interface ViolationStatsModalProps {
     isOpen: boolean;
     onClose: () => void;
+    initialFilter?: 'today' | 'month';
 }
 
 interface StudentViolationCount extends Student {
@@ -27,10 +29,11 @@ const VIOLATION_ICONS: Record<string, React.ElementType> = {
     '퇴실수칙 불이행': FaSignOutAlt
 };
 
-export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen, onClose }) => {
+export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen, onClose, initialFilter = 'month' }) => {
     const [students, setStudents] = useState<StudentViolationCount[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterType, setFilterType] = useState<'today' | 'month'>(initialFilter);
     const [selectedMonth, setSelectedMonth] = useState(() => {
         const now = new Date();
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -44,7 +47,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
 
     useEffect(() => {
         if (isOpen) {
-            fetchStats();
+            if (initialFilter) setFilterType(initialFilter);
             document.body.style.overflow = 'hidden';
         } else if (!document.querySelector('.modal-open')) {
             const otherModals = document.querySelectorAll('[key*="modal-overlay"]');
@@ -52,7 +55,13 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                 document.body.style.overflow = 'unset';
             }
         }
-    }, [isOpen, selectedMonth]);
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchStats();
+        }
+    }, [isOpen, selectedMonth, filterType]);
 
     const fetchStats = async () => {
         setIsLoading(true);
@@ -62,16 +71,23 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                 .select('*')
                 .order('student_id');
 
-            const [year, month] = selectedMonth.split('-');
-            const startOfMonth = new Date(parseInt(year), parseInt(month) - 1, 1).toISOString();
-            const endOfMonth = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999).toISOString();
+            let startISO: string, endISO: string;
+            if (filterType === 'today') {
+                const now = new Date();
+                startISO = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).toISOString();
+                endISO = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+            } else {
+                const [year, month] = selectedMonth.split('-');
+                startISO = new Date(parseInt(year), parseInt(month) - 1, 1).toISOString();
+                endISO = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999).toISOString();
+            }
 
             const { data: violationData } = await supabase
                 .from('morning_checks')
                 .select('*')
                 .eq('type', 'late')
-                .gte('checked_at', startOfMonth)
-                .lte('checked_at', endOfMonth);
+                .gte('checked_at', startISO)
+                .lte('checked_at', endISO);
 
             if (studentsData) {
                 const violationMap = new Map();
@@ -115,8 +131,49 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
         }
     };
 
+    const handleDeleteViolation = async (violationId: number) => {
+        if (!window.confirm('이 위반 내역을 삭제하시겠습니까?')) return;
+
+        try {
+            const { error } = await supabase
+                .from('morning_checks')
+                .delete()
+                .eq('id', violationId);
+
+            if (error) throw error;
+
+            toast.success('위반 내역이 삭제되었습니다.');
+
+            if (selectedStudent) {
+                const updatedDetails = selectedStudent.details.filter(d => d.id !== violationId);
+                const updatedStudent = {
+                    ...selectedStudent,
+                    count: updatedDetails.length,
+                    details: updatedDetails
+                };
+
+                if (updatedStudent.count > 0) {
+                    setSelectedStudent(updatedStudent);
+                } else {
+                    setSelectedStudent(null);
+                }
+
+                setStudents(prev =>
+                    prev
+                        .map(s => s.student_id === selectedStudent.student_id ? updatedStudent : s)
+                        .filter(s => s.count > 0)
+                );
+            }
+        } catch (err: any) {
+            console.error('Delete violation error:', err);
+            toast.error('삭제 처리 중 오류가 발생했습니다: ' + (err.message || '알 수 없는 오류'));
+        }
+    };
+
     const filtered = students.filter(s => 
-        s.name.includes(searchTerm) || s.student_id.includes(searchTerm)
+        s.name.includes(searchTerm) || 
+        s.student_id.includes(searchTerm) ||
+        String(s.room_number || (s as any).room || '').includes(searchTerm)
     );
 
     const modalContent = (
@@ -144,7 +201,31 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                 </div>
                                 <div>
                                     <h2 className="text-base font-black text-gray-900 leading-none">위반 통계 요약</h2>
-                                    <p className="text-[10px] text-gray-400 font-bold mt-0.5">{selectedMonth.replace('-', '년 ')}월 위반자 명단</p>
+                                    <p className="text-[10px] text-gray-400 font-bold mt-0.5">
+                                        {filterType === 'today' ? '오늘의 위반자 명단' : `${selectedMonth.replace('-', '년 ')}월 위반자 명단`}
+                                    </p>
+                                </div>
+
+                                {/* Filter Toggle Tabs */}
+                                <div className="flex bg-gray-200/80 p-0.5 rounded-xl border border-gray-200 ml-2">
+                                    <button
+                                        onClick={() => setFilterType('today')}
+                                        className={clsx(
+                                            "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                                            filterType === 'today' ? "bg-rose-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900"
+                                        )}
+                                    >
+                                        🚨 금일 위반
+                                    </button>
+                                    <button
+                                        onClick={() => setFilterType('month')}
+                                        className={clsx(
+                                            "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                                            filterType === 'month' ? "bg-rose-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900"
+                                        )}
+                                    >
+                                        📊 월간 통계
+                                    </button>
                                 </div>
                             </div>
 
@@ -153,18 +234,20 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                     <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-[10px]" />
                                     <input
                                         type="text"
-                                        placeholder="이름/학번..."
+                                        placeholder="이름/학번/호실..."
                                         className="w-full bg-white border border-gray-200 rounded-xl pl-8 pr-3 py-1.5 text-xs font-bold focus:ring-1 focus:ring-rose-200 outline-none transition-all placeholder:text-gray-300"
                                         value={searchTerm}
                                         onChange={e => setSearchTerm(e.target.value)}
                                     />
                                 </div>
-                                <input
-                                    type="month"
-                                    className="bg-white border border-gray-200 rounded-xl px-2 py-1.5 text-xs font-black text-gray-700 focus:ring-1 focus:ring-rose-200 outline-none"
-                                    value={selectedMonth}
-                                    onChange={e => setSelectedMonth(e.target.value)}
-                                />
+                                {filterType === 'month' && (
+                                    <input
+                                        type="month"
+                                        className="bg-white border border-gray-200 rounded-xl px-2 py-1.5 text-xs font-black text-gray-700 focus:ring-1 focus:ring-rose-200 outline-none"
+                                        value={selectedMonth}
+                                        onChange={e => setSelectedMonth(e.target.value)}
+                                    />
+                                )}
                                 <button 
                                     onClick={onClose} 
                                     className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all text-sm font-bold ml-1"
@@ -194,25 +277,33 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                                 key={student.student_id || `student-idx-${idx}`} 
                                                 onClick={() => setSelectedStudent(student)}
                                                 className={clsx(
-                                                    "relative p-2 rounded-2xl border transition-all group overflow-hidden cursor-pointer active:scale-95",
+                                                    "relative p-2 rounded-2xl border transition-all group overflow-hidden cursor-pointer active:scale-95 flex flex-col justify-between",
                                                     student.count >= 3 
                                                         ? "bg-rose-50 border-rose-100 shadow-sm" 
                                                         : "bg-gray-50 border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-sm"
                                                 )}
                                             >
-                                                {/* Count Badge - Top Right Mini */}
-                                                <div className={clsx(
-                                                    "absolute top-1.5 right-1.5 w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black shadow-xs",
-                                                    student.count >= 3 ? "bg-rose-500 text-white" : "bg-white text-rose-600 border border-rose-100"
-                                                )}>
-                                                    {student.count}
+                                                {/* Top Row: Student ID & Count Badge */}
+                                                <div className="flex items-center justify-between gap-1 mb-1">
+                                                    <span className="text-[9px] font-black text-gray-400 leading-none">{student.student_id}</span>
+                                                    <span className={clsx(
+                                                        "px-1.5 py-0.5 rounded-md text-[9px] font-black leading-none shrink-0",
+                                                        student.count >= 3 ? "bg-rose-500 text-white" : "bg-rose-100 text-rose-700 border border-rose-200/60"
+                                                    )}>
+                                                        {student.count}회
+                                                    </span>
                                                 </div>
 
-                                                <div className="mb-1">
-                                                    <span className="text-[8px] font-black text-gray-400 block tracking-tight leading-none mb-0.5">{student.student_id}</span>
+                                                {/* Name & Room Badge */}
+                                                <div className="mb-1.5 flex items-center justify-between gap-1">
                                                     <span className="text-xs font-black text-gray-800 line-clamp-1">{student.name}</span>
+                                                    {(student.room_number || (student as any).room) && (
+                                                        <span className="text-[9px] font-extrabold text-blue-600 bg-blue-50 px-1 py-0.5 rounded border border-blue-100/80 leading-none shrink-0">
+                                                            {(student.room_number || (student as any).room)}호
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                
+
                                                 <div className="flex flex-wrap gap-1">
                                                     {(() => {
                                                         const counts = student.details.reduce((acc: any, d: any) => {
@@ -266,7 +357,11 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                                 </div>
                                                 <div>
                                                     <h3 className="text-lg font-black text-gray-900 leading-none">{selectedStudent.name} 상세 내역</h3>
-                                                    <p className="text-xs text-gray-500 font-bold mt-1">{selectedStudent.student_id} • 위반 {selectedStudent.count}건</p>
+                                                    <p className="text-xs text-gray-500 font-bold mt-1">
+                                                        {selectedStudent.student_id}
+                                                        {(selectedStudent.room_number || (selectedStudent as any).room) ? ` (${(selectedStudent.room_number || (selectedStudent as any).room)}호)` : ''}
+                                                        • 위반 {selectedStudent.count}건
+                                                    </p>
                                                 </div>
                                             </div>
                                             <button 
@@ -300,8 +395,18 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                        <div className="text-[10px] font-black text-gray-300">
-                                                            #{vIdx + 1}
+                                                        <div className="flex items-center gap-3">
+                                                            <button
+                                                                onClick={() => handleDeleteViolation(v.id)}
+                                                                className="p-2 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all flex items-center gap-1 text-xs font-bold"
+                                                                title="위반 내역 삭제"
+                                                            >
+                                                                <FaTrash size={13} />
+                                                                <span>삭제</span>
+                                                            </button>
+                                                            <div className="text-[10px] font-black text-gray-300">
+                                                                #{vIdx + 1}
+                                                            </div>
                                                         </div>
                                                     </motion.div>
                                                 );

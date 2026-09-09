@@ -13,6 +13,7 @@ interface LeaveProcessListProps {
     onCancel: (requestId: string | number) => void;
     teacherName: string;
     teacherId: string;
+    teacherPosition?: string;
     unifiedViewMode: 'my_active' | 'all_active' | 'past_all' | 'search_name';
     onTabChange: (mode: 'my_active' | 'all_active' | 'past_all' | 'search_name') => void;
 }
@@ -23,6 +24,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     onCancel,
     teacherName,
     teacherId,
+    teacherPosition,
     unifiedViewMode,
     onTabChange,
 }) => {
@@ -247,6 +249,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                             onCancel={onCancel}
                             viewMode={unifiedViewMode === 'past_all' ? 'past' : 'active'}
                             currentTeacherId={teacherId}
+                            teacherPosition={teacherPosition}
                         />
                     ))
                 )}

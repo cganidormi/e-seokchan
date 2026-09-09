@@ -15,6 +15,7 @@ interface LeaveProcessCardProps {
     onCancel: (requestId: string | number) => void;
     viewMode: 'active' | 'past';
     currentTeacherId: string;
+    teacherPosition?: string;
     showOpacityForPast?: boolean;
     hideActionButtons?: boolean;
 }
@@ -29,6 +30,7 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     onCancel,
     viewMode,
     currentTeacherId,
+    teacherPosition,
     showOpacityForPast = true,
     hideActionButtons = false
 }) => {
@@ -44,9 +46,9 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     const additionalIds = req.leave_request_students?.map(lrs => lrs.student_id) || [];
     const allStudents = [req.student_id, ...additionalIds];
 
-    // Permission Check: Only the assigned teacher can edit, and only in 'active' view
-    // '학부모승인' 상태도 교사가 처리해야 함 (사실상 '신청'과 동일하게 취급)
-    const canEdit = req.teacher_id === currentTeacherId && viewMode === 'active' && (req.status === '신청' || req.status === '승인');
+    // Permission Check: Assigned teacher OR Admin teacher can edit in 'active' view
+    const isAdmin = teacherPosition === '관리자';
+    const canEdit = (req.teacher_id === currentTeacherId || isAdmin) && viewMode === 'active' && (req.status === '신청' || req.status === '승인');
 
     const handleApprove = (e: React.MouseEvent) => {
         if (!canEdit) return;

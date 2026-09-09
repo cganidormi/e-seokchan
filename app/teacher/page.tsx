@@ -159,6 +159,21 @@ export default function TeacherPage() {
     autoSubscribe();
   }, [teacherId]);
 
+  // Periodic background check for 15-minute pending reminders
+  useEffect(() => {
+    if (!teacherId) return;
+
+    const checkReminders = () => {
+      fetch('/api/cron/remind-pending', { method: 'POST' }).catch(e => console.error('Remind check error:', e));
+      fetch('/api/cron/remind-unapproved-student', { method: 'POST' }).catch(e => console.error('Student remind check error:', e));
+    };
+
+    checkReminders();
+    const reminderTimer = setInterval(checkReminders, 2 * 60 * 1000);
+
+    return () => clearInterval(reminderTimer);
+  }, [teacherId]);
+
   // Update App Icon Badge (Real-time while app is open)
   useEffect(() => {
     if ('setAppBadge' in navigator && 'clearAppBadge' in navigator && teacherId) {
@@ -490,6 +505,7 @@ export default function TeacherPage() {
           onCancel={handleCancelRequest}
           teacherName={teacherName}
           teacherId={teacherId}
+          teacherPosition={teacherPosition}
           unifiedViewMode={unifiedViewMode}
           onTabChange={setUnifiedViewMode}
         />
