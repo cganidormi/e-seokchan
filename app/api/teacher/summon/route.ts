@@ -114,7 +114,17 @@ export async function POST(request: Request) {
         });
 
         const results = await Promise.allSettled(
-            subs.map(sub => webpush.sendNotification(sub.subscription_json, payload))
+            subs.map(sub => {
+                const subscription = typeof sub.subscription_json === 'string'
+                    ? JSON.parse(sub.subscription_json)
+                    : sub.subscription_json;
+                return webpush.sendNotification(subscription, payload, {
+                    headers: {
+                        'Urgency': 'high',
+                        'TTL': '60'
+                    }
+                });
+            })
         );
 
         const successCount = results.filter(r => r.status === 'fulfilled').length;
