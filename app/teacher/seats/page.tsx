@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Fragment } from 'react';
+import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
 import clsx from 'clsx';
@@ -77,7 +77,11 @@ export default function SeatManagementPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [students, setStudents] = useState<Student[]>([]);
     const [assignments, setAssignments] = useState<SeatAssignment[]>([]);
+    const [allAssignments, setAllAssignments] = useState<SeatAssignment[]>([]); // All rooms assignments for search
+    const [searchQuery, setSearchQuery] = useState('');
+    const [highlightedSeat, setHighlightedSeat] = useState<number | null>(null);
     const [seatProperties, setSeatProperties] = useState<SeatProperty[]>([]); // Added state
+    const [allSeatProperties, setAllSeatProperties] = useState<SeatProperty[]>([]); // All rooms properties for accurate display seat numbers
     const [layout, setLayout] = useState<RoomLayout>({ room_number: 1, columns: 6, total_seats: 30 });
     const [activeLeaves, setActiveLeaves] = useState<any[]>([]);
     const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
@@ -407,6 +411,14 @@ export default function SeatManagementPage() {
         const { data: studentsData } = await supabase.from('students').select('*').order('student_id');
         if (studentsData) setStudents(studentsData);
 
+        const { data: allSeatData } = await supabase
+            .from('seat_assignments')
+            .select('*, student:students(*)');
+        if (allSeatData) setAllAssignments(allSeatData);
+
+        const { data: allProps } = await supabase.from('seats').select('*');
+        if (allProps) setAllSeatProperties(allProps);
+
         const { data: timetableData } = await supabase.from('timetable_entries').select('*');
         if (timetableData) setTimetable(timetableData);
 
@@ -623,6 +635,69 @@ export default function SeatManagementPage() {
         }
     };
 
+    // Student Seat Search Logic
+    const searchResults = useMemo(() => {
+        if (!searchQuery.trim()) return [];
+        const q = searchQuery.trim().toLowerCase();
+
+        return allAssignments
+            .filter(a => {
+                const sName = (a.student?.name || '').toLowerCase();
+                const sId = (a.student_id || '').toLowerCase();
+                return sName.includes(q) || sId.includes(q);
+            })
+            .map(a => {
+                const displayName = a.student_id || a.student?.name || 'Unknown';
+                const disabledCountBefore = allSeatProperties.filter(
+                    p => p.room_number === a.room_number && p.seat_number < a.seat_number && p.is_disabled
+                ).length;
+                const displaySeatNumber = a.seat_number - disabledCountBefore;
+
+                return {
+                    displayName,
+                    name: a.student?.name || '',
+                    student_id: a.student_id,
+                    room_number: a.room_number,
+                    seat_number: a.seat_number,
+                    displaySeatNumber
+                };
+            })
+            .slice(0, 15);
+    }, [searchQuery, allAssignments, allSeatProperties]);
+
+    const handleSelectSearchedStudent = (res: { displayName: string, room_number: number, seat_number: number, displaySeatNumber: number }) => {
+        setSearchQuery('');
+
+        if (selectedRoom !== res.room_number) {
+            setSelectedRoom(res.room_number);
+        }
+
+        setHighlightedSeat(res.seat_number);
+        toast.success(`📍 ${res.displayName} → 제${res.room_number}실 ${res.displaySeatNumber}번 좌석`, { duration: 4500 });
+    };
+
+    // Auto-scroll and zoom into highlighted seat once room data is loaded
+    useEffect(() => {
+        if (highlightedSeat && !isLoading) {
+            const timer = setTimeout(() => {
+                const el = document.getElementById(`seat-card-${highlightedSeat}`) || 
+                           document.querySelector(`[data-seat-number="${highlightedSeat}"]`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                }
+            }, 120);
+
+            const clearTimer = setTimeout(() => {
+                setHighlightedSeat(null);
+            }, 5500);
+
+            return () => {
+                clearTimeout(timer);
+                clearTimeout(clearTimer);
+            };
+        }
+    }, [highlightedSeat, isLoading, selectedRoom]);
+
     // --- Refactored Period Logic for Header & Grid ---
     const day = currentTime.getDay();
     const dateStr = currentTime.toLocaleDateString('en-CA');
@@ -788,10 +863,62 @@ export default function SeatManagementPage() {
                     >
                         ← 이석현황 목록으로 돌아가기
                     </button>
-                    <p className="text-center text-xs text-red-500 -mt-2">
-                        학생이 자리에 없을 시 해당 학생 좌석을 더블터치 해 보세요.<br />
-                        이석현황을 확인 하실수 있습니다.
-                    </p>
+
+                    {/* Description Text & Search Bar Row */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 -mt-2">
+                        <p className="text-center sm:text-left text-xs text-red-500 leading-tight">
+                            학생이 자리에 없을 시 해당 학생 좌석을 더블터치 해 보세요.<br className="hidden sm:inline" />
+                            이석현황을 확인 하실수 있습니다.
+                        </p>
+
+                        {/* Student Seat Search Input */}
+                        <div className="relative w-full sm:w-auto min-w-[200px] max-w-[260px] shrink-0">
+                            <div className="relative flex items-center">
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="학생 자리 검색..."
+                                    className="w-full bg-white border border-gray-300 text-gray-800 text-xs sm:text-sm rounded-xl px-3 py-1.5 sm:py-2 pl-8 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-sm"
+                                />
+                                <span className="absolute left-2.5 text-gray-400 text-xs">🔍</span>
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery('')}
+                                        className="absolute right-2 text-gray-400 hover:text-gray-600 text-xs p-1"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Search Results Dropdown */}
+                            {searchQuery.trim() && (
+                                <div className="absolute right-0 left-0 sm:left-auto sm:w-[260px] top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto">
+                                    {searchResults.length > 0 ? (
+                                        searchResults.map((res, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => handleSelectSearchedStudent(res)}
+                                                className="w-full text-left px-3 py-2 text-xs hover:bg-yellow-50 border-b border-gray-100 last:border-0 flex items-center justify-between gap-2 transition-colors cursor-pointer"
+                                            >
+                                                <span className="font-bold text-gray-800 truncate">
+                                                    {res.displayName}
+                                                </span>
+                                                <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-md text-[11px] font-bold border border-yellow-200 shrink-0">
+                                                    제{res.room_number}실 {res.displaySeatNumber}번
+                                                </span>
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="px-3 py-3 text-xs text-gray-400 text-center font-medium">
+                                            배정된 학생이 없습니다
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Layout Settings (Only in Edit Mode) */}
@@ -1011,10 +1138,29 @@ export default function SeatManagementPage() {
                                         );
                                     }
 
+                                    const isHighlighted = (highlightedSeat === seatNum);
+
                                     return (
-                                        <div key={seatNum} className="relative group">
+                                        <div key={seatNum} className={clsx("relative group", isHighlighted ? "z-50" : "z-0")}>
+                                            {/* Modern Minimalist Focus Indicator */}
+                                            {isHighlighted && (
+                                                <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center animate-in fade-in zoom-in-95 duration-200">
+                                                    <div className="bg-slate-900/95 backdrop-blur-md text-white text-[10px] font-medium tracking-tight px-2.5 py-0.5 rounded-full shadow-xl border border-slate-700/80 flex items-center gap-1.5 whitespace-nowrap">
+                                                        <span className="relative flex h-1.5 w-1.5">
+                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500"></span>
+                                                        </span>
+                                                        <span>검색 위치</span>
+                                                    </div>
+                                                    <div className="w-1.5 h-1.5 bg-slate-900 rotate-45 -mt-0.5 border-r border-b border-slate-700/80"></div>
+                                                </div>
+                                            )}
+
                                             {/* Rectangular Seat Card */}
                                             <div
+                                                id={`seat-card-${seatNum}`}
+                                                data-seat-number={seatNum}
+                                                data-display-num={displaySeatNum}
                                                 onDoubleClick={(e) => {
                                                     if (mode === 'monitor' && assignment?.student_id) {
                                                         e.stopPropagation();
@@ -1030,7 +1176,7 @@ export default function SeatManagementPage() {
                                                     }
                                                 }}
                                                 className={clsx(
-                                                    "relative flex flex-col border-r border-b border-gray-200 overflow-hidden transition-all select-none",
+                                                    "relative flex flex-col border-r border-b border-gray-200 overflow-hidden transition-all duration-300 select-none",
                                                     isDisabled ? "bg-gray-300" : "bg-white",
                                                     !assignment && !isDisabled && "bg-gray-50/50",
                                                     "w-full h-[54px]",
@@ -1039,7 +1185,8 @@ export default function SeatManagementPage() {
                                                     mode === 'edit' && isDisabled && "z-10", // Allow selection but no hover effect
                                                     activeLeaveReq?.leave_type === '자리비움' && !isAwayBlinking && "bg-red-50",
                                                     isAwayBlinking && "animate-[pulse_1s_infinite] bg-red-100",
-                                                    isWeeklyHome && "bg-gray-400/20"
+                                                    isWeeklyHome && "bg-gray-400/20",
+                                                    isHighlighted && "scale-[1.12] sm:scale-[1.18] ring-2 ring-amber-500 ring-offset-2 ring-offset-white shadow-2xl shadow-amber-500/25 z-40 rounded-lg bg-amber-50/40"
                                                 )
                                                 }
                                             >
