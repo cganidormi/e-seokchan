@@ -84,8 +84,11 @@ export async function POST(request: Request) {
                 .eq('student_id', target_student_id);
             if (updateError) throw updateError;
 
-            // 2. 푸시 알림 타겟: 특정 학생
-            pushTargetQuery = supabase.from('push_subscriptions').select('*').eq('student_id', target_student_id);
+            // 2. 푸시 알림 타겟: 특정 학생 (학번+이름 및 숫자 학번 모두 대응)
+            const targetNumericId = String(target_student_id).match(/^\d+/)?.[0];
+            const targetSearchIds = Array.from(new Set([String(target_student_id), targetNumericId].filter(Boolean) as string[]));
+
+            pushTargetQuery = supabase.from('push_subscriptions').select('*').in('student_id', targetSearchIds);
             pushTitle = '📝 [개별 공지] 홍지관 안내문';
         }
 

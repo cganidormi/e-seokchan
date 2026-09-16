@@ -1122,8 +1122,9 @@ export default function HeadcountPage() {
                                                                 teacherName: '담당 교사'
                                                             })
                                                         });
+                                                        const data = await res.json();
                                                         if (res.ok) toast.success('호출 알림을 보냈습니다.');
-                                                        else toast.error('호출 실패');
+                                                        else toast.error(data.error || '호출 실패');
                                                     } catch (err) {
                                                         toast.error('오류 발생');
                                                     }

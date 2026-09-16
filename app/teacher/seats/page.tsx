@@ -235,11 +235,18 @@ export default function SeatManagementPage() {
                     const studentName = mainStudent?.name || targetRequest.student_id;
                     const parentTokens = Array.from(new Set(studentInfo?.map(s => s.parent_token).filter(Boolean)));
 
+                    const expandedStudentIds = Array.from(
+                        new Set([
+                            ...studentIds,
+                            ...studentIds.map(id => String(id).match(/^\d+/)?.[0]).filter(Boolean) as string[]
+                        ])
+                    );
+
                     const [{ data: studentSubs }, { data: parentSubs }] = await Promise.all([
                         supabase
                             .from('push_subscriptions')
                             .select('subscription_json')
-                            .in('student_id', studentIds),
+                            .in('student_id', expandedStudentIds),
                         parentTokens.length > 0 ? supabase
                             .from('push_subscriptions')
                             .select('subscription_json')

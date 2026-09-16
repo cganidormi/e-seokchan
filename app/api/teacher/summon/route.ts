@@ -26,11 +26,14 @@ export async function POST(request: Request) {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-        // 1. Get Student's Push Subscription
+        // 1. Get Student's Push Subscription (Match both full student_id and numeric student_id)
+        const numericId = String(studentId).match(/^\d+/)?.[0];
+        const searchIds = Array.from(new Set([String(studentId), numericId].filter(Boolean) as string[]));
+
         const { data: subs, error } = await supabase
             .from('push_subscriptions')
             .select('subscription_json')
-            .eq('student_id', studentId);
+            .in('student_id', searchIds);
 
         if (error) {
             console.error('[API/Summon] DB Error:', error);
@@ -38,7 +41,7 @@ export async function POST(request: Request) {
         }
 
         if (!subs || subs.length === 0) {
-            console.warn(`[API/Summon] No subscription found for student: ${studentId}`);
+            console.warn(`[API/Summon] No subscription found for student: ${studentId} (searched: ${searchIds.join(', ')})`);
             return NextResponse.json({ error: '학생이 알림 권한을 허용하지 않았습니다.\n(앱 미설치 또는 알림 차단)' }, { status: 404 });
         }
 
