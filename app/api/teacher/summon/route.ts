@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
         const { data: subs, error } = await supabase
             .from('push_subscriptions')
-            .select('subscription_json')
+            .select('id, subscription_json')
             .in('student_id', searchIds);
 
         if (error) {
@@ -129,6 +129,29 @@ export async function POST(request: Request) {
                 });
             })
         );
+
+        // 4. 만료된 구형 토큰(410 Gone, 404 Not Found) 자동 삭제 정리
+        const expiredSubIds: string[] = [];
+        results.forEach((r, idx) => {
+            if (r.status === 'rejected') {
+                const err: any = r.reason;
+                if (err && (err.statusCode === 410 || err.statusCode === 404)) {
+                    if (subs[idx]?.id) {
+                        expiredSubIds.push(subs[idx].id);
+                    }
+                }
+            }
+        });
+
+        if (expiredSubIds.length > 0) {
+            try {
+                const { error: delErr } = await supabase.from('push_subscriptions').delete().in('id', expiredSubIds);
+                if (delErr) console.error('[API/Summon] Error deleting expired subs:', delErr);
+                else console.log(`[API/Summon] Cleaned up ${expiredSubIds.length} expired subscriptions.`);
+            } catch (cleanupErr: any) {
+                console.error('[API/Summon] Cleanup error:', cleanupErr);
+            }
+        }
 
         const successCount = results.filter(r => r.status === 'fulfilled').length;
         const failedCount = results.length - successCount;

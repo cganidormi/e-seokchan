@@ -10,6 +10,17 @@ interface Props {
     parentToken?: string; // Special case for parent (uses token instead of ID)
 }
 
+function urlBase64ToUint8Array(base64String: string) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
 export function NotificationPermissionBanner({ userId, userType, parentToken }: Props) {
     const [permission, setPermission] = useState<NotificationPermission>('default');
     const [isSupported, setIsSupported] = useState(true);
@@ -24,11 +35,14 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
 
             let sub = await registration.pushManager.getSubscription();
             if (!sub) {
+                const convertedVapidKey = urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
                 sub = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
-                    applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+                    applicationServerKey: convertedVapidKey
                 });
             }
+
+            if (!sub) return;
 
             const payload: any = {
                 subscription_json: sub,
@@ -40,8 +54,34 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
             else if (userType === 'student') payload.student_id = userId;
             else if (userType === 'parent') payload.parent_token = parentToken;
 
-            // DB에 최신 키 무음 저장
-            await supabase.from('push_subscriptions').insert(payload);
+            // 동일 endpoint 중복 방지 (기존 토큰 있으면 last_used_at 갱신, 없으면 신규 저장)
+            const endpoint = sub.endpoint;
+            let existingId: string | null = null;
+            if (endpoint) {
+                let query = supabase.from('push_subscriptions').select('id, subscription_json');
+                if (userType === 'teacher') query = query.eq('teacher_id', userId);
+                else if (userType === 'student') query = query.eq('student_id', userId);
+                else if (userType === 'parent') query = query.eq('parent_token', parentToken);
+
+                const { data: existing } = await query;
+                const match = existing?.find((e: any) => {
+                    const ep = typeof e.subscription_json === 'string'
+                        ? JSON.parse(e.subscription_json)?.endpoint
+                        : e.subscription_json?.endpoint;
+                    return ep === endpoint;
+                });
+                if (match) existingId = match.id;
+            }
+
+            if (existingId) {
+                await supabase.from('push_subscriptions').update({
+                    last_used_at: payload.last_used_at,
+                    device_type: payload.device_type,
+                    subscription_json: sub
+                }).eq('id', existingId);
+            } else {
+                await supabase.from('push_subscriptions').insert(payload);
+            }
         } catch (err) {
             console.log('Silent push sync notice:', err);
         }
