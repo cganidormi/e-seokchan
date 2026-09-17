@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import { IoSearch } from 'react-icons/io5';
 import { LeaveRequest } from './types';
@@ -28,6 +29,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     unifiedViewMode,
     onTabChange,
 }) => {
+    const router = useRouter();
     const [filterType, setFilterType] = useState('전체'); // Added filter type state
     const [searchQuery, setSearchQuery] = useState(''); // Added student name search state
     const [expandedId, setExpandedId] = useState<string | number | null>(null);
@@ -110,8 +112,8 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
 
             {/* Seat Map Button */}
             <button
-                onClick={() => window.location.href = '/teacher/seats'}
-                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-white shadow-sm text-right pr-6 bg-cover bg-no-repeat"
+                onClick={() => router.push('/teacher/seats')}
+                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-white shadow-sm text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
                 style={{
                     backgroundImage: `linear-gradient(to right, rgba(250, 204, 21, 0) 30%, rgba(250, 204, 21, 1) 100%), url('/study_room.png')`,
                     backgroundPosition: 'center 70%'
@@ -122,8 +124,8 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
 
             {/* Headcount Mapping Button */}
             <button
-                onClick={() => window.location.href = '/teacher/headcount'}
-                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-indigo-100 shadow-lg text-right pr-6 bg-cover bg-no-repeat"
+                onClick={() => router.push('/teacher/headcount')}
+                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-indigo-100 shadow-lg text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
                 style={{
                     backgroundImage: `linear-gradient(to right, rgba(79, 70, 229, 0) 30%, rgba(79, 70, 229, 1) 100%), url('/kshs_building.png')`,
                     backgroundPosition: 'center 15%'

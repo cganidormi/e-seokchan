@@ -113,8 +113,22 @@ export default function SeatManagementPage() {
     // Morning Checkout Modal State
     const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
 
-    // Roll Call Check State
     const [checkedSeats, setCheckedSeats] = useState<Set<string>>(new Set());
+
+    // Close status menu when clicking outside
+    useEffect(() => {
+        if (historyMenuId === null) return;
+        const handleGlobalClick = () => {
+            setHistoryMenuId(null);
+        };
+        const timer = setTimeout(() => {
+            window.addEventListener('click', handleGlobalClick);
+        }, 0);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('click', handleGlobalClick);
+        };
+    }, [historyMenuId]);
 
     const toggleSeatCheck = (roomNum: number, seatNum: number) => {
         const key = `${roomNum}-${seatNum}`;
@@ -127,12 +141,14 @@ export default function SeatManagementPage() {
         setCheckedSeats(next);
     };
 
-    const fetchStudentHistory = async (studentId: string) => {
-        // 1. Immediately open modal and display student info (0ms latency)
-        const s = students.find(st => st.student_id === studentId);
-        setHistoryStudent(s || { student_id: studentId, name: 'Unknown', grade: 0, class: 0 });
-        setIsHistoryLoading(true);
-        setIsHistoryModalOpen(true);
+    const fetchStudentHistory = async (studentId: string, isSilent = false) => {
+        if (!isSilent) {
+            // 1. Immediately open modal and display student info on initial open (0ms latency)
+            const s = students.find(st => st.student_id === studentId);
+            setHistoryStudent(s || { student_id: studentId, name: 'Unknown', grade: 0, class: 0 });
+            setIsHistoryLoading(true);
+            setIsHistoryModalOpen(true);
+        }
 
         try {
             // Teacher caching helper
@@ -217,11 +233,21 @@ export default function SeatManagementPage() {
             console.error(e);
             toast.error('기록을 불러오지 못했습니다.');
         } finally {
-            setIsHistoryLoading(false);
+            if (!isSilent) {
+                setIsHistoryLoading(false);
+            }
         }
     };
 
     const handleUpdateStatus = async (requestId: string | number, newStatus: string) => {
+        // 1. Immediately close status dropdown menu
+        setHistoryMenuId(null);
+
+        // 2. Optimistic UI update: in-place status badge update with 0ms delay and no card flicker
+        setHistoryRecords(prev =>
+            prev.map(r => String(r.id) === String(requestId) ? { ...r, status: newStatus } : r)
+        );
+
         try {
             const { error } = await supabase
                 .from('leave_requests')
@@ -263,27 +289,17 @@ export default function SeatManagementPage() {
                         supabase
                             .from('push_subscriptions')
                             .select('subscription_json')
-                            .in('student_id', expandedStudentIds),
-                        parentTokens.length > 0 ? supabase
-                            .from('push_subscriptions')
-                            .select('subscription_json')
-                            .in('parent_token', parentTokens) : { data: [] }
+                            .in('user_id', expandedStudentIds),
+                        parentTokens.length > 0
+                            ? supabase
+                                .from('push_subscriptions')
+                                .select('subscription_json')
+                                .in('user_id', parentTokens)
+                            : Promise.resolve({ data: [] })
                     ]);
 
-                    let message = `자녀의 [${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
-                    let parentTitle = 'DormiCheck 학부모 알림';
-
-                    if (newStatus === '승인') {
-                        message = `[${targetRequest.leave_type}] 승인되었습니다. 즐거운 시간 보내세요!`;
-                        parentTitle = `✅ [${targetRequest.leave_type}] 승인 완료`;
-                    } else if (newStatus === '복귀') {
-                        message = `[${targetRequest.leave_type}] 학생이 기숙사로 복귀했습니다.`;
-                    } else if (newStatus === '반려') {
-                        message = `[${targetRequest.leave_type}] 신청이 반려되었습니다. 사유를 확인해주세요.`;
-                    }
-
-                    const studentMessage = `[${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
-                    const parentMessage = `${studentName} 학생의 ${message}`;
+                    const studentTitle = `이석 신청이 ${newStatus}되었습니다.`;
+                    const studentMessage = `${teacherName} 선생님께서 ${targetRequest.leave_type || '이석'} 신청을 ${newStatus} 처리하셨습니다.`;
 
                     if (studentSubs && studentSubs.length > 0) {
                         studentSubs.forEach((sub: any) =>
@@ -293,11 +309,14 @@ export default function SeatManagementPage() {
                                 body: JSON.stringify({
                                     subscription: sub.subscription_json,
                                     message: studentMessage,
-                                    title: 'DormiCheck 알림'
+                                    title: studentTitle
                                 })
                             }).catch(e => console.error('Student Push Error:', e))
                         );
                     }
+
+                    const parentTitle = `[이석찬] ${studentName} 학생 ${targetRequest.leave_type} 신청 ${newStatus}`;
+                    const parentMessage = `${studentName} 학생의 ${targetRequest.leave_type} 신청이 ${teacherName} 선생님에 의해 ${newStatus}되었습니다.`;
 
                     if (parentSubs && parentSubs.length > 0) {
                         const allowedParentNotificationTypes = ['외출', '외박'];
@@ -322,17 +341,27 @@ export default function SeatManagementPage() {
                 fetchLiveStatus(selectedRoom);
             }
             if (historyStudent) {
-                fetchStudentHistory(historyStudent.student_id);
+                // Silent refresh: background sync without loading spinner
+                fetchStudentHistory(historyStudent.student_id, true);
             }
         } catch (err) {
             console.error('Update error:', err);
             toast.error('상태 변경에 실패했습니다.');
+            if (historyStudent) {
+                fetchStudentHistory(historyStudent.student_id, true);
+            }
         }
     };
 
     const handleCancelRequest = async (requestId: string | number) => {
         const confirmMsg = "이석 신청을 취소(삭제) 시 사용하는 기능입니다.\n\n정말로 신청을 취소(삭제)하시겠습니까?";
         if (!confirm(confirmMsg)) return;
+
+        setHistoryMenuId(null);
+        // Optimistic UI update
+        setHistoryRecords(prev =>
+            prev.map(r => String(r.id) === String(requestId) ? { ...r, status: '취소' } : r)
+        );
 
         try {
             const { error } = await supabase
@@ -347,11 +376,14 @@ export default function SeatManagementPage() {
                 fetchLiveStatus(selectedRoom);
             }
             if (historyStudent) {
-                fetchStudentHistory(historyStudent.student_id);
+                fetchStudentHistory(historyStudent.student_id, true);
             }
         } catch (err) {
             console.error('Cancel error:', err);
             toast.error('취소 실패');
+            if (historyStudent) {
+                fetchStudentHistory(historyStudent.student_id, true);
+            }
         }
     };
 
@@ -421,35 +453,35 @@ export default function SeatManagementPage() {
     }, [selectedRoom, mode]);
 
     async function fetchCommonData() {
-        const { data: studentsData } = await supabase.from('students').select('*').order('student_id');
-        if (studentsData) setStudents(studentsData);
-
-        const { data: allSeatData } = await supabase
-            .from('seat_assignments')
-            .select('*, student:students(*)');
-        if (allSeatData) setAllAssignments(allSeatData);
-
-        const { data: allProps } = await supabase.from('seats').select('*');
-        if (allProps) setAllSeatProperties(allProps);
-
-        const { data: timetableData } = await supabase.from('timetable_entries').select('*');
-        if (timetableData) setTimetable(timetableData);
-
-        const { data: holidayData } = await supabase.from('special_holidays').select('date');
-        if (holidayData) setSpecialHolidays(holidayData.map(h => h.date));
-
-        // Fetch Weekly Return Students (Monthly Application)
         const now = new Date();
         const currentYear = now.getFullYear();
         const currentMonth = now.getMonth() + 1; // 1-12
 
-        const { data: returnData } = await supabase
-            .from('monthly_return_applications')
-            .select('student_id')
-            .eq('target_year', currentYear)
-            .eq('target_month', currentMonth)
-            .eq('is_weekly', true);
+        const [
+            { data: studentsData },
+            { data: allSeatData },
+            { data: allProps },
+            { data: timetableData },
+            { data: holidayData },
+            { data: returnData }
+        ] = await Promise.all([
+            supabase.from('students').select('*').order('student_id'),
+            supabase.from('seat_assignments').select('*, student:students(*)'),
+            supabase.from('seats').select('*'),
+            supabase.from('timetable_entries').select('*'),
+            supabase.from('special_holidays').select('date'),
+            supabase.from('monthly_return_applications')
+                .select('student_id')
+                .eq('target_year', currentYear)
+                .eq('target_month', currentMonth)
+                .eq('is_weekly', true)
+        ]);
 
+        if (studentsData) setStudents(studentsData);
+        if (allSeatData) setAllAssignments(allSeatData);
+        if (allProps) setAllSeatProperties(allProps);
+        if (timetableData) setTimetable(timetableData);
+        if (holidayData) setSpecialHolidays(holidayData.map(h => h.date));
         if (returnData) {
             const ids = new Set(returnData.map(r => r.student_id));
             setWeeklyReturnStudents(ids);
@@ -481,12 +513,15 @@ export default function SeatManagementPage() {
     async function fetchRoomData(roomNum: number) {
         setIsLoading(true);
         try {
-            // Fetch Layout
-            const { data: layoutData } = await supabase
-                .from('room_layouts')
-                .select('*')
-                .eq('room_number', roomNum)
-                .single();
+            const [
+                { data: layoutData },
+                { data: seatData },
+                { data: propData }
+            ] = await Promise.all([
+                supabase.from('room_layouts').select('*').eq('room_number', roomNum).maybeSingle(),
+                supabase.from('seat_assignments').select('*, student:students(*)').eq('room_number', roomNum),
+                supabase.from('seats').select('*').eq('room_number', roomNum)
+            ]);
 
             if (layoutData) {
                 setLayout(layoutData);
@@ -498,29 +533,8 @@ export default function SeatManagementPage() {
                 setTempLayout(defaultLayout);
             }
 
-            // Fetch Assignments
-            const { data: seatData } = await supabase
-                .from('seat_assignments')
-                .select('*, student:students(*)')
-                .eq('room_number', roomNum);
-
-            if (seatData) {
-                setAssignments(seatData);
-            } else {
-                setAssignments([]);
-            }
-
-            // Fetch Seat Properties (Disabled Status)
-            const { data: propData } = await supabase
-                .from('seats')
-                .select('*')
-                .eq('room_number', roomNum);
-
-            if (propData) {
-                setSeatProperties(propData);
-            } else {
-                setSeatProperties([]);
-            }
+            setAssignments(seatData || []);
+            setSeatProperties(propData || []);
         } catch (error) {
             console.error('Error fetching room data:', error);
             toast.error('데이터를 불러오는 중 오류가 발생했습니다.');
@@ -1094,6 +1108,8 @@ export default function SeatManagementPage() {
                                     // Determine Header Color based on CURRENT ACTIVE leave (Real-time comparison)
                                     let headerBgClass = "bg-white";
                                     let studentIdTextColor = "text-gray-800";
+                                    let currentActiveLeave: any = null;
+                                    let hasAwayConflict = false;
 
                                     // --- Weekly Home Goer Check ---
                                     const isWeeklyHome = (assignment?.student?.weekend || weeklyReturnStudents.has(assignment?.student_id || '')) && isWeeklyHomeTime(currentTime);
@@ -1115,15 +1131,20 @@ export default function SeatManagementPage() {
                                         }
 
                                         // 2. Header Color (Active Leave)
-                                        const currentActiveLeave = activeLeaves.find(leave => {
+                                        currentActiveLeave = activeLeaves.find(leave => {
                                             const isTarget = (leave.student_id === assignment.student_id || leave.leave_request_students?.some((s: any) => s.student_id === assignment.student_id));
                                             if (!isTarget) return false;
                                             const start = new Date(leave.start_time);
                                             const end = new Date(leave.end_time);
-                                            return currentTime >= start && currentTime <= end;
+                                            return currentTime >= start && currentTime <= end && leave.leave_type !== '자리비움';
                                         });
 
-                                        if (currentActiveLeave) {
+                                        const hasAwayConflict = awayReq && currentActiveLeave;
+
+                                        if (hasAwayConflict) {
+                                            headerBgClass = "bg-amber-300 border-b-2 border-red-500 animate-pulse";
+                                            studentIdTextColor = "text-red-950 font-black";
+                                        } else if (currentActiveLeave) {
                                             switch (currentActiveLeave.leave_type) {
                                                 case '컴이석': headerBgClass = "bg-blue-200"; studentIdTextColor = "text-blue-800"; break;
                                                 case '이석': headerBgClass = "bg-orange-200"; studentIdTextColor = "text-orange-800"; break;
@@ -1257,7 +1278,11 @@ export default function SeatManagementPage() {
                                                                 )}>
                                                                     {assignment.student?.student_id?.replace(/^\d+/, '').trim()}
                                                                 </span>
-                                                                {activeLeaveReq?.leave_type === '자리비움' && <span className="text-[8px] sm:text-[9px] ml-0.5 sm:ml-1 font-normal hidden sm:inline">자리비움</span>}
+                                                                 {hasAwayConflict ? (
+                                                                     <span className="text-[8px] sm:text-[9px] ml-0.5 px-1 py-0.2 bg-red-600 text-white rounded font-bold shrink-0">⚠️비+{currentActiveLeave?.leave_type === '컴이석' ? '컴' : '이'}</span>
+                                                                 ) : (
+                                                                     activeLeaveReq?.leave_type === '자리비움' && <span className="text-[8px] sm:text-[9px] ml-0.5 sm:ml-1 font-normal hidden sm:inline">자리비움</span>
+                                                                 )}
                                                                 {isWeeklyHome && <span className="text-[8px] sm:text-[9px] ml-auto font-normal text-white/90">귀가</span>}
                                                             </span>
                                                         </div>
@@ -1566,7 +1591,10 @@ export default function SeatManagementPage() {
                                                 e.stopPropagation();
                                                 setHistoryMenuId(historyMenuId === rec.id ? null : rec.id);
                                             }}
-                                            onUpdateStatus={handleUpdateStatus}
+                                            onUpdateStatus={(id, status) => {
+                                                setHistoryMenuId(null);
+                                                handleUpdateStatus(id, status);
+                                            }}
                                             onCancel={handleCancelRequest}
                                             viewMode={viewMode}
                                             currentTeacherId={teacherId}

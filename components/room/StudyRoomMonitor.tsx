@@ -359,6 +359,8 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
                                             let headerBgClass = "bg-white";
                                             let studentIdTextColor = "text-gray-800";
                                             let activeLeaveReq: any = null;
+                                            let currentActiveLeave: any = null;
+                                            let hasAwayConflict = false;
 
                                             const isWeeklyHome = (assignment?.student?.weekend || weeklyReturnStudents.has(assignment?.student_id || '')) && isWeeklyHomeTime(currentTime);
 
@@ -376,15 +378,20 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
                                                     if (diffMins >= 10) isAwayBlinking = true;
                                                 }
 
-                                                const currentActiveLeave = activeLeaves.find(leave => {
+                                                currentActiveLeave = activeLeaves.find(leave => {
                                                     const isTarget = (leave.student_id === assignment.student_id || leave.leave_request_students?.some((s: any) => s.student_id === assignment.student_id));
                                                     if (!isTarget) return false;
                                                     const start = new Date(leave.start_time);
                                                     const end = new Date(leave.end_time);
-                                                    return currentTime >= start && currentTime <= end;
+                                                    return currentTime >= start && currentTime <= end && leave.leave_type !== '자리비움';
                                                 });
 
-                                                if (currentActiveLeave) {
+                                                const hasAwayConflict = awayReq && currentActiveLeave;
+
+                                                if (hasAwayConflict) {
+                                                    headerBgClass = "bg-amber-300 border-b-2 border-red-500 animate-pulse";
+                                                    studentIdTextColor = "text-red-950 font-black";
+                                                } else if (currentActiveLeave) {
                                                     switch (currentActiveLeave.leave_type) {
                                                         case '컴이석': headerBgClass = "bg-blue-200"; studentIdTextColor = "text-blue-800"; break;
                                                         case '이석': headerBgClass = "bg-orange-200"; studentIdTextColor = "text-orange-800"; break;
@@ -433,7 +440,11 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
                                                                 <span className={clsx("truncate font-medium flex-1 flex items-baseline gap-0.5", activeLeaveReq?.leave_type === '자리비움' ? "text-white" : studentIdTextColor)}>
                                                                     <span className="text-[9px] sm:text-[10px] opacity-90">{assignment.student?.student_id?.match(/^\d+/)?.[0]}</span>
                                                                     <span className="text-[11px] sm:text-[12px]">{assignment.student?.student_id?.replace(/^\d+/, '').trim()}</span>
-                                                                    {activeLeaveReq?.leave_type === '자리비움' && <span className="text-[8px] sm:text-[9px] ml-0.5 sm:ml-1 font-normal hidden sm:inline">자리비움</span>}
+                                                                    {hasAwayConflict ? (
+                                                                        <span className="text-[8px] sm:text-[9px] ml-0.5 px-1 py-0.2 bg-red-600 text-white rounded font-bold shrink-0">⚠️비+{currentActiveLeave?.leave_type === '컴이석' ? '컴' : '이'}</span>
+                                                                    ) : (
+                                                                        activeLeaveReq?.leave_type === '자리비움' && <span className="text-[8px] sm:text-[9px] ml-0.5 sm:ml-1 font-normal hidden sm:inline">자리비움</span>
+                                                                    )}
                                                                     {isWeeklyHome && <span className="text-[8px] sm:text-[9px] ml-auto font-normal text-white/90">귀가</span>}
                                                                 </span>
                                                             </div>

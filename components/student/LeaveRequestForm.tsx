@@ -381,8 +381,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
                         // Check time overlap: (StartA < EndB) and (EndA > StartB)
                         // Allow 1 minute buffer for consecutive period requests (since end_time has 59s padded)
+                        // Exclude '자리비움' so students who are currently away can still submit computer leave
                         const BUFFER = 60 * 1000;
-                        if (existStart < newEnd && existEnd.getTime() > newStart.getTime() + BUFFER) {
+                        if (exist.leave_type !== '자리비움' && existStart < newEnd && existEnd.getTime() > newStart.getTime() + BUFFER) {
                             toast.error(`[시간 중복] ${exist.student_id} 학생: '${exist.leave_type}'(${existStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}~${existEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})과 시간이 겹칩니다.`);
                             return;
                         }
