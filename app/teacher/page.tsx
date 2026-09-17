@@ -318,23 +318,16 @@ export default function TeacherPage() {
           const studentName = mainStudent?.name || targetRequest.student_id;
           const parentTokens = Array.from(new Set(studentInfo?.map(s => s.parent_token).filter(Boolean)));
 
-          const expandedStudentIds = Array.from(
-            new Set([
-              ...studentIds,
-              ...studentIds.map(id => String(id).match(/^\d+/)?.[0]).filter(Boolean) as string[]
-            ])
-          );
-
           // 2. Fetch Notifications Subscriptions (Students & Parents)
           const [{ data: studentSubs }, { data: parentSubs }] = await Promise.all([
             supabase
               .from('push_subscriptions')
               .select('subscription_json')
-              .in('user_id', expandedStudentIds),
+              .in('student_id', studentIds),
             parentTokens.length > 0 ? supabase
               .from('push_subscriptions')
               .select('subscription_json')
-              .in('user_id', parentTokens) : Promise.resolve({ data: [] })
+              .in('parent_token', parentTokens) : { data: [] }
           ]);
 
           // 3. Prepare Notification Content

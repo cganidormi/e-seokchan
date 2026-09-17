@@ -33,7 +33,7 @@ export async function POST(request: Request) {
         const { data: subs, error } = await supabase
             .from('push_subscriptions')
             .select('id, subscription_json')
-            .in('user_id', searchIds);
+            .in('student_id', searchIds);
 
         if (error) {
             console.error('[API/Summon] DB Error:', error);
