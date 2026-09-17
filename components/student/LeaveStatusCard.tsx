@@ -36,7 +36,7 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
     const openManageModal = (e: React.MouseEvent) => {
         e.stopPropagation();
         const leaveType = req.leave_type ? req.leave_type.trim() : '';
-        if (req.status !== '신청' && !(leaveType === '컴이석' && req.status === '승인')) return;
+        if (req.status !== '신청' || leaveType !== '이석') return;
         if (req.student_id !== currentStudentId) return;
 
         const currentAdditional = req.leave_request_students?.map(lrs => lrs.student_id).filter(Boolean) || [];
@@ -109,8 +109,8 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
     const leaveType = req.leave_type ? req.leave_type.trim() : '';
     const canEdit = !isPast &&
         req.student_id === currentStudentId &&
-        (req.status === '신청' || (leaveType === '컴이석' && req.status === '승인')) &&
-        (['이석', '교실이동', '특별실', '컴이석'].includes(leaveType));
+        req.status === '신청' &&
+        leaveType === '이석';
 
     // Filter for Autocomplete
     const filteredStudents = allStudentsList.filter(s =>

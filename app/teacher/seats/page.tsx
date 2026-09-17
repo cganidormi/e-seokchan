@@ -106,6 +106,9 @@ export default function SeatManagementPage() {
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
     const [historyRecords, setHistoryRecords] = useState<any[]>([]);
+    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+    const teacherMapCacheRef = React.useRef<Map<string, string> | null>(null);
+    const lastClickTimeRef = React.useRef<{ [seatNum: number]: number }>({});
 
     // Morning Checkout Modal State
     const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
@@ -125,28 +128,44 @@ export default function SeatManagementPage() {
     };
 
     const fetchStudentHistory = async (studentId: string) => {
+        // 1. Immediately open modal and display student info (0ms latency)
+        const s = students.find(st => st.student_id === studentId);
+        setHistoryStudent(s || { student_id: studentId, name: 'Unknown', grade: 0, class: 0 });
+        setIsHistoryLoading(true);
+        setIsHistoryModalOpen(true);
+
         try {
-            // 1. Fetch requests where student is primary applicant
-            const { data: mainRequests, error: mainError } = await supabase
-                .from('leave_requests')
-                .select('*, leave_request_students(student_id)')
-                .eq('student_id', studentId)
-                .order('created_at', { ascending: false })
-                .limit(50);
+            // Teacher caching helper
+            const fetchTeachers = async () => {
+                if (teacherMapCacheRef.current) return teacherMapCacheRef.current;
+                const { data: teachersData } = await supabase.from('teachers').select('id, name');
+                const map = new Map<string, string>();
+                teachersData?.forEach(t => map.set(t.id, t.name));
+                teacherMapCacheRef.current = map;
+                return map;
+            };
 
-            if (mainError) throw mainError;
+            // 2. Parallelize main requests, companion link, and teachers fetch
+            const [mainRes, coLinkRes, teacherMap] = await Promise.all([
+                supabase
+                    .from('leave_requests')
+                    .select('*, leave_request_students(student_id)')
+                    .eq('student_id', studentId)
+                    .order('created_at', { ascending: false })
+                    .limit(50),
+                supabase
+                    .from('leave_request_students')
+                    .select('leave_request_id')
+                    .eq('student_id', studentId)
+                    .order('created_at', { ascending: false })
+                    .limit(50),
+                fetchTeachers()
+            ]);
 
-            // 2. Fetch requests where student is a companion
-            const { data: coLinkData, error: coLinkError } = await supabase
-                .from('leave_request_students')
-                .select('leave_request_id')
-                .eq('student_id', studentId)
-                .order('created_at', { ascending: false })
-                .limit(50);
+            if (mainRes.error) throw mainRes.error;
+            if (coLinkRes.error) throw coLinkRes.error;
 
-            if (coLinkError) throw coLinkError;
-
-            const coRequestIds = coLinkData?.map(c => c.leave_request_id) || [];
+            const coRequestIds = coLinkRes.data?.map(c => c.leave_request_id) || [];
             let coRequests: any[] = [];
 
             if (coRequestIds.length > 0) {
@@ -161,7 +180,7 @@ export default function SeatManagementPage() {
             }
 
             // 3. Combine and Deduplicate
-            const combined = [...(mainRequests || []), ...coRequests];
+            const combined = [...(mainRes.data || []), ...coRequests];
             const uniqueMap = new Map();
             combined.forEach(req => uniqueMap.set(req.id, req));
 
@@ -188,23 +207,17 @@ export default function SeatManagementPage() {
                 })
                 .slice(0, 30); // 30 entries
 
-            // Fetch teacher names
-            const { data: teachersData } = await supabase.from('teachers').select('id, name');
-            const teacherMap = new Map();
-            teachersData?.forEach(t => teacherMap.set(t.id, t.name));
-
             const recordsWithTeachers = sortedRecords.map(req => ({
                 ...req,
                 teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' }
             }));
 
             setHistoryRecords(recordsWithTeachers);
-            const s = students.find(st => st.student_id === studentId);
-            setHistoryStudent(s || { student_id: studentId, name: 'Unknown', grade: 0, class: 0 });
-            setIsHistoryModalOpen(true);
         } catch (e) {
             console.error(e);
             toast.error('기록을 불러오지 못했습니다.');
+        } finally {
+            setIsHistoryLoading(false);
         }
     };
 
@@ -879,7 +892,8 @@ export default function SeatManagementPage() {
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="학생 자리 검색..."
-                                    className="w-full bg-white border border-gray-300 text-gray-800 text-xs sm:text-sm rounded-xl px-3 py-1.5 sm:py-2 pl-8 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-sm"
+                                    className="w-full bg-white border border-gray-300 text-gray-800 text-[16px] sm:text-sm rounded-xl px-3 py-1.5 sm:py-2 pl-8 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-sm"
+                                    style={{ fontSize: '16px' }}
                                 />
                                 <span className="absolute left-2.5 text-gray-400 text-xs">🔍</span>
                                 {searchQuery && (
@@ -1164,7 +1178,9 @@ export default function SeatManagementPage() {
                                                 onDoubleClick={(e) => {
                                                     if (mode === 'monitor' && assignment?.student_id) {
                                                         e.stopPropagation();
-                                                        fetchStudentHistory(assignment.student_id);
+                                                        if (!isHistoryModalOpen) {
+                                                            fetchStudentHistory(assignment.student_id);
+                                                        }
                                                     }
                                                 }}
                                                 onClick={async () => {
@@ -1172,7 +1188,17 @@ export default function SeatManagementPage() {
                                                         setSelectedSeat(seatNum);
                                                         setIsModalOpen(true);
                                                     } else if (mode === 'monitor') {
-                                                        toggleSeatCheck(selectedRoom, seatNum);
+                                                        const now = Date.now();
+                                                        const lastTime = lastClickTimeRef.current[seatNum] || 0;
+                                                        if (now - lastTime < 380 && assignment?.student_id) {
+                                                            // Fast double-tap / double-click detected
+                                                            lastClickTimeRef.current[seatNum] = 0;
+                                                            toggleSeatCheck(selectedRoom, seatNum); // Revert first click's roll-call toggle
+                                                            fetchStudentHistory(assignment.student_id);
+                                                        } else {
+                                                            lastClickTimeRef.current[seatNum] = now;
+                                                            toggleSeatCheck(selectedRoom, seatNum);
+                                                        }
                                                     }
                                                 }}
                                                 className={clsx(
@@ -1517,7 +1543,12 @@ export default function SeatManagementPage() {
                         </div>
 
                         <div className="overflow-y-auto p-4 flex flex-col gap-3.5 bg-gray-100/60 flex-1">
-                            {historyRecords.length === 0 ? (
+                            {isHistoryLoading ? (
+                                <div className="py-14 flex flex-col items-center justify-center gap-3">
+                                    <div className="w-8 h-8 border-3 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                                    <span className="text-xs text-gray-400 font-bold">이석 기록 불러오는 중...</span>
+                                </div>
+                            ) : historyRecords.length === 0 ? (
                                 <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
                             ) : (
                                 historyRecords.map((rec) => {
