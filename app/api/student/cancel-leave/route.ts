@@ -92,7 +92,7 @@ export async function POST(request: Request) {
                         const { data: parentSubs } = await supabase
                             .from('push_subscriptions')
                             .select('subscription_json')
-                            .eq('parent_token', studentData.parent_token);
+                            .eq('user_id', studentData.parent_token);
 
                         if (parentSubs && parentSubs.length > 0) {
                             notifications.push({
