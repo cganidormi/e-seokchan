@@ -271,11 +271,11 @@ export default function StudentPage() {
 
   const fetchLeaveRequests = async (id: string) => {
     try {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
       const nowStr = new Date().toISOString();
 
-      // Define optimized filter: Currently active OR created within the last 7 days
-      const timeFilter = `end_time.gte.${nowStr},created_at.gte.${sevenDaysAgo}`;
+      // Define optimized filter: Currently active OR created within the last 2 days
+      const timeFilter = `end_time.gte.${nowStr},created_at.gte.${twoDaysAgo}`;
 
       // 1. Parallel Fetching for maximum efficiency
       const [
@@ -295,7 +295,6 @@ export default function StudentPage() {
         supabase.from('leave_requests')
           .select('*, leave_request_students(student_id)')
           .eq('student_id', id)
-          .in('leave_type', ['외출', '외박'])
           .or(timeFilter)
           .order('created_at', { ascending: false })
           .limit(200),
@@ -325,7 +324,6 @@ export default function StudentPage() {
           .from('leave_requests')
           .select('*, leave_request_students(student_id)')
           .in('id', coRequestIds)
-          .in('leave_type', ['외출', '외박'])
           .or(timeFilter)
           .order('created_at', { ascending: false });
 
