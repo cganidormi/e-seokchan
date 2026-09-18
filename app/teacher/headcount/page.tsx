@@ -12,6 +12,7 @@ import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
 import DashboardMain from '@/components/admin/DashboardMain';
 import { HiHome } from 'react-icons/hi';
+import SwipeWrapper from '@/components/teacher/SwipeWrapper';
 
 // Room Layout Configuration (Row, Col) based on floor plan
 // Abstracted using last 2 digits (01-25)
@@ -595,8 +596,9 @@ export default function HeadcountPage() {
     }, [searchQuery, roomStatus]);
 
     return (
-        <div className="h-screen flex flex-col bg-black text-white font-sans selection:bg-orange-500 selection:text-white overflow-hidden">
-            <Toaster toastOptions={{
+        <SwipeWrapper prevPath="/teacher/seats">
+            <div className="h-screen flex flex-col bg-black text-white font-sans selection:bg-orange-500 selection:text-white overflow-hidden">
+                <Toaster toastOptions={{
                 className: 'bg-gray-800 text-white border border-white/10',
                 style: { background: '#1f2937', color: '#fff' }
             }} />
@@ -1256,6 +1258,7 @@ export default function HeadcountPage() {
                 onClose={() => setIsViolationModalOpen(false)}
                 initialFilter="today"
             />
-        </div>
+            </div>
+        </SwipeWrapper>
     );
 }

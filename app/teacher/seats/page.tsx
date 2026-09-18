@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, Fragment } from 'react';
 import { supabase } from '@/supabaseClient';
+import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import clsx from 'clsx';
 import Select from 'react-select';
@@ -9,6 +10,8 @@ import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import { FaBell } from "react-icons/fa";
 import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
 import { LeaveRequest } from '@/components/teacher/types';
+import SwipeWrapper from '@/components/teacher/SwipeWrapper';
+import SwipeNudgeDots from '@/components/teacher/SwipeNudgeDots';
 
 interface Student {
     student_id: string;
@@ -72,6 +75,7 @@ const isWeeklyHomeTime = (date: Date) => {
 };
 
 export default function SeatManagementPage() {
+    const router = useRouter();
     const [selectedRoom, setSelectedRoom] = useState(1);
     const [mode, setMode] = useState<'monitor' | 'edit'>('monitor'); // 'monitor' | 'edit'
     const [isLoading, setIsLoading] = useState(true);
@@ -833,8 +837,9 @@ export default function SeatManagementPage() {
     };
 
     return (
-        <div className="p-4 md:p-6 pb-16 sm:pb-20 bg-gray-100 min-h-screen">
-            <Toaster />
+        <SwipeWrapper prevPath="/teacher" nextPath="/teacher/headcount">
+            <div className="p-4 md:p-6 pb-16 sm:pb-20 bg-gray-100 min-h-screen">
+                <Toaster />
 
             <div className="flex flex-col w-full max-w-6xl mx-auto">
                 {/* Header & Controls */}
@@ -883,13 +888,20 @@ export default function SeatManagementPage() {
                         )}
                     </div>
 
-                    {/* Full Width Leave List Button */}
-                    <button
-                        onClick={() => window.location.href = '/teacher'}
-                        className="w-full py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
-                    >
-                        ← 이석현황 목록으로 돌아가기
-                    </button>
+                    <div className="flex flex-col items-center gap-3 w-full">
+                        {/* Pagination Dots (스와이프 넛지) - 2번 화면용 */}
+                        <div className="flex justify-center w-full">
+                            <SwipeNudgeDots currentIndex={1} className="bg-white/80 py-1.5 px-4 rounded-full shadow-sm border border-gray-200" />
+                        </div>
+                        
+                        {/* Leave List Button */}
+                        <button
+                            onClick={() => router.push('/teacher')}
+                            className="w-full max-w-sm mx-auto py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
+                        >
+                            ← 이석현황 목록으로 돌아가기
+                        </button>
+                    </div>
 
                     {/* Description Text & Search Bar Row */}
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 -mt-2">
@@ -1029,14 +1041,9 @@ export default function SeatManagementPage() {
 
                 {/* Seat Grid */}
                 <div className="min-h-[500px]">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center h-40">
-                            <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-                        </div>
-                    ) : (
-                        <div className="w-full">
-                            {/* Sticky Header Row */}
-                            {mode === 'monitor' && activePeriods.length > 0 && (
+                    <div className="w-full">
+                        {/* Sticky Header Row */}
+                        {mode === 'monitor' && activePeriods.length > 0 && (
                                 <div
                                     className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b-2 border-gray-100 shadow-sm grid gap-0 text-left w-full"
                                     style={{
@@ -1362,7 +1369,6 @@ export default function SeatManagementPage() {
                                 })}
                             </div>
                         </div>
-                    )}
                 </div>
             </div>
 
@@ -1608,6 +1614,7 @@ export default function SeatManagementPage() {
                     </div>
                 </div>
             )}
-        </div >
+        </div>
+        </SwipeWrapper>
     );
 }

@@ -13,15 +13,24 @@ import { NotificationPermissionBanner } from '@/components/NotificationPermissio
 import PullToRefresh from '@/components/PullToRefresh';
 import LoadingScreen from '@/components/LoadingScreen';
 import AnniversaryBanner from '@/components/parent/ParentsDayCelebration';
+import SwipeWrapper from '@/components/teacher/SwipeWrapper';
+
+// 메모리 캐싱을 통해 뒤로가기 시 로딩 화면(학교 로고)이 나타나는 지연 현상 방지
+let globalTeacherId: string | null = null;
+let globalTeacherLoginId: string = '';
+let globalTeacherName: string = '';
+let globalTeacherPosition: string = '';
+let globalStudents: any[] = [];
+let globalLeaveRequests: LeaveRequest[] = [];
 
 export default function TeacherPage() {
-  const [teacherId, setTeacherId] = useState<string | null>(null);
-  const [teacherLoginId, setTeacherLoginId] = useState<string>(''); // For password change
-  const [teacherName, setTeacherName] = useState<string>('');
-  const [teacherPosition, setTeacherPosition] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [students, setStudents] = useState<any[]>([]);
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [teacherId, setTeacherId] = useState<string | null>(globalTeacherId);
+  const [teacherLoginId, setTeacherLoginId] = useState<string>(globalTeacherLoginId);
+  const [teacherName, setTeacherName] = useState<string>(globalTeacherName);
+  const [teacherPosition, setTeacherPosition] = useState<string>(globalTeacherPosition);
+  const [isLoading, setIsLoading] = useState(!globalTeacherId);
+  const [students, setStudents] = useState<any[]>(globalStudents);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(globalLeaveRequests);
   const [showQR, setShowQR] = useState(false);
   const [unifiedViewMode, setUnifiedViewMode] = useState<'my_active' | 'all_active' | 'past_all' | 'search_name'>('my_active');
 
@@ -70,16 +79,25 @@ export default function TeacherPage() {
 
           if (teacher) {
             setTeacherId(teacher.id); // UUID
-            setTeacherLoginId(loginId); // String ID (from storage, confirmed valid)
+            setTeacherLoginId(loginId); // String ID
             setTeacherName(teacher.name);
             setTeacherPosition(teacher.position);
+            
+            // 전역 변수 업데이트
+            globalTeacherId = teacher.id;
+            globalTeacherLoginId = loginId;
+            globalTeacherName = teacher.name;
+            globalTeacherPosition = teacher.position;
             
             // 2. 이석 내역 조회와 학생 목록 조회를 동시에 병렬로 가동!
             await Promise.all([
               fetchLeaveRequests(teacher.id, teacher.name, 'my_active'),
               (async () => {
                 const { data: studentData } = await supabase.from('students').select('*');
-                if (studentData) setStudents(studentData);
+                if (studentData) {
+                  setStudents(studentData);
+                  globalStudents = studentData;
+                }
               })()
             ]);
           } else {
@@ -278,6 +296,7 @@ export default function TeacherPage() {
         }));
 
       setLeaveRequests(requestsWithDetails as LeaveRequest[]);
+      globalLeaveRequests = requestsWithDetails as LeaveRequest[];
     } catch (err) {
       console.error('Fetch error:', err);
       toast.error('현황을 불러오지 못했습니다.');
@@ -444,8 +463,9 @@ export default function TeacherPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
-      <Toaster />
+    <SwipeWrapper nextPath="/teacher/seats">
+      <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
+        <Toaster />
 
       {/* Persistent Notification Warning */}
       {teacherId && (
@@ -551,6 +571,7 @@ export default function TeacherPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </SwipeWrapper>
   );
 }

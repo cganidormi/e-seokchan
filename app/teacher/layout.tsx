@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
+import TransitionWrapper from '@/components/teacher/TransitionWrapper';
 
 export default function TeacherLayout({
     children,
@@ -114,5 +115,5 @@ export default function TeacherLayout({
         return null;
     }
 
-    return <>{children}</>;
+    return <TransitionWrapper>{children}</TransitionWrapper>;
 }

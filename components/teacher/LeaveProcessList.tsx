@@ -7,6 +7,7 @@ import { IoSearch } from 'react-icons/io5';
 import { LeaveRequest } from './types';
 import { LeaveProcessCard } from './LeaveProcessCard';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
+import SwipeNudgeDots from './SwipeNudgeDots';
 
 interface LeaveProcessListProps {
     leaveRequests: LeaveRequest[];
@@ -101,13 +102,18 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
 
     return (
         <div className="flex flex-col w-full max-w-xl mx-auto relative">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
                     <div className="flex items-baseline gap-2">
                         <h1 className="text-xl font-extrabold text-gray-800">이석 처리 ({teacherName} 감독선생님)</h1>
                     </div>
                 </div>
+            </div>
+
+            {/* Pagination Dots (스와이프 넛지) - 1번 화면용 */}
+            <div className="flex justify-center w-full mb-4">
+                <SwipeNudgeDots currentIndex={0} className="bg-gray-200/60 py-1.5 px-4 rounded-full shadow-inner" />
             </div>
 
             {/* Seat Map Button */}
