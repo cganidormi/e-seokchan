@@ -215,6 +215,31 @@ export default function TeacherPage() {
     }
   }, [unifiedViewMode, teacherId, teacherName]);
 
+  // 최초 1회 스와이프 넛지 토스트 띄우기 (로딩화면에 가려지는 문제 해결)
+  useEffect(() => {
+    if (!isLoading) {
+      const hasSeenNudge = localStorage.getItem('has_seen_swipe_nudge_v2');
+      if (!hasSeenNudge) {
+        const timer = setTimeout(() => {
+          toast('새 기능: 화면을 좌우로 스와이프해서 메뉴를 이동해보세요!', {
+            duration: 6000,
+            position: 'bottom-center',
+            icon: '👉',
+            style: {
+              borderRadius: '16px',
+              background: '#1f2937',
+              color: '#fff',
+              fontWeight: 'bold',
+              marginBottom: '40px'
+            },
+          });
+          localStorage.setItem('has_seen_swipe_nudge_v2', 'true');
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isLoading]);
+
   const fetchLeaveRequests = async (
     id: string, 
     name: string, 

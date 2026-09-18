@@ -41,29 +41,6 @@ export default function TransitionWrapper({ children }: { children: React.ReactN
   
   const direction = directionRef.current;
 
-  // 최초 1회 스와이프 넛지 토스트 띄우기
-  useEffect(() => {
-    const hasSeenNudge = localStorage.getItem('has_seen_swipe_nudge');
-    if (!hasSeenNudge) {
-      const timer = setTimeout(() => {
-        toast('새 기능: 화면을 좌우로 스와이프해서 메뉴를 이동해보세요!', {
-          duration: 6000,
-          position: 'bottom-center',
-          icon: '👉',
-          style: {
-            borderRadius: '16px',
-            background: '#1f2937',
-            color: '#fff',
-            fontWeight: 'bold',
-            marginBottom: '40px' // 점 인디케이터 위에 표시되도록
-          },
-        });
-        localStorage.setItem('has_seen_swipe_nudge', 'true');
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
   // 파워포인트처럼 연결되어 이동하는 슬라이드 효과 설정
   const variants = {
     initial: (dir: number) => ({
