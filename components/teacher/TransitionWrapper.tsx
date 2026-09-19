@@ -42,7 +42,7 @@ export default function TransitionWrapper({ children }: { children: React.ReactN
   const direction = directionRef.current;
 
   // 파워포인트처럼 연결되어 이동하는 슬라이드 효과 설정
-  const variants = {
+  const variants: any = {
     initial: (dir: number) => ({
       x: dir > 0 ? '100vw' : '-100vw',
       zIndex: 20,
