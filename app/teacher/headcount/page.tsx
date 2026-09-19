@@ -837,6 +837,13 @@ export default function HeadcountPage() {
                         )}
                     </div>
                 </div>
+
+                {/* Double Touch Zoom Guide Text */}
+                <div className="flex items-center justify-center w-full pt-0.5">
+                    <p className="text-[11px] sm:text-xs text-yellow-400 font-semibold text-center tracking-tight">
+                        더블 터치 하시면 줌인 줌아웃이 됩니다.
+                    </p>
+                </div>
             </header>
 
             {/* Main Content - Zoomable Area */}
