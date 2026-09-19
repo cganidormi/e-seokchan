@@ -595,6 +595,64 @@ export default function HeadcountPage() {
         return results;
     }, [searchQuery, roomStatus]);
 
+    // 빈 공간 더블 터치 / 더블 클릭 시 해당 위치 확대/축소 토글 기능
+    const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
+
+    const toggleZoomAtPoint = (clientX: number, clientY: number) => {
+        if (!transformRef.current) return;
+        const instance = transformRef.current.instance;
+        if (!instance || !instance.wrapperComponent) return;
+
+        const currentScale = instance.transformState?.scale ?? 0.3;
+
+        // 이미 확대된 상태(0.45 이상)라면 전체보기 기본 배율(0.3)로 복귀
+        if (currentScale > 0.45) {
+            transformRef.current.resetTransform(300, 'easeOut');
+            return;
+        }
+
+        // 축소 상태라면 터치한 빈 공간 위치를 화면 중앙으로 하여 0.85배율로 확대
+        const wrapperRect = instance.wrapperComponent.getBoundingClientRect();
+        const { positionX, positionY } = instance.transformState;
+
+        const touchX = clientX - wrapperRect.left;
+        const touchY = clientY - wrapperRect.top;
+
+        const contentX = (touchX - positionX) / currentScale;
+        const contentY = (touchY - positionY) / currentScale;
+
+        const targetScale = 0.85;
+        const newPosX = (wrapperRect.width / 2) - (contentX * targetScale);
+        const newPosY = (wrapperRect.height / 2) - (contentY * targetScale);
+
+        transformRef.current.setTransform(newPosX, newPosY, targetScale, 300, 'easeOut');
+    };
+
+    const handleCanvasClick = (e: React.MouseEvent) => {
+        const target = e.target as HTMLElement;
+        // 학생 침대 버튼, 호실 번호 버튼, 입력창 등 인터랙티브 요소는 줌 토글 제외
+        if (target.closest('button') || target.closest('input') || target.closest('.no-zoom-toggle')) return;
+
+        const now = Date.now();
+        const last = lastTapRef.current;
+        const clientX = e.clientX;
+        const clientY = e.clientY;
+
+        // 350ms 이내에 같은 영역(40px 이내)을 두 번 터치/클릭한 경우 더블 탭 판정
+        if (last && now - last.time < 350 && Math.hypot(clientX - last.x, clientY - last.y) < 40) {
+            lastTapRef.current = null;
+            toggleZoomAtPoint(clientX, clientY);
+        } else {
+            lastTapRef.current = { time: now, x: clientX, y: clientY };
+        }
+    };
+
+    const handleCanvasDoubleClick = (e: React.MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('input') || target.closest('.no-zoom-toggle')) return;
+        toggleZoomAtPoint(e.clientX, e.clientY);
+    };
+
     return (
         <SwipeWrapper prevPath="/teacher/seats" topBottomOnly={true}>
             <div className="h-screen flex flex-col bg-black text-white font-sans selection:bg-orange-500 selection:text-white overflow-hidden">
@@ -782,7 +840,11 @@ export default function HeadcountPage() {
             </header>
 
             {/* Main Content - Zoomable Area */}
-            <div className="flex-1 relative overflow-hidden bg-[#121212] w-full h-full">
+            <div
+                onClick={handleCanvasClick}
+                onDoubleClick={handleCanvasDoubleClick}
+                className="flex-1 relative overflow-hidden bg-[#121212] w-full h-full"
+            >
                 <TransformWrapper
                     ref={transformRef}
                     initialScale={0.3}
