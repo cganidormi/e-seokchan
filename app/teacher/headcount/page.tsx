@@ -667,13 +667,6 @@ export default function HeadcountPage() {
                 <div className="flex justify-between items-center w-full gap-1 sm:gap-2">
                     <div className="flex items-center gap-1 sm:gap-2 shrink-0 min-w-0">
                         <button
-                            onClick={() => router.push('/teacher')}
-                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold p-1.5 sm:p-2 rounded-xl shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
-                            title="교사 홈으로 이동"
-                        >
-                            <HiHome className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
-                        </button>
-                        <button
                             onClick={() => setIsTodayModalOpen(true)}
                             className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1 px-1.5 sm:px-3 rounded-xl shadow-sm transition-all flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap cursor-pointer shrink-0"
                         >
@@ -692,6 +685,17 @@ export default function HeadcountPage() {
                             className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-1 px-2 sm:px-3 rounded-xl text-xs sm:text-sm whitespace-nowrap cursor-pointer border border-rose-500 shrink-0 shadow-sm"
                         >
                             위반
+                        </button>
+                    </div>
+
+                    {/* Center: Home Button */}
+                    <div className="flex items-center justify-center">
+                        <button
+                            onClick={() => router.push('/teacher')}
+                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold px-4 sm:px-6 py-1.5 sm:py-2 rounded-xl shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
+                            title="교사 홈으로 이동"
+                        >
+                            <HiHome className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                         </button>
                     </div>
 
