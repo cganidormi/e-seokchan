@@ -148,7 +148,7 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
     return (
         <div className="flex flex-col gap-4 w-full max-w-xl mx-auto">
             <div className="flex items-center gap-2 mb-2">
-                <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
+                <div className="w-1.5 h-6 bg-[#FF6F61] rounded-full"></div>
                 <h2 className="text-xl font-extrabold text-gray-800">이석현황</h2>
             </div>
 
@@ -156,9 +156,9 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
                 {/* 학습감독 자리배치도 버튼 */}
                 <button
                     onClick={() => window.location.href = '/student/seats'}
-                    className="w-full mb-1 py-3 rounded-xl text-sm font-bold transition-all text-black shadow-sm text-right pr-6 bg-cover bg-no-repeat"
+                    className="w-full mb-1 py-3 rounded-xl text-sm font-medium transition-all text-white shadow-sm text-right pr-6 bg-cover bg-no-repeat cursor-pointer"
                     style={{
-                        backgroundImage: `linear-gradient(to left, rgba(250, 204, 21, 1) 30%, rgba(250, 204, 21, 0) 100%), url('/study_room.png')`,
+                        backgroundImage: `linear-gradient(to left, rgba(255, 111, 97, 1) 30%, rgba(255, 111, 97, 0) 100%), url('/study_room.png')`,
                         backgroundPosition: 'center 70%'
                     }}
                 >
@@ -194,9 +194,9 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
                             key={type}
                             onClick={() => setFilterType(type)}
                             className={clsx(
-                                "px-3 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap border",
+                                "px-3 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap border cursor-pointer",
                                 filterType === type
-                                    ? "bg-amber-400 text-black border-amber-400"
+                                    ? "bg-[#FF6F61] text-white border-[#FF6F61] shadow-sm"
                                     : "bg-transparent text-gray-500 border-white/10 hover:border-white/20"
                             )}
                         >

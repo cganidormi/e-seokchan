@@ -557,14 +557,14 @@ export default function StudentPage() {
             <span className="ml-1 text-sm font-semibold text-gray-700">비밀번호 변경</span>
           </button>
         </div>
-        <div className="bg-white border-2 border-amber-300 rounded-xl p-3 shadow-sm w-full md:w-auto md:max-w-2xl relative">
+        <div className="bg-white border border-[#FF6F61]/60 rounded-xl p-3 shadow-sm w-full md:w-auto md:max-w-2xl relative">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs font-bold text-white px-2 py-0.5 rounded shadow-sm ${isPersonalNotice ? 'bg-red-500 animate-pulse' : 'bg-amber-500'}`}>
+              <span className={`text-xs font-bold text-white px-2 py-0.5 rounded shadow-sm ${isPersonalNotice ? 'bg-red-500 animate-pulse' : 'bg-[#FF6F61]'}`}>
                 {isPersonalNotice ? '💌 개인 편지' : '홍지관 안내문'}
               </span>
               {(showRoomInfo || isNoticeAdmin) && (
-                <span className="text-sm md:text-base font-extrabold text-amber-900">{bedInfoText}</span>
+                <span className="text-sm md:text-base font-extrabold text-[#c04b40]">{bedInfoText}</span>
               )}
               {isNoticeAdmin && (
                 <button

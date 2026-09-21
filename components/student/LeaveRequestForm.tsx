@@ -659,7 +659,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
     return (
         <div className="flex flex-col w-full max-w-xl mx-auto relative">
             <div className="flex items-center gap-2 mb-4">
-                <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
+                <div className="w-1.5 h-6 bg-[#FF6F61] rounded-full"></div>
                 <h1 className="text-xl font-extrabold text-gray-800">이석 신청</h1>
             </div>
 
@@ -846,7 +846,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                 selected={targetDate}
                                 onChange={(date) => { if (date) { setTargetDate(date); setPeriods([]); } }}
                                 dateFormat="yyyy-MM-dd"
-                                className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full text-center shadow-sm cursor-pointer transition-all hover:border-yellow-400 font-bold text-gray-900"
+                                className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full text-center shadow-sm cursor-pointer transition-all hover:border-[#FF6F61] font-bold text-gray-900"
                             />
                             <div className={clsx(
                                 "bg-white rounded-3xl border border-gray-100 shadow-sm p-3 w-full",
@@ -952,7 +952,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                 <select
                                     value={place}
                                     onChange={e => setPlace(e.target.value)}
-                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full appearance-none pr-10 text-gray-900"
+                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-[#FF6F61] shadow-sm w-full appearance-none pr-10 text-gray-900"
                                 >
                                     <option value="" className="text-gray-500">이석 장소 선택</option>
                                     {leavePlaces.map(p => <option key={p} className="text-gray-900">{p}</option>)}
@@ -963,7 +963,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                     </svg>
                                 </div>
                             </div>
-                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-yellow-400 shadow-sm w-full text-gray-900" placeholder="이석 사유" />
+                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-[#FF6F61] shadow-sm w-full text-gray-900" placeholder="이석 사유" />
                         </div>
                     )}
                 </div>
@@ -973,14 +973,21 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 onClick={handleSubmit}
                 disabled={isSubmitting}
                 className={clsx(
-                    "h-14 rounded-2xl font-bold text-lg shadow-md transition-all mb-8 flex items-center justify-center gap-2",
+                    "h-14 rounded-2xl font-bold text-xl sm:text-[22px] shadow-md transition-all mb-8 flex items-center justify-center gap-2 cursor-pointer border border-white/30 overflow-hidden",
                     isSubmitting
                         ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        : "bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:shadow-lg transform active:scale-95"
+                        : "text-white hover:shadow-xl transform active:scale-95 hover:brightness-105"
                 )}
+                style={!isSubmitting ? {
+                    backgroundImage: `linear-gradient(to right, rgba(255, 111, 97, 0.35), rgba(255, 111, 97, 0.45)), url('/images/starry_crescent_coral.jpg')`,
+                    backgroundSize: '110% auto',
+                    backgroundPosition: 'right 12%'
+                } : undefined}
             >
                 {isSubmitting && <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>}
-                {isSubmitting ? '신청 중...' : '신청'}
+                <span className="drop-shadow-[0_2px_5px_rgba(0,0,0,0.55)] tracking-[0.25em] pl-[0.25em] uppercase select-none">
+                    {isSubmitting ? 'APPLYING...' : 'APPLY'}
+                </span>
             </button>
         </div>
     );
