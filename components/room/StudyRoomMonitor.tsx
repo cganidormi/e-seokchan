@@ -256,12 +256,21 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
                 (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id))
             );
 
+            // Period-based check
             for (const leave of studentLeaves) {
                 if (leave.period) {
-                    const leaveDigits = (leave.period || "").match(/\d+/g) || [];
-                    const entryDigits = (entry.description || "").match(/\d+/g) || [];
-                    if (leaveDigits.length > 0 && entryDigits.length > 0 && leaveDigits.some((d: string) => (entryDigits as string[]).includes(d))) {
-                        return { status: isPast ? 'past' : 'active', type: leave.leave_type };
+                    const leaveDate = new Date(leave.start_time);
+                    const isSameDay =
+                        leaveDate.getFullYear() === currentTime.getFullYear() &&
+                        leaveDate.getMonth() === currentTime.getMonth() &&
+                        leaveDate.getDate() === currentTime.getDate();
+
+                    if (isSameDay) {
+                        const leaveDigits = (leave.period || "").match(/\d+/g) || [];
+                        const entryDigits = (entry.description || "").match(/\d+/g) || [];
+                        if (leaveDigits.length > 0 && entryDigits.length > 0 && leaveDigits.some((d: string) => (entryDigits as string[]).includes(d))) {
+                            return { status: isPast ? 'past' : 'active', type: leave.leave_type };
+                        }
                     }
                 }
 

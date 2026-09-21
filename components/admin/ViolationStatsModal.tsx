@@ -29,7 +29,7 @@ const VIOLATION_ICONS: Record<string, React.ElementType> = {
     '퇴실수칙 불이행': FaSignOutAlt
 };
 
-export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen, onClose, initialFilter = 'month' }) => {
+export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen, onClose, initialFilter = 'today' }) => {
     const [students, setStudents] = useState<StudentViolationCount[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -74,8 +74,21 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
             let startISO: string, endISO: string;
             if (filterType === 'today') {
                 const now = new Date();
-                startISO = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).toISOString();
-                endISO = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+                let start: Date;
+                let end: Date;
+
+                if (now.getHours() < 19) {
+                    // 19시 이전(새벽/오전/낮) 조회 시: 전일 19:00 ~ 당일 09:00
+                    start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 19, 0, 0, 0);
+                    end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0, 0);
+                } else {
+                    // 19시 이후(야간/점호) 조회 시: 당일 19:00 ~ 익일 09:00
+                    start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 19, 0, 0, 0);
+                    end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
+                }
+
+                startISO = start.toISOString();
+                endISO = end.toISOString();
             } else {
                 const [year, month] = selectedMonth.split('-');
                 startISO = new Date(parseInt(year), parseInt(month) - 1, 1).toISOString();
@@ -202,7 +215,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                 <div>
                                     <h2 className="text-base font-black text-gray-900 leading-none">위반 통계 요약</h2>
                                     <p className="text-[10px] text-gray-400 font-bold mt-0.5">
-                                        {filterType === 'today' ? '오늘의 위반자 명단' : `${selectedMonth.replace('-', '년 ')}월 위반자 명단`}
+                                        {filterType === 'today' ? '오늘의 위반자 명단 (19:00 ~ 익일 09:00)' : `${selectedMonth.replace('-', '년 ')}월 위반자 명단`}
                                     </p>
                                 </div>
 
