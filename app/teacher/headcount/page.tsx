@@ -13,6 +13,7 @@ import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
 import DashboardMain from '@/components/admin/DashboardMain';
 import { HiHome } from 'react-icons/hi';
 import SwipeWrapper from '@/components/teacher/SwipeWrapper';
+import SwipeNudgeDots from '@/components/teacher/SwipeNudgeDots';
 
 // Room Layout Configuration (Row, Col) based on floor plan
 // Abstracted using last 2 digits (01-25)
@@ -842,9 +843,14 @@ export default function HeadcountPage() {
                     </div>
                 </div>
 
+                {/* Pagination Dots (스와이프 넛지) - 3번 화면용 */}
+                <div className="flex justify-center w-full pt-1 pb-0.5">
+                    <SwipeNudgeDots currentIndex={2} theme="dark" className="bg-white/10 py-1.5 px-4 rounded-full shadow-inner backdrop-blur-sm" />
+                </div>
+
                 {/* Double Touch Zoom Guide Text */}
-                <div className="flex items-center justify-center w-full pt-0.5">
-                    <p className="text-[11px] sm:text-xs text-yellow-400 font-semibold text-center tracking-tight">
+                <div className="flex items-center justify-center w-full">
+                    <p className="text-[10px] sm:text-[11px] text-yellow-400 font-semibold text-center tracking-tight">
                         더블 터치 하시면 줌인 줌아웃이 됩니다.
                     </p>
                 </div>

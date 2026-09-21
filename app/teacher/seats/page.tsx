@@ -855,7 +855,7 @@ export default function SeatManagementPage() {
                 <div className="flex flex-col gap-4 mb-3">
                     <div className="flex items-center justify-between gap-2 w-full">
                         {/* Title & Room Segment Selector */}
-                        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                             <div className="flex items-center gap-1.5">
                                 <div className="w-1.5 h-6 bg-yellow-400 rounded-full shrink-0"></div>
                                 <h1 className="text-base sm:text-xl font-black text-gray-800 whitespace-nowrap">
@@ -864,7 +864,7 @@ export default function SeatManagementPage() {
                             </div>
 
                             {/* Room Selector Segment Tabs */}
-                            <div className="flex items-center gap-1 bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner">
+                            <div className="flex items-center gap-1 bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0">
                                 {[1, 2, 3].map((room) => (
                                     <button
                                         key={room}
@@ -884,24 +884,23 @@ export default function SeatManagementPage() {
 
                         {/* Seat Management Toggle (Top Right Corner) - Only for Authorized Roles */}
                         {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자') && (
-                            <button
-                                onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
-                                className={clsx(
-                                    "px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-sm ml-auto self-start sm:self-center",
-                                    mode === 'edit' ? "bg-gray-800 text-white" : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
-                                )}
-                            >
-                                <span>{mode === 'edit' ? '모니터로 돌아가기' : '⚙️ 좌석 관리'}</span>
-                            </button>
+                            <div className="flex items-center bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0 ml-auto">
+                                <button
+                                    onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
+                                    className={clsx(
+                                        "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center gap-1.5",
+                                        mode === 'edit'
+                                            ? "bg-gray-900 text-white shadow-sm"
+                                            : "bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
+                                    )}
+                                >
+                                    <span>{mode === 'edit' ? '저장 & BACK' : '⚙️ 좌석 관리'}</span>
+                                </button>
+                            </div>
                         )}
                     </div>
 
                     <div className="flex flex-col items-center gap-3 w-full">
-                        {/* Pagination Dots (스와이프 넛지) - 2번 화면용 */}
-                        <div className="flex justify-center w-full">
-                            <SwipeNudgeDots currentIndex={1} className="bg-white/80 py-1.5 px-4 rounded-full shadow-sm border border-gray-200" />
-                        </div>
-                        
                         {/* Leave List Button */}
                         <button
                             onClick={() => router.push('/teacher')}
@@ -909,6 +908,11 @@ export default function SeatManagementPage() {
                         >
                             ← 이석현황 목록으로 돌아가기
                         </button>
+
+                        {/* Pagination Dots (스와이프 넛지) - 2번 화면용 */}
+                        <div className="flex justify-center w-full">
+                            <SwipeNudgeDots currentIndex={1} className="bg-gray-200/70 py-1.5 px-4 rounded-full shadow-inner" />
+                        </div>
                     </div>
 
                     {/* Description Text & Search Bar Row */}

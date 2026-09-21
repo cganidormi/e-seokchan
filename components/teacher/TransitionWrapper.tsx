@@ -84,20 +84,6 @@ export default function TransitionWrapper({ children }: { children: React.ReactN
           <FrozenRoute>{children}</FrozenRoute>
         </motion.div>
       </AnimatePresence>
-
-      {/* Pagination Dots (스와이프 넛지) - 3번 화면 전용 */}
-      {currentIndex === 2 && (
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center justify-center gap-2 z-50 pointer-events-none bg-black/10 px-3 py-1.5 rounded-full backdrop-blur-md shadow-sm">
-          {[0, 1, 2].map((idx) => (
-            <div
-              key={idx}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                currentIndex === idx ? 'bg-gray-800 w-4' : 'bg-gray-500 w-1.5 opacity-60'
-              }`}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
