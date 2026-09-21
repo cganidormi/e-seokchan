@@ -736,29 +736,29 @@ export default function HeadcountPage() {
                     </div>
                 </div>
 
-                {/* Middle Row: Floor Grade Badges */}
-                <div className="flex items-center justify-between w-full gap-1 whitespace-nowrap">
-                    <div className="flex items-center justify-center gap-0.5 sm:gap-1 bg-gray-800/90 rounded-lg px-1 sm:px-2 py-0.5 border border-yellow-500/25 flex-1 min-w-0 whitespace-nowrap">
-                        <span className="text-[9px] sm:text-[10px] text-yellow-400 font-medium">1학년</span>
-                        <span className="text-[11px] sm:text-xs font-bold text-yellow-300 tabular-nums">
+                {/* Middle Row: Floor Grade Badges (2-line layout) */}
+                <div className="flex items-center justify-between w-full gap-1 sm:gap-1.5 whitespace-nowrap">
+                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1 sm:py-1.5 border border-yellow-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
+                        <span className="text-[11px] sm:text-xs font-bold text-yellow-400 leading-tight">1학년</span>
+                        <span className="text-xs sm:text-sm md:text-base font-black text-yellow-200 tabular-nums leading-tight mt-0.5">
                             {floorStats[1].present}/{floorStats[1].total}명
                         </span>
                     </div>
-                    <div className="flex items-center justify-center gap-0.5 sm:gap-1 bg-gray-800/90 rounded-lg px-1 sm:px-2 py-0.5 border border-sky-500/25 flex-1 min-w-0 whitespace-nowrap">
-                        <span className="text-[9px] sm:text-[10px] text-sky-400 font-medium">2학년</span>
-                        <span className="text-[11px] sm:text-xs font-bold text-sky-300 tabular-nums">
+                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1 sm:py-1.5 border border-sky-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
+                        <span className="text-[11px] sm:text-xs font-bold text-sky-400 leading-tight">2학년</span>
+                        <span className="text-xs sm:text-sm md:text-base font-black text-sky-200 tabular-nums leading-tight mt-0.5">
                             {floorStats[2].present}/{floorStats[2].total}명
                         </span>
                     </div>
-                    <div className="flex items-center justify-center gap-0.5 sm:gap-1 bg-gray-800/90 rounded-lg px-1 sm:px-2 py-0.5 border border-red-500/25 flex-1 min-w-0 whitespace-nowrap">
-                        <span className="text-[9px] sm:text-[10px] text-red-400 font-medium">3학년</span>
-                        <span className="text-[11px] sm:text-xs font-bold text-red-300 tabular-nums">
+                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1 sm:py-1.5 border border-red-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
+                        <span className="text-[11px] sm:text-xs font-bold text-red-400 leading-tight">3학년</span>
+                        <span className="text-xs sm:text-sm md:text-base font-black text-red-200 tabular-nums leading-tight mt-0.5">
                             {floorStats[3].present}/{floorStats[3].total}명
                         </span>
                     </div>
-                    <div className="flex items-center justify-center gap-0.5 sm:gap-1 bg-gray-800/90 rounded-lg px-1 sm:px-2 py-0.5 border border-gray-700 flex-1 min-w-0 whitespace-nowrap">
-                        <span className="text-[9px] sm:text-[10px] text-gray-300 font-medium">{currentFloor}층 합계</span>
-                        <span className="text-[11px] sm:text-xs font-bold text-white tabular-nums">
+                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1 sm:py-1.5 border border-gray-600 flex-1 min-w-0 whitespace-nowrap shadow-sm">
+                        <span className="text-[11px] sm:text-xs font-bold text-gray-300 leading-tight">{currentFloor}층 합계</span>
+                        <span className="text-xs sm:text-sm md:text-base font-black text-white tabular-nums leading-tight mt-0.5">
                             {floorStats[1].present + floorStats[2].present + floorStats[3].present}/{floorStats[1].total + floorStats[2].total + floorStats[3].total}명
                         </span>
                     </div>
