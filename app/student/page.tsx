@@ -17,6 +17,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 
 export default function StudentPage() {
   const [studentId, setStudentId] = useState('');
+  const [actualLoginId, setActualLoginId] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
@@ -46,6 +47,7 @@ export default function StudentPage() {
       return;
     }
 
+    setActualLoginId(loginId);
     setStudentId(loginId);
 
     // Initial data fetch
@@ -488,8 +490,16 @@ export default function StudentPage() {
     return <LoadingScreen />;
   }
 
+  const handleSwitchStudent = (newId: string) => {
+    setStudentId(newId);
+    fetchLeaveRequests(newId);
+    toast.success(`${newId} 학생 화면으로 전환되었습니다.`);
+  };
+
   const currentStudent = students.find(s => s.student_id === studentId) || null;
-  const isNoticeAdmin = currentStudent?.grade === 3 && currentStudent?.class === 3 && currentStudent?.number === 17 && currentStudent?.name === '홍길동';
+  const actualLoginStudent = students.find(s => s.student_id === actualLoginId) || null;
+  const isMasterAdmin = (actualLoginStudent?.grade === 3 && actualLoginStudent?.class === 3 && actualLoginStudent?.number === 17 && actualLoginStudent?.name === '홍길동') || actualLoginId === '3317홍길동';
+  const isNoticeAdmin = isMasterAdmin;
 
   const isPersonalNotice = !!(currentStudent as any)?.personal_notice;
   const displayNoticeText = isPersonalNotice ? (currentStudent as any).personal_notice : noticeText;
@@ -545,8 +555,13 @@ export default function StudentPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center mb-6 gap-3 md:gap-5 w-full">
         <div className="flex items-center justify-between w-full md:w-auto shrink-0 gap-3">
-          <h1 className="text-xl font-bold text-gray-800">
+          <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <span>{currentStudent?.name || studentId} 학생</span>
+            {isMasterAdmin && studentId !== actualLoginId && (
+              <span className="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-300">
+                대리/조회 모드
+              </span>
+            )}
           </h1>
           <button
             onClick={() => router.push(`/change-password?role=student&id=${studentId}`)}
@@ -660,6 +675,8 @@ export default function StudentPage() {
             teachers={teachers}
             onSubmitSuccess={() => fetchLeaveRequests(studentId)}
             initialData={initialFormData}
+            actualLoginId={actualLoginId}
+            onSwitchStudent={handleSwitchStudent}
           />
           <LeaveStatusList
             leaveRequests={leaveRequests}

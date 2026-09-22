@@ -62,38 +62,62 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
     const getDynamicEndTime = (req: any) => {
         if (req.status === '취소' || req.status === '반려' || req.status === '복귀') return null;
 
+        const baseEndTime = req.end_time ? new Date(req.end_time) : null;
+
         if (!timetable || timetable.length === 0 || !req.period) {
-            return new Date(req.end_time);
+            return baseEndTime;
         }
 
-        const requestDate = new Date(req.start_time);
+        const requestDate = new Date(req.start_time || req.created_at);
         const isWeekendOrHoliday = isDateHoliday(requestDate);
-        const dayPrefix = isWeekendOrHoliday ? '주말' : '평일';
 
-        let type = '';
-        if (req.period.includes('주간') || req.period.includes('오전') || req.period.includes('오후')) type = '주간';
-        else if (req.period.includes('야간')) type = '야간';
-
-        const matches = req.period.match(/(\d+)/g);
-
-        if (!type || !matches || matches.length === 0) {
-            return new Date(req.end_time);
+        // Split comma-separated periods (e.g. "주간8교시,주간9교시,야간1교시,야간2교시,야간3교시,야간4교시")
+        const periodList = req.period.split(',').map((p: string) => p.trim()).filter(Boolean);
+        if (periodList.length === 0) {
+            return baseEndTime;
         }
 
-        const numbers = matches.map(Number);
-        const lastPeriodNumber = Math.max(...numbers);
+        let latestEnd: Date | null = null;
 
-        const targetDescription = `${dayPrefix}${type}${lastPeriodNumber}교시`;
-        const entry = timetable.find((t: any) => t.description === targetDescription);
+        for (const p of periodList) {
+            const isNight = p.includes('야간');
+            const isAfternoon = p.includes('오후');
+            const isMorning = p.includes('오전');
 
-        if (entry) {
-            const [hours, minutes, seconds] = entry.end_time.split(':').map(Number);
-            const dynamicEnd = new Date(requestDate);
-            dynamicEnd.setHours(hours, minutes, seconds || 0, 0);
-            return dynamicEnd;
+            let matchPrefix = '평일주간';
+            if (isWeekendOrHoliday) {
+                if (isMorning) matchPrefix = '주말오전';
+                else if (isAfternoon) matchPrefix = '주말오후';
+                else if (isNight) matchPrefix = '주말야간';
+                else matchPrefix = '주말';
+            } else {
+                if (isNight) matchPrefix = '평일야간';
+                else matchPrefix = '평일주간';
+            }
+
+            const periodNum = p.match(/\d+/)?.[0];
+            if (!periodNum) continue;
+
+            const targetDesc = `${matchPrefix}${periodNum}교시`;
+            const entry = timetable.find((t: any) =>
+                t.description === targetDesc ||
+                (t.description?.includes(matchPrefix) && t.description?.includes(`${periodNum}교시`))
+            );
+
+            if (entry && entry.end_time) {
+                const [hours, minutes, seconds] = entry.end_time.split(':').map(Number);
+                const dynamicEnd = new Date(requestDate);
+                dynamicEnd.setHours(hours, minutes, seconds || 0, 0);
+                if (!latestEnd || dynamicEnd > latestEnd) {
+                    latestEnd = dynamicEnd;
+                }
+            }
         }
 
-        return new Date(req.end_time);
+        if (latestEnd && baseEndTime) {
+            return latestEnd > baseEndTime ? latestEnd : baseEndTime;
+        }
+        return latestEnd || baseEndTime;
     };
 
     const isRequestActive = (req: any) => {
@@ -104,11 +128,12 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
         if (endTime < now) return false;
 
         if (endTime.getHours() >= 23 && req.period) {
-            const isDaytime = req.period.includes('주간') || req.period.includes('오전') || req.period.includes('오후');
+            const hasNight = req.period.includes('야간');
+            const isDaytimeOnly = !hasNight && (req.period.includes('주간') || req.period.includes('오전') || req.period.includes('오후'));
             const isHoliday = isDateHoliday(now);
             if (timetable.length > 0) return true;
-            if (isDaytime && !isHoliday && now.getHours() >= 19) return false;
-            if (isDaytime && isHoliday && now.getHours() >= 18) return false;
+            if (isDaytimeOnly && !isHoliday && now.getHours() >= 19) return false;
+            if (isDaytimeOnly && isHoliday && now.getHours() >= 18) return false;
         }
         return true;
     };

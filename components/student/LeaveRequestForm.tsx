@@ -15,6 +15,8 @@ interface LeaveRequestFormProps {
     teachers: Teacher[];
     onSubmitSuccess: () => void;
     initialData?: any; // New prop for copy
+    actualLoginId?: string;
+    onSwitchStudent?: (studentId: string) => void;
 }
 
 const CustomDropdownIndicator = (props: any) => {
@@ -32,7 +34,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
     students,
     teachers,
     onSubmitSuccess,
-    initialData
+    initialData,
+    actualLoginId,
+    onSwitchStudent
 }) => {
     const leaveTypes = ['컴이석', '이석', '외출', '외박', '자리비움'];
 
@@ -656,11 +660,49 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
     const allOptions = [...classOptions, ...studentOptions];
 
+    const isMasterAdmin = React.useMemo(() => {
+        if (!actualLoginId) return false;
+        const adminStudent = students.find(s => s.student_id === actualLoginId);
+        return (adminStudent?.grade === 3 && adminStudent?.class === 3 && adminStudent?.number === 17 && adminStudent?.name === '홍길동') || actualLoginId === '3317홍길동';
+    }, [actualLoginId, students]);
+
     return (
         <div className="flex flex-col w-full max-w-xl mx-auto relative">
-            <div className="flex items-center gap-2 mb-4">
-                <div className="w-1.5 h-6 bg-[#FF6F61] rounded-full"></div>
-                <h1 className="text-xl font-extrabold text-gray-800">이석 신청</h1>
+            <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-6 bg-[#FF6F61] rounded-full"></div>
+                    <h1 className="text-xl font-extrabold text-gray-800">이석 신청</h1>
+                </div>
+
+                {isMasterAdmin && onSwitchStudent && (
+                    <div className="flex items-center gap-1.5 ml-auto">
+                        <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md shrink-0">
+                            대리/조회
+                        </span>
+                        <select
+                            value={studentId}
+                            onChange={(e) => onSwitchStudent(e.target.value)}
+                            className="text-xs font-bold text-gray-800 bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6F61] cursor-pointer"
+                        >
+                            <option value={actualLoginId}>
+                                ⭐ {actualLoginId} (본인)
+                            </option>
+                            <optgroup label="전교생 목록">
+                                {students
+                                    .filter(s => s.student_id !== actualLoginId)
+                                    .sort((a, b) => a.student_id.localeCompare(b.student_id, undefined, { numeric: true }))
+                                    .map(s => {
+                                        const label = s.student_id.includes(s.name) ? s.student_id : `${s.student_id} ${s.name}`;
+                                        return (
+                                            <option key={s.student_id} value={s.student_id}>
+                                                {label}
+                                            </option>
+                                        );
+                                    })}
+                            </optgroup>
+                        </select>
+                    </div>
+                )}
             </div>
 
             <div className="flex flex-col gap-2 mb-4">
