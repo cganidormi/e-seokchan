@@ -307,6 +307,27 @@ export default function DashboardMain() {
             const targetYear = nextMonthDate.getFullYear();
             const targetMonth = nextMonthDate.getMonth() + 1;
 
+            // 위반 학생 집계 범위 (점호 사이클: 18:00 ~ 익일 09:00)
+            const isToday = isSameDay(now, selectedDate);
+            let violationStart: Date;
+            let violationEnd: Date;
+
+            if (isToday) {
+                if (now.getHours() < 18) {
+                    // 새벽/오전/낮(00:00~17:59) 조회 시: 어제 18:00 ~ 오늘 09:00
+                    violationStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 18, 0, 0, 0);
+                    violationEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0, 0);
+                } else {
+                    // 저녁/야간(18:00~23:59) 조회 시: 오늘 18:00 ~ 내일 09:00
+                    violationStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0, 0);
+                    violationEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
+                }
+            } else {
+                // 특정 과거/미래 날짜 조회 시: 해당일 18:00 ~ 익일 09:00
+                violationStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 18, 0, 0, 0);
+                violationEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() + 1, 9, 0, 0, 0);
+            }
+
             // Parallel Data Fetching
             const [
                 studentsRes,
@@ -328,8 +349,8 @@ export default function DashboardMain() {
                 supabase.from('morning_checks')
                     .select('id, student_id, checked_at, note')
                     .eq('type', 'late')
-                    .gte('checked_at', startOfDay.toISOString())
-                    .lte('checked_at', endOfDay.toISOString()),
+                    .gte('checked_at', violationStart.toISOString())
+                    .lte('checked_at', violationEnd.toISOString()),
                 supabase.from("room_layouts").select("room_number, total_seats"),
                 supabase.from("seat_assignments").select("room_number, student_id"),
                 supabase.from("monthly_return_applications")
@@ -988,7 +1009,10 @@ export default function DashboardMain() {
                                 <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center p-1.5 shadow-sm">
                                     <img src="/yellow_card.svg" className="w-full h-full object-contain" alt="Yellow Card" />
                                 </div>
-                                <span className="font-bold text-rose-900 text-[12px]">생활지도 위반자</span>
+                                <div>
+                                    <span className="font-bold text-rose-900 text-[12px] block leading-tight">생활지도 위반자</span>
+                                    <span className="text-[10px] text-rose-500 font-semibold">18:00 ~ 익일 09:00</span>
+                                </div>
                             </div>
                             <span className="text-[12px] font-bold text-rose-600">{stats.violationCount}명</span>
                         </div>
@@ -1257,6 +1281,7 @@ export default function DashboardMain() {
                 key="main-violation-stats-modal"
                 isOpen={isViolationStatsOpen}
                 onClose={() => setIsViolationStatsOpen(false)}
+                selectedDate={selectedDate}
             />
 
             {isWeeklyListModalOpen && (

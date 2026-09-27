@@ -102,11 +102,18 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
 }) => {
     const [students, setStudents] = useState<Student[]>([]);
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+    const getLocalDateString = (date = new Date()) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [selectedViolation, setSelectedViolation] = useState<ViolationId>('스토퍼 미설치');
-    const [checkDate, setCheckDate] = useState(new Date().toISOString().split('T')[0]);
+    const [checkDate, setCheckDate] = useState(() => getLocalDateString());
 
     const activeViolation = VIOLATION_TYPES.find(v => v.id === selectedViolation)!;
     const colors = COLOR_MAP[activeViolation.color];
@@ -116,7 +123,7 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
             fetchStudents();
             setSearchTerm('');
             setSelectedStudentIds(initialSelectedStudentIds || []);
-            setCheckDate(new Date().toISOString().split('T')[0]);
+            setCheckDate(getLocalDateString());
             setSelectedViolation('스토퍼 미설치');
             document.body.style.overflow = 'hidden';
         } else {
@@ -167,9 +174,9 @@ export const MorningCheckoutModal: React.FC<MorningCheckoutModalProps> = ({
 
         setIsSaving(true);
         try {
-            const timestamp = new Date(checkDate);
+            const [y, m, d] = checkDate.split('-').map(Number);
             const now = new Date();
-            timestamp.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+            const timestamp = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
 
             const payload = selectedStudentIds.map(id => ({
                 student_id: id,

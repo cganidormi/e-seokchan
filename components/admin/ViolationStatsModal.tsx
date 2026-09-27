@@ -13,6 +13,7 @@ interface ViolationStatsModalProps {
     isOpen: boolean;
     onClose: () => void;
     initialFilter?: 'today' | 'month';
+    selectedDate?: Date;
 }
 
 interface StudentViolationCount extends Student {
@@ -29,7 +30,7 @@ const VIOLATION_ICONS: Record<string, React.ElementType> = {
     '퇴실수칙 불이행': FaSignOutAlt
 };
 
-export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen, onClose, initialFilter = 'today' }) => {
+export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen, onClose, initialFilter = 'today', selectedDate }) => {
     const [students, setStudents] = useState<StudentViolationCount[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -61,7 +62,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
         if (isOpen) {
             fetchStats();
         }
-    }, [isOpen, selectedMonth, filterType]);
+    }, [isOpen, selectedMonth, filterType, selectedDate]);
 
     const fetchStats = async () => {
         setIsLoading(true);
@@ -74,17 +75,29 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
             let startISO: string, endISO: string;
             if (filterType === 'today') {
                 const now = new Date();
+                const target = selectedDate ? new Date(selectedDate) : now;
+                const isTargetToday = 
+                    target.getFullYear() === now.getFullYear() &&
+                    target.getMonth() === now.getMonth() &&
+                    target.getDate() === now.getDate();
+
                 let start: Date;
                 let end: Date;
 
-                if (now.getHours() < 19) {
-                    // 19시 이전(새벽/오전/낮) 조회 시: 전일 19:00 ~ 당일 09:00
-                    start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 19, 0, 0, 0);
-                    end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0, 0);
+                if (isTargetToday) {
+                    if (now.getHours() < 18) {
+                        // 새벽/오전/낮(00:00~17:59) 조회 시: 어제 18:00 ~ 오늘 09:00
+                        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 18, 0, 0, 0);
+                        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0, 0);
+                    } else {
+                        // 저녁/야간(18:00~23:59) 조회 시: 오늘 18:00 ~ 내일 09:00
+                        start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0, 0);
+                        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
+                    }
                 } else {
-                    // 19시 이후(야간/점호) 조회 시: 당일 19:00 ~ 익일 09:00
-                    start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 19, 0, 0, 0);
-                    end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
+                    // 특정 과거/미래 날짜 조회 시: 해당일 18:00 ~ 익일 09:00
+                    start = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 18, 0, 0, 0);
+                    end = new Date(target.getFullYear(), target.getMonth(), target.getDate() + 1, 9, 0, 0, 0);
                 }
 
                 startISO = start.toISOString();

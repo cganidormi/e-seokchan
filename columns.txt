@@ -7,5 +7,8 @@
   "number",
   "weekend",
   "student_id",
-  "parent_token"
+  "parent_token",
+  "room_number",
+  "personal_notice",
+  "bed_position"
 ]
