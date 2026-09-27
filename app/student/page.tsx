@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/supabaseClient';
 import { Toaster } from 'react-hot-toast';
@@ -34,6 +34,11 @@ export default function StudentPage() {
   const [targetStudentId, setTargetStudentId] = useState('all');
   const [showRoomInfo, setShowRoomInfo] = useState(false);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
+
+  // Reservation Notice State (3317 Admin)
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledDateTime, setScheduledDateTime] = useState('');
+  const [pendingSchedules, setPendingSchedules] = useState<any[]>([]);
 
   const router = useRouter(); // Initialized useRouter
 
@@ -157,8 +162,15 @@ export default function StudentPage() {
       )
       .subscribe();
 
+    // Check due scheduled notices periodically every minute
+    const checkScheduledDue = () => {
+      fetch('/api/student/update-notice').catch(() => {});
+    };
+    const noticeInterval = setInterval(checkScheduledDue, 60 * 1000);
+
     return () => {
       supabase.removeChannel(noticeChannel);
+      clearInterval(noticeInterval);
     };
   }, []);
 
@@ -401,11 +413,78 @@ export default function StudentPage() {
     }
   };
 
+  const fetchPendingSchedules = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/student/update-notice?student_id=${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.scheduled_notices)) {
+        setPendingSchedules(data.scheduled_notices);
+      }
+    } catch (e) {
+      console.error('Failed to fetch pending schedules:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (actualLoginId && (actualLoginId === '3317홍길동' || actualLoginId.startsWith('3317'))) {
+      fetchPendingSchedules(actualLoginId);
+
+      const scheduledNoticeChannel = supabase
+        .channel('public:system_settings:scheduled_notices')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'system_settings', filter: 'setting_key=eq.scheduled_student_notices' },
+          () => {
+            fetchPendingSchedules(actualLoginId);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(scheduledNoticeChannel);
+      };
+    }
+  }, [actualLoginId, fetchPendingSchedules]);
+
+  const handleCancelSchedule = async (scheduledId: string) => {
+    if (!confirm('예약된 공지를 취소하시겠습니까?')) return;
+    try {
+      const res = await fetch('/api/student/update-notice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: actualLoginId || studentId,
+          action: 'cancel_schedule',
+          scheduled_id: scheduledId
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || '취소 실패');
+      toast.success('예약이 성공적으로 취소되었습니다.');
+      if (actualLoginId) fetchPendingSchedules(actualLoginId);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
   const handleSaveNotice = async () => {
     if (!editNoticeContent.trim()) {
       toast.error('안내 내용을 입력해주세요.');
       return;
     }
+
+    if (isScheduled) {
+      if (!scheduledDateTime) {
+        toast.error('예약 일시를 선택해주세요.');
+        return;
+      }
+      const schedTime = new Date(scheduledDateTime).getTime();
+      if (isNaN(schedTime) || schedTime <= Date.now()) {
+        toast.error('예약 일시는 현재 시간 이후여야 합니다.');
+        return;
+      }
+    }
+
     setIsSavingNotice(true);
     const payloadNoticeText = targetStudentId === 'all'
       ? `${editNoticeContent}\n__ROOM_PUBLIC:${showRoomInfo}__`
@@ -416,32 +495,47 @@ export default function StudentPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          student_id: studentId,
+          student_id: actualLoginId || studentId,
           target_student_id: targetStudentId,
           new_notice_text: payloadNoticeText,
-          send_push: sendPushNotification
+          send_push: sendPushNotification,
+          is_scheduled: isScheduled,
+          scheduled_at: isScheduled ? new Date(scheduledDateTime).toISOString() : undefined
         })
       });
       const result = await res.json();
       if (!res.ok || !result.success) throw new Error(result.error || '저장 실패');
 
-      if (sendPushNotification) {
-        toast.success(targetStudentId === 'all' ? '전체 공지가 업데이트되고 푸시 알림이 발송되었습니다.' : '개별 공지가 업데이트되고 푸시 알림이 발송되었습니다.');
+      if (isScheduled) {
+        const formattedDate = new Date(scheduledDateTime).toLocaleString('ko-KR', {
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        });
+        toast.success(`공지가 ${formattedDate}에 예약되었습니다.`);
+        if (actualLoginId) fetchPendingSchedules(actualLoginId);
       } else {
-        toast.success('공지 내용만 조용히 업데이트되었습니다. (푸시 알림 미발송)');
+        if (sendPushNotification) {
+          toast.success(targetStudentId === 'all' ? '전체 공지가 업데이트되고 푸시 알림이 발송되었습니다.' : '개별 공지가 업데이트되고 푸시 알림이 발송되었습니다.');
+        } else {
+          toast.success('공지 내용만 조용히 업데이트되었습니다. (푸시 알림 미발송)');
+        }
+
+        if (targetStudentId === 'all') {
+          setNoticeText(editNoticeContent);
+          setStudents(prev => prev.map(s => ({ ...s, personal_notice: undefined } as any)));
+        } else {
+          setStudents(prev => prev.map(s =>
+            s.student_id === targetStudentId
+              ? { ...s, personal_notice: editNoticeContent } as any
+              : s
+          ));
+        }
       }
       setIsEditingNotice(false);
-
-      if (targetStudentId === 'all') {
-        setNoticeText(editNoticeContent);
-        setStudents(prev => prev.map(s => ({ ...s, personal_notice: undefined } as any)));
-      } else {
-        setStudents(prev => prev.map(s =>
-          s.student_id === targetStudentId
-            ? { ...s, personal_notice: editNoticeContent } as any
-            : s
-        ));
-      }
+      setIsScheduled(false);
       setTargetStudentId('all');
     } catch (e: any) {
       toast.error(e.message);
@@ -601,11 +695,12 @@ export default function StudentPage() {
                 onClick={() => {
                   setTargetStudentId('all');
                   setEditNoticeContent(noticeText);
+                  setIsScheduled(false);
                   setIsEditingNotice(true);
                 }}
-                className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold hover:bg-amber-200 transition whitespace-nowrap ml-2"
+                className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold hover:bg-amber-200 transition whitespace-nowrap ml-2 cursor-pointer"
               >
-                ✏️ 수정
+                ✏️ 수정 / 예약
               </button>
             )}
           </div>
@@ -639,6 +734,69 @@ export default function StudentPage() {
                 className="w-full text-sm p-2 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-400 min-h-[60px] resize-none text-gray-900 font-medium"
                 placeholder="공지내용 입력..."
               />
+
+              {/* 게시 방식 선택: 즉시 게시 vs 예약 게시 */}
+              <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-700">게시 방식:</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduled(false)}
+                    className={`text-xs px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${
+                      !isScheduled
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : 'bg-white border border-amber-300 text-gray-700 hover:bg-amber-100'
+                    }`}
+                  >
+                    ⚡ 즉시 게시
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsScheduled(true);
+                      if (!scheduledDateTime) {
+                        const d = new Date(Date.now() + 60 * 60 * 1000);
+                        d.setMinutes(Math.ceil(d.getMinutes() / 10) * 10, 0, 0);
+                        const pad = (n: number) => n.toString().padStart(2, '0');
+                        setScheduledDateTime(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+                      }
+                    }}
+                    className={`text-xs px-2.5 py-1 rounded-md font-bold transition cursor-pointer flex items-center gap-1 ${
+                      isScheduled
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : 'bg-white border border-amber-300 text-gray-700 hover:bg-amber-100'
+                    }`}
+                  >
+                    ⏰ 예약 게시
+                  </button>
+                </div>
+
+                {/* 예약 시간 설정 */}
+                {isScheduled && (
+                  <div className="pt-1.5 border-t border-amber-200 space-y-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5">
+                      <label className="text-xs font-bold text-amber-900 shrink-0">
+                        📅 예약 일시:
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={scheduledDateTime}
+                        onChange={(e) => setScheduledDateTime(e.target.value)}
+                        min={(() => {
+                          const now = new Date();
+                          const pad = (n: number) => n.toString().padStart(2, '0');
+                          return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+                        })()}
+                        className="text-xs p-1.5 border border-amber-300 rounded bg-white font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <p className="text-[11px] text-amber-800 font-medium">
+                      ※ 설정한 시각에 자동으로 학생 전광판에 반영되며, 알림 체크 시 푸시 알림도 예약 시간에 맞춰 전송됩니다.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
                 <label className="flex items-center gap-1.5 text-xs text-amber-900 font-bold cursor-pointer select-none">
                   <input
@@ -650,9 +808,9 @@ export default function StudentPage() {
                   <span>📱 푸시 알림 함께 발송하기</span>
                 </label>
                 <div className="flex justify-end gap-2 shrink-0">
-                  <button onClick={() => setIsEditingNotice(false)} className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-bold rounded hover:bg-gray-300 cursor-pointer">취소</button>
+                  <button onClick={() => { setIsEditingNotice(false); setIsScheduled(false); }} className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-bold rounded hover:bg-gray-300 cursor-pointer">취소</button>
                   <button onClick={handleSaveNotice} disabled={isSavingNotice} className="px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded hover:bg-amber-600 disabled:opacity-50 cursor-pointer">
-                    {isSavingNotice ? '저장 중...' : '저장하기'}
+                    {isSavingNotice ? (isScheduled ? '예약 저장 중...' : '저장 중...') : (isScheduled ? '⏰ 예약 저장' : '저장하기')}
                   </button>
                 </div>
               </div>
@@ -661,6 +819,57 @@ export default function StudentPage() {
             <p className={`text-xs md:text-sm break-keep leading-relaxed font-medium whitespace-pre-wrap ${isPersonalNotice ? 'text-red-700 font-bold' : 'text-gray-700'}`}>
               {displayNoticeText}
             </p>
+          )}
+
+          {/* 3317 관리자 모드: 대기 중인 예약 공지 목록 표시 */}
+          {isNoticeAdmin && !isEditingNotice && pendingSchedules.length > 0 && (
+            <div className="mt-3 pt-2 border-t border-amber-200/80">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-bold text-amber-900 flex items-center gap-1">
+                  ⏰ 게시 대기 중인 예약 ({pendingSchedules.length}건)
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {pendingSchedules.map(sch => {
+                  const targetStudent = students.find(s => s.student_id === sch.target_student_id);
+                  const targetLabel = sch.target_student_id === 'all'
+                    ? '전체 학생'
+                    : targetStudent ? `${targetStudent.grade}-${targetStudent.class} ${targetStudent.name}` : sch.target_student_id;
+                  const cleanText = sch.notice_text.replace(/\n?__ROOM_PUBLIC:(true|false)__/, '').trim();
+                  const dateStr = new Date(sch.scheduled_at).toLocaleString('ko-KR', {
+                    month: 'numeric',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                  });
+
+                  return (
+                    <div key={sch.id} className="flex items-center justify-between bg-amber-50/80 border border-amber-200 rounded-md p-2 gap-2 text-xs">
+                      <div className="truncate flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="font-extrabold text-amber-800">[{dateStr} 게시 예정]</span>
+                          <span className="bg-amber-200/80 text-amber-900 px-1.5 py-0.2 rounded text-[10px] font-bold">
+                            {targetLabel}
+                          </span>
+                          {sch.send_push && (
+                            <span className="text-[10px] text-blue-600 font-bold">📱 알림발송</span>
+                          )}
+                        </div>
+                        <p className="text-gray-700 truncate font-medium">{cleanText}</p>
+                      </div>
+                      <button
+                        onClick={() => handleCancelSchedule(sch.id)}
+                        className="bg-red-100 hover:bg-red-200 text-red-700 px-2.5 py-1 rounded text-xs font-bold transition shrink-0 cursor-pointer"
+                        title="예약 취소"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
       </div>

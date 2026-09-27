@@ -1022,8 +1022,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 )}
                 style={!isSubmitting ? {
                     backgroundImage: `linear-gradient(to right, rgba(255, 111, 97, 0.35), rgba(255, 111, 97, 0.45)), url('/images/starry_crescent_coral.jpg')`,
-                    backgroundSize: '110% auto',
-                    backgroundPosition: 'right 12%'
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'right 8%',
+                    backgroundRepeat: 'no-repeat'
                 } : undefined}
             >
                 {isSubmitting && <div className="w-5 h-5 border-2 border-white/50 border-t-white rounded-full animate-spin"></div>}

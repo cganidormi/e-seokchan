@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
+import { processDueScheduledNotices } from '@/lib/scheduledNotice';
 
 export async function GET(request: Request) {
     return handleRemindUnapprovedStudent();
@@ -20,6 +21,13 @@ async function handleRemindUnapprovedStudent() {
         }
 
         const supabase = createClient(supabaseUrl, serviceKey);
+
+        // Process any due scheduled notices
+        try {
+            await processDueScheduledNotices(supabase);
+        } catch (e) {
+            console.error('[Cron] processDueScheduledNotices error:', e);
+        }
 
         if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
             webpush.setVapidDetails(
