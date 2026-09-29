@@ -71,6 +71,27 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
     const [targetDate, setTargetDate] = useState<Date>(new Date());
     const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
 
+    // Keep targetDate in sync with current date if it is in the past (e.g. mobile browser kept in background)
+    React.useEffect(() => {
+        const syncDateIfPast = () => {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            setTargetDate(prev => {
+                const prevStart = new Date(prev);
+                prevStart.setHours(0, 0, 0, 0);
+                return prevStart < todayStart ? new Date() : prev;
+            });
+        };
+
+        syncDateIfPast();
+        window.addEventListener('focus', syncDateIfPast);
+        document.addEventListener('visibilitychange', syncDateIfPast);
+        return () => {
+            window.removeEventListener('focus', syncDateIfPast);
+            document.removeEventListener('visibilitychange', syncDateIfPast);
+        };
+    }, []);
+
     // Initialize login student and fetch holidays
     React.useEffect(() => {
         if (!studentId) return;
@@ -123,7 +144,14 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
         if (initialData.start_time) setStartDate(new Date(initialData.start_time));
         if (initialData.end_time) setEndDate(new Date(initialData.end_time));
-        if (initialData.start_time) setTargetDate(new Date(initialData.start_time)); // Set target date for leave/comp leave
+        if (initialData.start_time) {
+            const initDate = new Date(initialData.start_time);
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const initDateZero = new Date(initDate);
+            initDateZero.setHours(0, 0, 0, 0);
+            setTargetDate(initDateZero < todayStart ? new Date() : initDate);
+        }
 
         // Students are NOT copied by design (only current user applies)
     }, [initialData]);
@@ -139,6 +167,18 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             // Weekly Home Time Validation (Moved to after time calculation)
             const validationStudent = students.find(s => s.student_id === studentId);
 
+
+            const todayStart = new Date(now);
+            todayStart.setHours(0, 0, 0, 0);
+
+            if (leaveType === '이석' || leaveType === '컴이석') {
+                const targetDayStart = new Date(targetDate);
+                targetDayStart.setHours(0, 0, 0, 0);
+                if (targetDayStart < todayStart) {
+                    toast.error('과거 날짜로는 신청할 수 없습니다.');
+                    return;
+                }
+            }
 
             const isToday = targetDate.toDateString() === now.toDateString();
 
@@ -216,6 +256,12 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
             const startOfDay = new Date(checkDate);
             startOfDay.setHours(0, 0, 0, 0);
+
+            if (startOfDay < todayStart) {
+                toast.error('과거 날짜로는 신청할 수 없습니다.');
+                return;
+            }
+
             const endOfDay = (leaveType === '외박' && endDate) ? new Date(endDate) : new Date(checkDate);
             endOfDay.setHours(23, 59, 59, 999);
 
@@ -614,6 +660,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             setPeriods([]);
             setStartDate(null);
             setEndDate(null);
+            setTargetDate(new Date());
 
             // Reset students list to current user only
             const loginStudent = students.find(s => s.student_id === studentId);
@@ -884,12 +931,19 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     {/* Period selection for Leave/Computer Leave */}
                     {(leaveType === '컴이석' || leaveType === '이석') && (
                         <div className="flex flex-col gap-4 min-w-0">
-                            <DatePicker
-                                selected={targetDate}
-                                onChange={(date) => { if (date) { setTargetDate(date); setPeriods([]); } }}
-                                dateFormat="yyyy-MM-dd"
-                                className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full text-center shadow-sm cursor-pointer transition-all hover:border-[#FF6F61] font-bold text-gray-900"
-                            />
+                            {(() => {
+                                const minSelectableDate = new Date();
+                                minSelectableDate.setHours(0, 0, 0, 0);
+                                return (
+                                    <DatePicker
+                                        selected={targetDate}
+                                        onChange={(date) => { if (date) { setTargetDate(date); setPeriods([]); } }}
+                                        dateFormat="yyyy-MM-dd"
+                                        minDate={minSelectableDate}
+                                        className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full text-center shadow-sm cursor-pointer transition-all hover:border-[#FF6F61] font-bold text-gray-900"
+                                    />
+                                );
+                            })()}
                             <div className={clsx(
                                 "bg-white rounded-3xl border border-gray-100 shadow-sm p-3 w-full",
                                 "flex flex-row items-center justify-between gap-0.5" // Removed overflow-x-auto, added w-full behavior implicitly
@@ -949,27 +1003,40 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     )}
 
                     {/* Date range for Outing/Overnight */}
-                    {(leaveType === '외출' || leaveType === '외박') && (
-                        <div className="flex flex-col md:flex-row justify-between gap-4">
-                            <DatePicker selected={startDate} onChange={setStartDate} showTimeSelect timeIntervals={10} dateFormat="yyyy-MM-dd HH:mm" className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer text-gray-900" />
-                            <DatePicker
-                                selected={endDate}
-                                onChange={setEndDate}
-                                showTimeSelect
-                                timeIntervals={10}
-                                dateFormat="yyyy-MM-dd HH:mm"
-                                className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer text-gray-900"
-                                calendarContainer={({ className, children }) => (
-                                    <div className={clsx(className, "flex flex-col")}>
-                                        <div className="bg-yellow-50 text-red-500 text-xs font-bold p-2 text-center border-b border-yellow-100 rounded-t-md">
-                                            실제 학교에 돌아오는 시간을 설정하세요
+                    {(leaveType === '외출' || leaveType === '외박') && (() => {
+                        const minSelectableDate = new Date();
+                        minSelectableDate.setHours(0, 0, 0, 0);
+                        return (
+                            <div className="flex flex-col md:flex-row justify-between gap-4">
+                                <DatePicker
+                                    selected={startDate}
+                                    onChange={setStartDate}
+                                    showTimeSelect
+                                    timeIntervals={10}
+                                    dateFormat="yyyy-MM-dd HH:mm"
+                                    minDate={minSelectableDate}
+                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer text-gray-900"
+                                />
+                                <DatePicker
+                                    selected={endDate}
+                                    onChange={setEndDate}
+                                    showTimeSelect
+                                    timeIntervals={10}
+                                    dateFormat="yyyy-MM-dd HH:mm"
+                                    minDate={startDate || minSelectableDate}
+                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full shadow-sm cursor-pointer text-gray-900"
+                                    calendarContainer={({ className, children }) => (
+                                        <div className={clsx(className, "flex flex-col")}>
+                                            <div className="bg-yellow-50 text-red-500 text-xs font-bold p-2 text-center border-b border-yellow-100 rounded-t-md">
+                                                실제 학교에 돌아오는 시간을 설정하세요
+                                            </div>
+                                            <div className="relative">{children}</div>
                                         </div>
-                                        <div className="relative">{children}</div>
-                                    </div>
-                                )}
-                            />
-                        </div>
-                    )}
+                                    )}
+                                />
+                            </div>
+                        );
+                    })()}
 
                     {/* Details for Leave/Outing/Overnight (Exclude Computer Leave/Away) */}
                     {(leaveType !== '컴이석' && leaveType !== '자리비움' && leaveType !== '') && (
