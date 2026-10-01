@@ -228,11 +228,11 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             <div className="flex flex-col gap-3 pb-24">
                 {filtered.length === 0 ? (
                     <div
-                        className="relative overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-white/20 shadow-xl text-center flex flex-col items-center justify-center min-h-[140px] bg-cover bg-no-repeat transition-all"
+                        className="relative overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-white/30 shadow-md text-center flex flex-col items-center justify-center min-h-[140px] bg-[#FF6F61] bg-cover bg-no-repeat transition-all"
                         style={{
                             backgroundImage: `linear-gradient(to right, rgba(255, 111, 97, 0.35), rgba(255, 111, 97, 0.45)), url('/images/starry_crescent_coral.jpg')`,
-                            backgroundPosition: 'right 12%',
-                            backgroundSize: 'cover'
+                            backgroundSize: 'cover',
+                            backgroundPosition: '85% top'
                         }}
                     >
                         <div className="relative z-10 flex flex-col items-center justify-center gap-1.5">
