@@ -643,7 +643,7 @@ export default function StudentPage() {
 
       {/* Persistent Notification Warning */}
       {studentId && (
-        <NotificationPermissionBanner userId={studentId} userType="student" />
+        <NotificationPermissionBanner userId={actualLoginId || studentId} userType="student" />
       )}
 
       {/* Header */}

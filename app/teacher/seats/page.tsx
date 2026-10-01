@@ -711,8 +711,8 @@ export default function SeatManagementPage() {
     useEffect(() => {
         if (highlightedSeat && !isLoading) {
             const timer = setTimeout(() => {
-                const el = document.getElementById(`seat-card-${highlightedSeat}`) || 
-                           document.querySelector(`[data-seat-number="${highlightedSeat}"]`);
+                const el = document.getElementById(`seat-card-${highlightedSeat}`) ||
+                    document.querySelector(`[data-seat-number="${highlightedSeat}"]`);
                 if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
                 }
@@ -849,213 +849,213 @@ export default function SeatManagementPage() {
             <div className="p-4 md:p-6 pb-16 sm:pb-20 bg-gray-100 min-h-screen">
                 <Toaster />
 
-            <div className="flex flex-col w-full max-w-6xl mx-auto">
-                {/* Header & Controls */}
-                {/* Header & Controls */}
-                <div className="flex flex-col gap-4 mb-3">
-                    <div className="flex items-center justify-between gap-2 w-full">
-                        {/* Title & Room Segment Selector */}
-                        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                            <div className="flex items-center gap-1.5">
-                                <div className="w-1.5 h-6 bg-yellow-400 rounded-full shrink-0"></div>
-                                <h1 className="text-base sm:text-xl font-black text-gray-800 whitespace-nowrap">
-                                    현황모니터
-                                </h1>
+                <div className="flex flex-col w-full max-w-6xl mx-auto">
+                    {/* Header & Controls */}
+                    {/* Header & Controls */}
+                    <div className="flex flex-col gap-4 mb-3">
+                        <div className="flex items-center justify-between gap-2 w-full">
+                            {/* Title & Room Segment Selector */}
+                            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-1.5 h-6 bg-yellow-400 rounded-full shrink-0"></div>
+                                    <h1 className="text-base sm:text-xl font-black text-gray-800 whitespace-nowrap">
+                                        현황모니터
+                                    </h1>
+                                </div>
+
+                                {/* Room Selector Segment Tabs */}
+                                <div className="flex items-center gap-1 bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0">
+                                    {[1, 2, 3].map((room) => (
+                                        <button
+                                            key={room}
+                                            onClick={() => setSelectedRoom(room)}
+                                            className={clsx(
+                                                "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap",
+                                                selectedRoom === room
+                                                    ? "bg-yellow-400 text-yellow-950 shadow-md scale-105"
+                                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-300/60"
+                                            )}
+                                        >
+                                            제{room}실
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
-                            {/* Room Selector Segment Tabs */}
-                            <div className="flex items-center gap-1 bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0">
-                                {[1, 2, 3].map((room) => (
+                            {/* Seat Management Toggle (Top Right Corner) - Only for Authorized Roles */}
+                            {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자') && (
+                                <div className="flex items-center bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0 ml-auto">
                                     <button
-                                        key={room}
-                                        onClick={() => setSelectedRoom(room)}
+                                        onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
                                         className={clsx(
-                                            "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap",
-                                            selectedRoom === room
-                                                ? "bg-yellow-400 text-yellow-950 shadow-md scale-105"
-                                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-300/60"
+                                            "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center gap-1.5",
+                                            mode === 'edit'
+                                                ? "bg-gray-900 text-white shadow-sm"
+                                                : "bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
                                         )}
                                     >
-                                        제{room}실
+                                        <span>{mode === 'edit' ? '저장 & BACK' : '⚙️ 좌석 관리'}</span>
                                     </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Seat Management Toggle (Top Right Corner) - Only for Authorized Roles */}
-                        {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자') && (
-                            <div className="flex items-center bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0 ml-auto">
-                                <button
-                                    onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
-                                    className={clsx(
-                                        "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center gap-1.5",
-                                        mode === 'edit'
-                                            ? "bg-gray-900 text-white shadow-sm"
-                                            : "bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
-                                    )}
-                                >
-                                    <span>{mode === 'edit' ? '저장 & BACK' : '⚙️ 좌석 관리'}</span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col items-center gap-3 w-full">
-                        {/* Leave List Button */}
-                        <button
-                            onClick={() => router.push('/teacher')}
-                            className="w-full max-w-sm mx-auto py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
-                        >
-                            ← 이석현황 목록으로 돌아가기
-                        </button>
-
-                        {/* Pagination Dots (스와이프 넛지) - 2번 화면용 */}
-                        <div className="flex justify-center w-full">
-                            <SwipeNudgeDots currentIndex={1} className="bg-gray-200/70 py-1.5 px-4 rounded-full shadow-inner" />
-                        </div>
-                    </div>
-
-                    {/* Description Text & Search Bar Row */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 -mt-2">
-                        <p className="text-center sm:text-left text-xs text-red-500 leading-tight">
-                            학생이 자리에 없을 시 해당 학생 좌석을 더블터치 해 보세요.<br className="hidden sm:inline" />
-                            이석현황을 확인 하실수 있습니다.
-                        </p>
-
-                        {/* Student Seat Search Input */}
-                        <div className="relative w-full sm:w-auto min-w-[200px] max-w-[260px] shrink-0">
-                            <div className="relative flex items-center">
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="학생 자리 검색..."
-                                    className="w-full bg-white border border-gray-300 text-gray-800 text-[16px] sm:text-sm rounded-xl px-3 py-1.5 sm:py-2 pl-8 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-sm"
-                                    style={{ fontSize: '16px' }}
-                                />
-                                <span className="absolute left-2.5 text-gray-400 text-xs">🔍</span>
-                                {searchQuery && (
-                                    <button
-                                        onClick={() => setSearchQuery('')}
-                                        className="absolute right-2 text-gray-400 hover:text-gray-600 text-xs p-1"
-                                    >
-                                        ✕
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Search Results Dropdown */}
-                            {searchQuery.trim() && (
-                                <div className="absolute right-0 left-0 sm:left-auto sm:w-[260px] top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto">
-                                    {searchResults.length > 0 ? (
-                                        searchResults.map((res, idx) => (
-                                            <button
-                                                key={idx}
-                                                onClick={() => handleSelectSearchedStudent(res)}
-                                                className="w-full text-left px-3 py-2 text-xs hover:bg-yellow-50 border-b border-gray-100 last:border-0 flex items-center justify-between gap-2 transition-colors cursor-pointer"
-                                            >
-                                                <span className="font-bold text-gray-800 truncate">
-                                                    {res.displayName}
-                                                </span>
-                                                <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-md text-[11px] font-bold border border-yellow-200 shrink-0">
-                                                    제{res.room_number}실 {res.displaySeatNumber}번
-                                                </span>
-                                            </button>
-                                        ))
-                                    ) : (
-                                        <div className="px-3 py-3 text-xs text-gray-400 text-center font-medium">
-                                            배정된 학생이 없습니다
-                                        </div>
-                                    )}
                                 </div>
                             )}
                         </div>
-                    </div>
-                </div>
 
-                {/* Layout Settings (Only in Edit Mode) */}
-                {mode === 'edit' && (
-                    <div className="bg-white p-4 rounded-2xl shadow-sm mb-4 border border-gray-100 animate-in slide-in-from-top-2">
-                        {/* Top Row: Title & Priority Action (Reset) */}
-                        <div className="flex items-center justify-between mb-3">
-                            <h2 className="font-bold text-gray-700 flex items-center gap-2 text-sm md:text-base">
-                                <span>⚙️ 배정 관리</span>
-                            </h2>
+                        <div className="flex flex-col items-center gap-3 w-full">
+                            {/* Leave List Button */}
                             <button
-                                onClick={resetAllSeats}
-                                className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-100 hover:bg-red-100 transition-colors flex items-center gap-1"
+                                onClick={() => router.push('/teacher')}
+                                className="w-full max-w-sm mx-auto py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
                             >
-                                ⚠️ 이 열람실 배정 초기화
+                                ← 이석현황 목록으로 돌아가기
                             </button>
+
+                            {/* Pagination Dots (스와이프 넛지) - 2번 화면용 */}
+                            <div className="flex justify-center w-full">
+                                <SwipeNudgeDots currentIndex={1} className="bg-gray-200/70 py-1.5 px-4 rounded-full shadow-inner" />
+                            </div>
                         </div>
 
-                        {/* Collapsible Structure Control Area */}
-                        {!isEditingLayout ? (
-                            // Collapsed View (Read-Only)
-                            <div className="bg-gray-50 p-3 rounded-xl flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-xs text-gray-500">
-                                    <span>현재 구조:</span>
-                                    <span className="bg-white border border-gray-200 px-2 py-0.5 rounded font-bold text-gray-700">가로 {layout.columns}줄</span>
-                                    <span className="bg-white border border-gray-200 px-2 py-0.5 rounded font-bold text-gray-700">총 {layout.total_seats}석</span>
+                        {/* Description Text & Search Bar Row */}
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 -mt-2">
+                            <p className="text-center sm:text-left text-xs text-red-500 leading-tight">
+                                학생이 자리에 없을 시 해당 학생 좌석을 더블터치 해 보세요.<br className="hidden sm:inline" />
+                                이석현황을 확인 하실수 있습니다.
+                            </p>
+
+                            {/* Student Seat Search Input */}
+                            <div className="relative w-full sm:w-auto min-w-[200px] max-w-[260px] shrink-0">
+                                <div className="relative flex items-center">
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="학생 자리 검색..."
+                                        className="w-full bg-white border border-gray-300 text-gray-800 text-[16px] sm:text-sm rounded-xl px-3 py-1.5 sm:py-2 pl-8 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-sm"
+                                        style={{ fontSize: '16px' }}
+                                    />
+                                    <span className="absolute left-2.5 text-gray-400 text-xs">🔍</span>
+                                    {searchQuery && (
+                                        <button
+                                            onClick={() => setSearchQuery('')}
+                                            className="absolute right-2 text-gray-400 hover:text-gray-600 text-xs p-1"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
                                 </div>
+
+                                {/* Search Results Dropdown */}
+                                {searchQuery.trim() && (
+                                    <div className="absolute right-0 left-0 sm:left-auto sm:w-[260px] top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto">
+                                        {searchResults.length > 0 ? (
+                                            searchResults.map((res, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => handleSelectSearchedStudent(res)}
+                                                    className="w-full text-left px-3 py-2 text-xs hover:bg-yellow-50 border-b border-gray-100 last:border-0 flex items-center justify-between gap-2 transition-colors cursor-pointer"
+                                                >
+                                                    <span className="font-bold text-gray-800 truncate">
+                                                        {res.displayName}
+                                                    </span>
+                                                    <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-md text-[11px] font-bold border border-yellow-200 shrink-0">
+                                                        제{res.room_number}실 {res.displaySeatNumber}번
+                                                    </span>
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="px-3 py-3 text-xs text-gray-400 text-center font-medium">
+                                                배정된 학생이 없습니다
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Layout Settings (Only in Edit Mode) */}
+                    {mode === 'edit' && (
+                        <div className="bg-white p-4 rounded-2xl shadow-sm mb-4 border border-gray-100 animate-in slide-in-from-top-2">
+                            {/* Top Row: Title & Priority Action (Reset) */}
+                            <div className="flex items-center justify-between mb-3">
+                                <h2 className="font-bold text-gray-700 flex items-center gap-2 text-sm md:text-base">
+                                    <span>⚙️ 배정 관리</span>
+                                </h2>
                                 <button
-                                    onClick={() => setIsEditingLayout(true)}
-                                    className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
+                                    onClick={resetAllSeats}
+                                    className="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-100 hover:bg-red-100 transition-colors flex items-center gap-1"
                                 >
-                                    구조 변경하기 &gt;
+                                    ⚠️ 이 열람실 배정 초기화
                                 </button>
                             </div>
-                        ) : (
-                            // Expanded View (Editing)
-                            <div className="bg-gray-50 p-3 rounded-xl flex flex-col md:flex-row items-center justify-between gap-3 md:gap-0 animate-in fade-in zoom-in-95 duration-200">
-                                <div className="flex items-center gap-3 w-full md:w-auto">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[11px] font-bold text-gray-500">가로</span>
-                                        <input
-                                            type="number"
-                                            value={tempLayout.columns}
-                                            onChange={e => setTempLayout({ ...tempLayout, columns: parseInt(e.target.value) || 1 })}
-                                            className="bg-white border border-gray-200 rounded-lg px-2 py-1 w-12 text-center font-bold text-sm text-gray-700 focus:outline-none focus:border-yellow-400"
-                                        />
-                                        <span className="text-[11px] font-bold text-gray-500">줄</span>
-                                    </div>
-                                    <div className="w-px h-4 bg-gray-300"></div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[11px] font-bold text-gray-500">총</span>
-                                        <input
-                                            type="number"
-                                            value={tempLayout.total_seats}
-                                            onChange={e => setTempLayout({ ...tempLayout, total_seats: parseInt(e.target.value) || 1 })}
-                                            className="bg-white border border-gray-200 rounded-lg px-2 py-1 w-12 text-center font-bold text-sm text-gray-700 focus:outline-none focus:border-yellow-400"
-                                        />
-                                        <span className="text-[11px] font-bold text-gray-500">석</span>
-                                    </div>
-                                </div>
 
-                                <div className="flex gap-2 w-full md:w-auto justify-end">
+                            {/* Collapsible Structure Control Area */}
+                            {!isEditingLayout ? (
+                                // Collapsed View (Read-Only)
+                                <div className="bg-gray-50 p-3 rounded-xl flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                        <span>현재 구조:</span>
+                                        <span className="bg-white border border-gray-200 px-2 py-0.5 rounded font-bold text-gray-700">가로 {layout.columns}줄</span>
+                                        <span className="bg-white border border-gray-200 px-2 py-0.5 rounded font-bold text-gray-700">총 {layout.total_seats}석</span>
+                                    </div>
                                     <button
-                                        onClick={saveLayout}
-                                        className="px-3 py-1.5 bg-blue-500 rounded-lg text-white font-bold text-xs hover:bg-blue-600 transition-colors shadow-sm"
+                                        onClick={() => setIsEditingLayout(true)}
+                                        className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
                                     >
-                                        저장
-                                    </button>
-                                    <button
-                                        onClick={() => { setIsEditingLayout(false); setTempLayout(layout); }}
-                                        className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-500 font-bold text-xs hover:bg-gray-50 transition-colors"
-                                    >
-                                        취소
+                                        구조 변경하기 &gt;
                                     </button>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                )}
+                            ) : (
+                                // Expanded View (Editing)
+                                <div className="bg-gray-50 p-3 rounded-xl flex flex-col md:flex-row items-center justify-between gap-3 md:gap-0 animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="flex items-center gap-3 w-full md:w-auto">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[11px] font-bold text-gray-500">가로</span>
+                                            <input
+                                                type="number"
+                                                value={tempLayout.columns}
+                                                onChange={e => setTempLayout({ ...tempLayout, columns: parseInt(e.target.value) || 1 })}
+                                                className="bg-white border border-gray-200 rounded-lg px-2 py-1 w-12 text-center font-bold text-sm text-gray-700 focus:outline-none focus:border-yellow-400"
+                                            />
+                                            <span className="text-[11px] font-bold text-gray-500">줄</span>
+                                        </div>
+                                        <div className="w-px h-4 bg-gray-300"></div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[11px] font-bold text-gray-500">총</span>
+                                            <input
+                                                type="number"
+                                                value={tempLayout.total_seats}
+                                                onChange={e => setTempLayout({ ...tempLayout, total_seats: parseInt(e.target.value) || 1 })}
+                                                className="bg-white border border-gray-200 rounded-lg px-2 py-1 w-12 text-center font-bold text-sm text-gray-700 focus:outline-none focus:border-yellow-400"
+                                            />
+                                            <span className="text-[11px] font-bold text-gray-500">석</span>
+                                        </div>
+                                    </div>
 
-                {/* Seat Grid */}
-                <div className="min-h-[500px]">
-                    <div className="w-full">
-                        {/* Sticky Header Row */}
-                        {mode === 'monitor' && activePeriods.length > 0 && (
+                                    <div className="flex gap-2 w-full md:w-auto justify-end">
+                                        <button
+                                            onClick={saveLayout}
+                                            className="px-3 py-1.5 bg-blue-500 rounded-lg text-white font-bold text-xs hover:bg-blue-600 transition-colors shadow-sm"
+                                        >
+                                            저장
+                                        </button>
+                                        <button
+                                            onClick={() => { setIsEditingLayout(false); setTempLayout(layout); }}
+                                            className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-gray-500 font-bold text-xs hover:bg-gray-50 transition-colors"
+                                        >
+                                            취소
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Seat Grid */}
+                    <div className="min-h-[500px]">
+                        <div className="w-full">
+                            {/* Sticky Header Row */}
+                            {mode === 'monitor' && activePeriods.length > 0 && (
                                 <div
                                     className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b-2 border-gray-100 shadow-sm grid gap-0 text-left w-full"
                                     style={{
@@ -1297,11 +1297,11 @@ export default function SeatManagementPage() {
                                                                 )}>
                                                                     {assignment.student?.student_id?.replace(/^\d+/, '').trim()}
                                                                 </span>
-                                                                 {hasAwayConflict ? (
-                                                                     <span className="text-[8px] sm:text-[9px] ml-0.5 px-1 py-0.2 bg-red-600 text-white rounded font-bold shrink-0">⚠️비+{currentActiveLeave?.leave_type === '컴이석' ? '컴' : '이'}</span>
-                                                                 ) : (
-                                                                     activeLeaveReq?.leave_type === '자리비움' && <span className="text-[8px] sm:text-[9px] ml-0.5 sm:ml-1 font-normal hidden sm:inline">자리비움</span>
-                                                                 )}
+                                                                {hasAwayConflict ? (
+                                                                    <span className="text-[8px] sm:text-[9px] ml-0.5 px-1 py-0.2 bg-red-600 text-white rounded font-bold shrink-0">⚠️비+{currentActiveLeave?.leave_type === '컴이석' ? '컴' : '이'}</span>
+                                                                ) : (
+                                                                    activeLeaveReq?.leave_type === '자리비움' && <span className="text-[8px] sm:text-[9px] ml-0.5 sm:ml-1 font-normal hidden sm:inline">자리비움</span>
+                                                                )}
                                                                 {isWeeklyHome && <span className="text-[8px] sm:text-[9px] ml-auto font-normal text-white/90">귀가</span>}
                                                             </span>
                                                         </div>
@@ -1381,252 +1381,252 @@ export default function SeatManagementPage() {
                                 })}
                             </div>
                         </div>
-                </div>
-            </div>
-
-
-            {/* Assignment Modal */}
-            {
-                isModalOpen && (
-                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                        <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100">
-                            {(() => {
-                                if (selectedSeat === null) return null;
-                                const disabledCountBefore = seatProperties.filter(p => p.seat_number < selectedSeat && p.is_disabled).length;
-                                const displaySeatNum = selectedSeat - disabledCountBefore;
-                                const isCurrentDisabled = seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled;
-
-                                return (
-                                    <>
-                                        <h2 className="text-lg font-extrabold text-gray-800 mb-1">
-                                            {selectedRoom}열람실 {isCurrentDisabled ? '(비활성)' : `${displaySeatNum}번 좌석`} 관리
-                                            <span className="text-xs text-gray-400 font-normal ml-2">
-                                                (Slot #{selectedSeat})
-                                            </span>
-                                        </h2>
-                                        {(() => {
-                                            const assignment = assignments.find(a => a.seat_number === selectedSeat);
-                                            const awayReq = (assignment && activeLeaves.length > 0) ? activeLeaves.find(req =>
-                                                (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id)) &&
-                                                req.leave_type === '자리비움' &&
-                                                new Date(req.start_time) <= currentTime
-                                            ) : null;
-
-                                            if (awayReq) {
-                                                const start = new Date(awayReq.start_time);
-                                                const diffMins = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
-                                                return (
-                                                    <div className="bg-red-50 text-red-600 p-2 rounded-xl mb-4 flex items-center justify-between">
-                                                        <div>
-                                                            <p className="text-[10px] font-bold">현재 자리비움 중 ({diffMins}분 경과)</p>
-                                                        </div>
-                                                        <button
-                                                            onClick={async () => {
-                                                                const { error } = await supabase.from('leave_requests').update({ status: '취소' }).eq('id', awayReq.id);
-                                                                if (!error) {
-                                                                    toast.success('자리비움이 해제되었습니다.');
-                                                                    fetchLiveStatus(selectedRoom);
-                                                                    setIsModalOpen(false);
-                                                                }
-                                                            }}
-                                                            className="text-[10px] bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-red-600 transition-colors"
-                                                        >
-                                                            즉시 해제
-                                                        </button>
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-                                    </>
-                                );
-                            })()}
-
-                            <div className="mb-6">
-                                <label className="block text-xs font-bold text-gray-400 mb-2">학생 선택</label>
-                                <Select
-                                    autoFocus
-                                    options={students
-                                        .filter(s => !assignments.some(a => a.student_id === s.student_id)) // Filter out already assigned students
-                                        .map(s => ({
-                                            value: s.student_id,
-                                            label: `${s.student_id} ${s.name}`,
-                                            student: s
-                                        }))}
-                                    onChange={(option: any) => {
-                                        assignStudent(option.value);
-                                    }}
-                                    placeholder="이름 또는 학번 검색..."
-                                    styles={{
-                                        control: (base) => ({
-                                            ...base,
-                                            borderRadius: '1rem',
-                                            padding: '4px',
-                                            borderColor: '#e5e7eb',
-                                            boxShadow: 'none',
-                                            '&:hover': { borderColor: '#fbbf24' }
-                                        }),
-                                        option: (base, state) => ({
-                                            ...base,
-                                            backgroundColor: state.isFocused ? '#fefce8' : 'white',
-                                            color: '#1f2937',
-                                            fontWeight: '500',
-                                            cursor: 'pointer'
-                                        })
-                                    }}
-                                />
-                            </div>
-
-                            <div className="flex gap-2">
-                                {/* Disable Toggle (Priority) */}
-                                <button
-                                    onClick={() => toggleSeatDisabled(selectedSeat)}
-                                    className={clsx(
-                                        "flex-1 py-3 font-bold rounded-xl transition-colors",
-                                        seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled
-                                            ? "bg-green-100 text-green-600 hover:bg-green-200"
-                                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                                    )}
-                                >
-                                    {seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled ? "⭕ 좌석 활성화" : "🚫 좌석 비활성화"}
-                                </button>
-                            </div>
-                            <div className="h-px bg-gray-100 my-4" />
-
-                            <div className="flex gap-2">
-                                {/* If assigned, show remove button */}
-                                {assignments.find(a => a.seat_number === selectedSeat) && (
-                                    <button
-                                        onClick={() => assignStudent(null)}
-                                        className="flex-1 py-3 bg-red-50 text-red-500 font-bold rounded-xl hover:bg-red-100 transition-colors"
-                                    >
-                                        배정 해제
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => { setIsModalOpen(false); setSelectedSeat(null); }}
-                                    className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors"
-                                >
-                                    닫기
-                                </button>
-                            </div>
-                        </div>
                     </div>
-                )
-            }
+                </div>
 
-            {/* Student History Modal */}
-            {isHistoryModalOpen && historyStudent && (
-                <div
-                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
-                    onClick={() => {
-                        setIsHistoryModalOpen(false);
-                        setExpandedHistoryId(null);
-                        setHistoryMenuId(null);
-                    }}
-                >
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-5 border-b border-gray-100 flex flex-col relative bg-white shrink-0">
-                            {/* Close Button Top Right */}
-                            <button
-                                onClick={() => {
-                                    setIsHistoryModalOpen(false);
-                                    setExpandedHistoryId(null);
-                                    setHistoryMenuId(null);
-                                }}
-                                className="absolute top-4 right-4 p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400"
-                            >
-                                ✕
-                            </button>
 
-                            {/* Center Content - Horizontal Layout */}
-                            <div className="flex items-center justify-center gap-6 mt-4 mb-4">
-                                {/* Student Info - ID Only */}
-                                <h3 className="text-3xl font-black text-gray-800 tracking-tight">{historyStudent.student_id}</h3>
-
-                                {/* Call Button Group */}
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={async (e) => {
-                                            e.stopPropagation();
-                                            if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
-                                            try {
-                                                const res = await fetch('/api/teacher/summon', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({
-                                                        studentId: historyStudent.student_id,
-                                                        teacherName: teacherName
-                                                    })
-                                                });
-                                                const data = await res.json();
-
-                                                if (res.ok) {
-                                                    toast.success('호출 알림을 보냈습니다.');
-                                                } else {
-                                                    // Display specific error message from server
-                                                    toast.error(data.error || '호출 실패');
-                                                }
-                                            } catch (err) {
-                                                console.error('Call failed:', err);
-                                                toast.error('호출 중 네트워크 오류가 발생했습니다.');
-                                            }
-                                        }}
-                                        className="p-3 rounded-xl bg-red-500 border-b-4 border-red-700 text-white hover:bg-red-400 hover:border-red-600 transition-all active:border-b-0 active:translate-y-1 shadow-lg flex items-center justify-center group"
-                                        title="호출"
-                                    >
-                                        <FaBell className="w-6 h-6 group-hover:animate-swing" />
-                                    </button>
-                                    <span className="text-[10px] font-bold text-red-500">호출</span>
-                                </div>
-                            </div>
-                            <div className="w-full text-center pb-2">
-                                <p className="text-xs text-gray-400 font-bold">최근 이석 기록 (30건)</p>
-                            </div>
-                        </div>
-
-                        <div className="overflow-y-auto p-4 flex flex-col gap-3.5 bg-gray-100/60 flex-1">
-                            {isHistoryLoading ? (
-                                <div className="py-14 flex flex-col items-center justify-center gap-3">
-                                    <div className="w-8 h-8 border-3 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-                                    <span className="text-xs text-gray-400 font-bold">이석 기록 불러오는 중...</span>
-                                </div>
-                            ) : historyRecords.length === 0 ? (
-                                <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
-                            ) : (
-                                historyRecords.map((rec) => {
-                                    const isPast = rec.status === '복귀' || rec.status === '취소' || rec.status === '반려' || new Date(rec.end_time) < currentTime;
-                                    const viewMode = isPast ? 'past' : 'active';
+                {/* Assignment Modal */}
+                {
+                    isModalOpen && (
+                        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                            <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100">
+                                {(() => {
+                                    if (selectedSeat === null) return null;
+                                    const disabledCountBefore = seatProperties.filter(p => p.seat_number < selectedSeat && p.is_disabled).length;
+                                    const displaySeatNum = selectedSeat - disabledCountBefore;
+                                    const isCurrentDisabled = seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled;
 
                                     return (
-                                        <LeaveProcessCard
-                                            key={rec.id}
-                                            req={rec as LeaveRequest}
-                                            isExpanded={expandedHistoryId === rec.id}
-                                            onToggleExpand={() => setExpandedHistoryId(expandedHistoryId === rec.id ? null : rec.id)}
-                                            isMenuOpen={historyMenuId === rec.id}
-                                            onToggleMenu={(e) => {
-                                                e.stopPropagation();
-                                                setHistoryMenuId(historyMenuId === rec.id ? null : rec.id);
-                                            }}
-                                            onUpdateStatus={(id, status) => {
-                                                setHistoryMenuId(null);
-                                                handleUpdateStatus(id, status);
-                                            }}
-                                            onCancel={handleCancelRequest}
-                                            viewMode={viewMode}
-                                            currentTeacherId={teacherId}
-                                            teacherPosition={teacherPosition}
-                                            showOpacityForPast={true}
-                                        />
+                                        <>
+                                            <h2 className="text-lg font-extrabold text-gray-800 mb-1">
+                                                {selectedRoom}열람실 {isCurrentDisabled ? '(비활성)' : `${displaySeatNum}번 좌석`} 관리
+                                                <span className="text-xs text-gray-400 font-normal ml-2">
+                                                    (Slot #{selectedSeat})
+                                                </span>
+                                            </h2>
+                                            {(() => {
+                                                const assignment = assignments.find(a => a.seat_number === selectedSeat);
+                                                const awayReq = (assignment && activeLeaves.length > 0) ? activeLeaves.find(req =>
+                                                    (req.student_id === assignment.student_id || req.leave_request_students?.some((s: any) => s.student_id === assignment.student_id)) &&
+                                                    req.leave_type === '자리비움' &&
+                                                    new Date(req.start_time) <= currentTime
+                                                ) : null;
+
+                                                if (awayReq) {
+                                                    const start = new Date(awayReq.start_time);
+                                                    const diffMins = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
+                                                    return (
+                                                        <div className="bg-red-50 text-red-600 p-2 rounded-xl mb-4 flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-[10px] font-bold">현재 자리비움 중 ({diffMins}분 경과)</p>
+                                                            </div>
+                                                            <button
+                                                                onClick={async () => {
+                                                                    const { error } = await supabase.from('leave_requests').update({ status: '취소' }).eq('id', awayReq.id);
+                                                                    if (!error) {
+                                                                        toast.success('자리비움이 해제되었습니다.');
+                                                                        fetchLiveStatus(selectedRoom);
+                                                                        setIsModalOpen(false);
+                                                                    }
+                                                                }}
+                                                                className="text-[10px] bg-red-500 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-red-600 transition-colors"
+                                                            >
+                                                                즉시 해제
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+                                        </>
                                     );
-                                })
-                            )}
+                                })()}
+
+                                <div className="mb-6">
+                                    <label className="block text-xs font-bold text-gray-400 mb-2">학생 선택</label>
+                                    <Select
+                                        autoFocus
+                                        options={students
+                                            .filter(s => !assignments.some(a => a.student_id === s.student_id)) // Filter out already assigned students
+                                            .map(s => ({
+                                                value: s.student_id,
+                                                label: `${s.student_id} ${s.name}`,
+                                                student: s
+                                            }))}
+                                        onChange={(option: any) => {
+                                            assignStudent(option.value);
+                                        }}
+                                        placeholder="이름 또는 학번 검색..."
+                                        styles={{
+                                            control: (base) => ({
+                                                ...base,
+                                                borderRadius: '1rem',
+                                                padding: '4px',
+                                                borderColor: '#e5e7eb',
+                                                boxShadow: 'none',
+                                                '&:hover': { borderColor: '#fbbf24' }
+                                            }),
+                                            option: (base, state) => ({
+                                                ...base,
+                                                backgroundColor: state.isFocused ? '#fefce8' : 'white',
+                                                color: '#1f2937',
+                                                fontWeight: '500',
+                                                cursor: 'pointer'
+                                            })
+                                        }}
+                                    />
+                                </div>
+
+                                <div className="flex gap-2">
+                                    {/* Disable Toggle (Priority) */}
+                                    <button
+                                        onClick={() => toggleSeatDisabled(selectedSeat)}
+                                        className={clsx(
+                                            "flex-1 py-3 font-bold rounded-xl transition-colors",
+                                            seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled
+                                                ? "bg-green-100 text-green-600 hover:bg-green-200"
+                                                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                                        )}
+                                    >
+                                        {seatProperties.find(p => p.seat_number === selectedSeat)?.is_disabled ? "⭕ 좌석 활성화" : "🚫 좌석 비활성화"}
+                                    </button>
+                                </div>
+                                <div className="h-px bg-gray-100 my-4" />
+
+                                <div className="flex gap-2">
+                                    {/* If assigned, show remove button */}
+                                    {assignments.find(a => a.seat_number === selectedSeat) && (
+                                        <button
+                                            onClick={() => assignStudent(null)}
+                                            className="flex-1 py-3 bg-red-50 text-red-500 font-bold rounded-xl hover:bg-red-100 transition-colors"
+                                        >
+                                            배정 해제
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => { setIsModalOpen(false); setSelectedSeat(null); }}
+                                        className="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                                    >
+                                        닫기
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* Student History Modal */}
+                {isHistoryModalOpen && historyStudent && (
+                    <div
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => {
+                            setIsHistoryModalOpen(false);
+                            setExpandedHistoryId(null);
+                            setHistoryMenuId(null);
+                        }}
+                    >
+                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                            <div className="p-5 border-b border-gray-100 flex flex-col relative bg-white shrink-0">
+                                {/* Close Button Top Right */}
+                                <button
+                                    onClick={() => {
+                                        setIsHistoryModalOpen(false);
+                                        setExpandedHistoryId(null);
+                                        setHistoryMenuId(null);
+                                    }}
+                                    className="absolute top-4 right-4 p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400"
+                                >
+                                    ✕
+                                </button>
+
+                                {/* Center Content - Horizontal Layout */}
+                                <div className="flex items-center justify-center gap-6 mt-4 mb-4">
+                                    {/* Student Info - ID Only */}
+                                    <h3 className="text-3xl font-black text-gray-800 tracking-tight">{historyStudent.student_id}</h3>
+
+                                    {/* Call Button Group */}
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
+                                                try {
+                                                    const res = await fetch('/api/teacher/summon', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            studentId: historyStudent.student_id,
+                                                            teacherName: teacherName
+                                                        })
+                                                    });
+                                                    const data = await res.json();
+
+                                                    if (res.ok) {
+                                                        toast.success('호출 알림을 보냈습니다.');
+                                                    } else {
+                                                        // Display specific error message from server
+                                                        toast.error(data.error || '호출 실패');
+                                                    }
+                                                } catch (err) {
+                                                    console.error('Call failed:', err);
+                                                    toast.error('호출 중 네트워크 오류가 발생했습니다.');
+                                                }
+                                            }}
+                                            className="p-3 rounded-xl bg-red-500 border-b-4 border-red-700 text-white hover:bg-red-400 hover:border-red-600 transition-all active:border-b-0 active:translate-y-1 shadow-lg flex items-center justify-center group"
+                                            title="호출"
+                                        >
+                                            <FaBell className="w-6 h-6 group-hover:animate-swing" />
+                                        </button>
+                                        <span className="text-[10px] font-bold text-red-500">호출</span>
+                                    </div>
+                                </div>
+                                <div className="w-full text-center pb-2">
+                                    <p className="text-xs text-gray-400 font-bold">최근 이석 기록 (30건)</p>
+                                </div>
+                            </div>
+
+                            <div className="overflow-y-auto p-4 flex flex-col gap-3.5 bg-gray-100/60 flex-1">
+                                {isHistoryLoading ? (
+                                    <div className="py-14 flex flex-col items-center justify-center gap-3">
+                                        <div className="w-8 h-8 border-3 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                                        <span className="text-xs text-gray-400 font-bold">이석 기록 불러오는 중...</span>
+                                    </div>
+                                ) : historyRecords.length === 0 ? (
+                                    <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
+                                ) : (
+                                    historyRecords.map((rec) => {
+                                        const isPast = rec.status === '복귀' || rec.status === '취소' || rec.status === '반려' || new Date(rec.end_time) < currentTime;
+                                        const viewMode = isPast ? 'past' : 'active';
+
+                                        return (
+                                            <LeaveProcessCard
+                                                key={rec.id}
+                                                req={rec as LeaveRequest}
+                                                isExpanded={expandedHistoryId === rec.id}
+                                                onToggleExpand={() => setExpandedHistoryId(expandedHistoryId === rec.id ? null : rec.id)}
+                                                isMenuOpen={historyMenuId === rec.id}
+                                                onToggleMenu={(e) => {
+                                                    e.stopPropagation();
+                                                    setHistoryMenuId(historyMenuId === rec.id ? null : rec.id);
+                                                }}
+                                                onUpdateStatus={(id, status) => {
+                                                    setHistoryMenuId(null);
+                                                    handleUpdateStatus(id, status);
+                                                }}
+                                                onCancel={handleCancelRequest}
+                                                viewMode={viewMode}
+                                                currentTeacherId={teacherId}
+                                                teacherPosition={teacherPosition}
+                                                showOpacityForPast={true}
+                                            />
+                                        );
+                                    })
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )}
+            </div>
         </SwipeWrapper>
     );
 }
