@@ -104,7 +104,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
         <div className="flex flex-col w-full max-w-xl mx-auto relative">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
+                    <div className="w-1.5 h-6 bg-[#FF6F61] rounded-full"></div>
                     <div className="flex items-baseline gap-2">
                         <h1 className="text-xl font-extrabold text-gray-800">이석 처리 ({teacherName} 감독선생님)</h1>
                     </div>
@@ -119,9 +119,9 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Seat Map Button */}
             <button
                 onClick={() => router.push('/teacher/seats')}
-                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-white shadow-sm text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
+                className="w-full mb-2 py-3 rounded-xl text-sm font-medium transition-all text-white shadow-sm text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
                 style={{
-                    backgroundImage: `linear-gradient(to right, rgba(250, 204, 21, 0) 30%, rgba(250, 204, 21, 1) 100%), url('/study_room.png')`,
+                    backgroundImage: `linear-gradient(to right, rgba(255, 111, 97, 0) 30%, rgba(255, 111, 97, 1) 100%), url('/study_room.png')`,
                     backgroundPosition: 'center 70%'
                 }}
             >
@@ -131,7 +131,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Headcount Mapping Button */}
             <button
                 onClick={() => router.push('/teacher/headcount')}
-                className="w-full mb-2 py-3 rounded-xl text-sm font-bold transition-all text-indigo-100 shadow-lg text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
+                className="w-full mb-2 py-3 rounded-xl text-sm font-medium transition-all text-indigo-100 shadow-lg text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
                 style={{
                     backgroundImage: `linear-gradient(to right, rgba(79, 70, 229, 0) 30%, rgba(79, 70, 229, 1) 100%), url('/kshs_building.png')`,
                     backgroundPosition: 'center 15%'
@@ -143,7 +143,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Morning Checkout Button */}
             <button
                 onClick={() => setIsMorningModalOpen(true)}
-                className="w-full mb-6 py-3 rounded-xl text-sm font-bold transition-all text-white shadow-lg text-right pr-6 bg-no-repeat bg-[#2d2d2d] hover:bg-[#3d3d3d]"
+                className="w-full mb-6 py-3 rounded-xl text-sm font-medium transition-all text-white shadow-lg text-right pr-6 bg-no-repeat bg-[#2d2d2d] hover:bg-[#3d3d3d]"
                 style={{
                     backgroundImage: `url('/yellow_card.svg')`,
                     backgroundPosition: '10px center',
@@ -167,9 +167,9 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                             key={tab.id}
                             onClick={() => onTabChange(tab.id as any)}
                             className={clsx(
-                                "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center whitespace-nowrap flex items-center justify-center gap-1",
+                                "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center whitespace-nowrap flex items-center justify-center gap-1 cursor-pointer",
                                 unifiedViewMode === tab.id
-                                    ? "bg-blue-600 text-white shadow-sm"
+                                    ? "bg-[#FF6F61] text-white shadow-sm font-extrabold"
                                     : tab.id === 'search_name'
                                         ? "text-white hover:text-gray-200 font-extrabold"
                                         : "text-gray-500 hover:text-gray-300"
@@ -192,7 +192,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                             placeholder="학생 이름 또는 학번 입력..."
                             enterKeyHint="search"
                             autoComplete="off"
-                            className="w-full pl-10 pr-9 py-2.5 text-[16px] sm:text-sm bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 shadow-inner transition-all"
+                            className="w-full pl-10 pr-9 py-2.5 text-[16px] sm:text-sm bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-[#FF6F61] focus:ring-1 focus:ring-[#FF6F61] shadow-inner transition-all"
                             style={{ fontSize: '16px' }}
                         />
                         {searchQuery && (
@@ -213,9 +213,9 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                             key={type}
                             onClick={() => setFilterType(type)}
                             className={clsx(
-                                "px-3 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap border",
+                                "px-3 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap border cursor-pointer",
                                 filterType === type
-                                    ? "bg-amber-400 text-black border-amber-400"
+                                    ? "bg-[#FF6F61] text-white border-[#FF6F61] shadow-sm"
                                     : "bg-transparent text-gray-500 border-white/10 hover:border-white/20"
                             )}
                         >
@@ -227,16 +227,31 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
 
             <div className="flex flex-col gap-3 pb-24">
                 {filtered.length === 0 ? (
-                    <div className="bg-[#1a1a1a] p-10 rounded-[2rem] border border-dashed border-white/10 text-center text-gray-400 text-xs italic">
-                        {unifiedViewMode === 'my_active' && '처리할 내 담당 이석 내역이 없습니다.'}
-                        {unifiedViewMode === 'all_active' && '현재 처리할 이석 내역이 없습니다.'}
-                        {unifiedViewMode === 'past_all' && '지난 내역이 없습니다.'}
-                        {unifiedViewMode === 'search_name' && (
-                            !searchQuery.trim()
-                                ? '💡 상단 검색창에 학생의 이름이나 학번을 입력해 주세요.'
-                                : `'${searchQuery}' 검색 결과가 없습니다.`
-                        )}
-                        {filterType !== '전체' && <p className="mt-1 text-amber-400/80">('{filterType}' 필터 적용됨)</p>}
+                    <div
+                        className="relative overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-white/20 shadow-xl text-center flex flex-col items-center justify-center min-h-[140px] bg-cover bg-no-repeat transition-all"
+                        style={{
+                            backgroundImage: `linear-gradient(to right, rgba(255, 111, 97, 0.35), rgba(255, 111, 97, 0.45)), url('/images/starry_crescent_coral.jpg')`,
+                            backgroundPosition: 'right 12%',
+                            backgroundSize: 'cover'
+                        }}
+                    >
+                        <div className="relative z-10 flex flex-col items-center justify-center gap-1.5">
+                            <p className="text-white text-sm sm:text-base font-medium tracking-normal drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)] select-none">
+                                {unifiedViewMode === 'my_active' && '처리할 내 담당 이석 내역이 없습니다.'}
+                                {unifiedViewMode === 'all_active' && '현재 처리할 이석 내역이 없습니다.'}
+                                {unifiedViewMode === 'past_all' && '지난 내역이 없습니다.'}
+                                {unifiedViewMode === 'search_name' && (
+                                    !searchQuery.trim()
+                                        ? '💡 상단 검색창에 학생의 이름이나 학번을 입력해 주세요.'
+                                        : `'${searchQuery}' 검색 결과가 없습니다.`
+                                )}
+                            </p>
+                            {filterType !== '전체' && (
+                                <p className="text-xs text-white/90 font-medium drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]">
+                                    ('{filterType}' 필터 적용됨)
+                                </p>
+                            )}
+                        </div>
                     </div>
                 ) : (
                     filtered.map((req) => (

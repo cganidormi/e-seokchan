@@ -857,7 +857,7 @@ export default function SeatManagementPage() {
                             {/* Title & Room Segment Selector */}
                             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                                 <div className="flex items-center gap-1.5">
-                                    <div className="w-1.5 h-6 bg-yellow-400 rounded-full shrink-0"></div>
+                                    <div className="w-1.5 h-6 bg-[#FF6F61] rounded-full shrink-0"></div>
                                     <h1 className="text-base sm:text-xl font-black text-gray-800 whitespace-nowrap">
                                         현황모니터
                                     </h1>
@@ -872,7 +872,7 @@ export default function SeatManagementPage() {
                                             className={clsx(
                                                 "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap",
                                                 selectedRoom === room
-                                                    ? "bg-yellow-400 text-yellow-950 shadow-md scale-105"
+                                                    ? "bg-[#FF6F61] text-white shadow-md scale-105"
                                                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-300/60"
                                             )}
                                         >
@@ -904,7 +904,7 @@ export default function SeatManagementPage() {
                             {/* Leave List Button */}
                             <button
                                 onClick={() => router.push('/teacher')}
-                                className="w-full max-w-sm mx-auto py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm"
+                                className="w-full max-w-sm mx-auto py-3 rounded-xl text-sm font-bold transition-all text-white bg-[#FF6F61] hover:bg-[#ff5a4a] shadow-sm cursor-pointer"
                             >
                                 ← 이석현황 목록으로 돌아가기
                             </button>
@@ -930,7 +930,7 @@ export default function SeatManagementPage() {
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         placeholder="학생 자리 검색..."
-                                        className="w-full bg-white border border-gray-300 text-gray-800 text-[16px] sm:text-sm rounded-xl px-3 py-1.5 sm:py-2 pl-8 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-sm"
+                                        className="w-full bg-white border border-gray-300 text-gray-800 text-[16px] sm:text-sm rounded-xl px-3 py-1.5 sm:py-2 pl-8 focus:outline-none focus:ring-2 focus:ring-[#FF6F61] focus:border-[#FF6F61] shadow-sm"
                                         style={{ fontSize: '16px' }}
                                     />
                                     <span className="absolute left-2.5 text-gray-400 text-xs">🔍</span>
