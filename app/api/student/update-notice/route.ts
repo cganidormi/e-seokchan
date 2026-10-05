@@ -185,6 +185,7 @@ export async function POST(request: Request) {
         }
 
         // 알림 푸시 전송 (send_push 가 true 일 때만 발송)
+        let pushStats = { sent: 0, failed: 0, expired: 0 };
         if (send_push && pushTargetQuery && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
             const { data: subs, error: subError } = await pushTargetQuery;
             if (!subError && subs && subs.length > 0) {
@@ -194,20 +195,51 @@ export async function POST(request: Request) {
                     url: '/student'
                 });
 
-                const pushPromises = subs.map(async (sub: any) => {
-                    try {
-                        const subscription = typeof sub.subscription_json === 'string'
-                            ? JSON.parse(sub.subscription_json)
-                            : sub.subscription_json;
-                        await webpush.sendNotification(subscription, payload);
-                    } catch (err: any) {
-                        if (err.statusCode === 410 || err.statusCode === 404) {
-                            await supabase.from('push_subscriptions').delete().eq('id', sub.id);
-                        }
-                    }
-                });
+                const chunkSize = 35;
+                const expiredIds: string[] = [];
+                let successCount = 0;
+                let failedCount = 0;
 
-                await Promise.allSettled(pushPromises);
+                for (let i = 0; i < subs.length; i += chunkSize) {
+                    const chunk = subs.slice(i, i + chunkSize);
+                    const results = await Promise.allSettled(
+                        chunk.map(async (sub: any) => {
+                            const subscription = typeof sub.subscription_json === 'string'
+                                ? JSON.parse(sub.subscription_json)
+                                : sub.subscription_json;
+                            return webpush.sendNotification(subscription, payload, {
+                                headers: { 'Urgency': 'high' }
+                            });
+                        })
+                    );
+
+                    results.forEach((res, idx) => {
+                        if (res.status === 'fulfilled') {
+                            successCount++;
+                        } else {
+                            failedCount++;
+                            const err: any = res.reason;
+                            if (err && (err.statusCode === 410 || err.statusCode === 404)) {
+                                if (chunk[idx]?.id) {
+                                    expiredIds.push(chunk[idx].id);
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // 만료된 토큰 일괄 삭제 정리 (1회 배치 쿼리)
+                if (expiredIds.length > 0) {
+                    try {
+                        await supabase.from('push_subscriptions').delete().in('id', expiredIds);
+                        console.log(`[Push Notice] Cleaned up ${expiredIds.length} expired subscriptions.`);
+                    } catch (cleanupErr) {
+                        console.error('[Push Notice] Cleanup error:', cleanupErr);
+                    }
+                }
+
+                pushStats = { sent: successCount, failed: failedCount, expired: expiredIds.length };
+                console.log(`[Push Notice] Broadcast finished: ${successCount} sent, ${failedCount} failed (${expiredIds.length} expired removed).`);
             }
         }
 

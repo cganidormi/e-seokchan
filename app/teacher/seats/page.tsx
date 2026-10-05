@@ -293,12 +293,12 @@ export default function SeatManagementPage() {
                         supabase
                             .from('push_subscriptions')
                             .select('subscription_json')
-                            .in('user_id', expandedStudentIds),
+                            .in('student_id', expandedStudentIds),
                         parentTokens.length > 0
                             ? supabase
                                 .from('push_subscriptions')
                                 .select('subscription_json')
-                                .in('user_id', parentTokens)
+                                .in('parent_token', parentTokens)
                             : Promise.resolve({ data: [] })
                     ]);
 

@@ -152,20 +152,42 @@ export async function processDueScheduledNotices(supabase: SupabaseClient): Prom
               url: '/student'
             });
 
-            const pushPromises = subs.map(async (sub: any) => {
-              try {
-                const subscription = typeof sub.subscription_json === 'string'
-                  ? JSON.parse(sub.subscription_json)
-                  : sub.subscription_json;
-                await webpush.sendNotification(subscription, payload);
-              } catch (err: any) {
-                if (err.statusCode === 410 || err.statusCode === 404) {
-                  await supabase.from('push_subscriptions').delete().eq('id', sub.id);
-                }
-              }
-            });
+            const chunkSize = 35;
+            const expiredIds: string[] = [];
 
-            await Promise.allSettled(pushPromises);
+            for (let i = 0; i < subs.length; i += chunkSize) {
+              const chunk = subs.slice(i, i + chunkSize);
+              const results = await Promise.allSettled(
+                chunk.map(async (sub: any) => {
+                  const subscription = typeof sub.subscription_json === 'string'
+                    ? JSON.parse(sub.subscription_json)
+                    : sub.subscription_json;
+                  return webpush.sendNotification(subscription, payload, {
+                    headers: { 'Urgency': 'high' }
+                  });
+                })
+              );
+
+              results.forEach((res, idx) => {
+                if (res.status === 'rejected') {
+                  const err: any = res.reason;
+                  if (err && (err.statusCode === 410 || err.statusCode === 404)) {
+                    if (chunk[idx]?.id) {
+                      expiredIds.push(chunk[idx].id);
+                    }
+                  }
+                }
+              });
+            }
+
+            if (expiredIds.length > 0) {
+              try {
+                await supabase.from('push_subscriptions').delete().in('id', expiredIds);
+                console.log(`[Scheduled Notice] Cleaned up ${expiredIds.length} expired subscriptions.`);
+              } catch (cleanupErr) {
+                console.error('[Scheduled Notice] Cleanup error:', cleanupErr);
+              }
+            }
           }
         }
 
