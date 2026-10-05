@@ -54,12 +54,26 @@ export default function Home() {
       setIsChromeIOS(true);
     }
 
-    const hasSession =
-      localStorage.getItem('dormichan_login_id') ||
-      sessionStorage.getItem('dormichan_login_id') ||
-      localStorage.getItem('dormichan_parent_token');
+    const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
+    const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
+    const parentToken = localStorage.getItem('dormichan_parent_token');
 
-    if (inStandalone || hasSession) {
+    const isLocalhost = typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1'
+    );
+    const isMaster =
+      loginId === '3317홍길동' ||
+      (loginId && loginId.startsWith('3317')) ||
+      loginId === '3318이순신' ||
+      (loginId && loginId.startsWith('3318'));
+    const isTeacherOrMonitor = role === 'teacher' || role === 'monitor';
+    const canPassStudent = inStandalone || isLocalhost || isMaster;
+
+    // 1) PWA 앱 독립 실행 상태이면 세션에 맞춰 자동 이동
+    // 2) 일반 브라우저여도 교사/모니터/개발자는 세션 있으면 자동 이동
+    // 3) 학생은 일반 브라우저인 경우 자동 이동하지 않고 앱 설치 안내(Landing Page) 노출
+    if (inStandalone || (isTeacherOrMonitor && loginId) || (canPassStudent && loginId && role === 'student')) {
       performRedirect();
     } else {
       setIsLoading(false); // Show Landing Page

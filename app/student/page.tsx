@@ -52,6 +52,28 @@ export default function StudentPage() {
       return;
     }
 
+    // PWA 독립 실행 모드 검사 (일반 브라우저 학생 접속 차단)
+    const isStandalone = typeof window !== 'undefined' && (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as any).standalone ||
+      document.referrer.includes('android-app://')
+    );
+    const isLocalhost = typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1'
+    );
+    const isMaster =
+      loginId === '3317홍길동' ||
+      loginId.startsWith('3317') ||
+      loginId === '3318이순신' ||
+      loginId.startsWith('3318');
+
+    if (!isStandalone && !isLocalhost && !isMaster) {
+      toast.error('학생은 웹 브라우저에서 이용할 수 없습니다. 앱으로 접속해주세요.', { duration: 5000 });
+      router.replace('/');
+      return;
+    }
+
     setActualLoginId(loginId);
     setStudentId(loginId);
 
@@ -592,7 +614,11 @@ export default function StudentPage() {
 
   const currentStudent = students.find(s => s.student_id === studentId) || null;
   const actualLoginStudent = students.find(s => s.student_id === actualLoginId) || null;
-  const isMasterAdmin = (actualLoginStudent?.grade === 3 && actualLoginStudent?.class === 3 && actualLoginStudent?.number === 17 && actualLoginStudent?.name === '홍길동') || actualLoginId === '3317홍길동';
+  const isMasterAdmin =
+    (actualLoginStudent?.grade === 3 && actualLoginStudent?.class === 3 && actualLoginStudent?.number === 17 && actualLoginStudent?.name === '홍길동') ||
+    (actualLoginStudent?.grade === 3 && actualLoginStudent?.class === 3 && actualLoginStudent?.number === 18 && actualLoginStudent?.name === '이순신') ||
+    actualLoginId === '3317홍길동' ||
+    actualLoginId === '3318이순신';
   const isNoticeAdmin = isMasterAdmin;
 
   const isPersonalNotice = !!(currentStudent as any)?.personal_notice;

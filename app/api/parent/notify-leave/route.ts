@@ -74,8 +74,8 @@ export async function POST(request: Request) {
                 await webpush.sendNotification(subscription, payload);
                 return { success: true, id: sub.id };
             } catch (err: any) {
-                if (err.statusCode === 410 || err.statusCode === 404) {
-                    // Expired subscription - remove from DB
+                if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 401 || err.statusCode === 403) {
+                    // Expired / Invalid key subscription - remove from DB
                     await supabaseAdmin.from('push_subscriptions').delete().eq('id', sub.id);
                 }
                 return { success: false, id: sub.id, error: err };

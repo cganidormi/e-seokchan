@@ -219,7 +219,7 @@ export async function POST(request: Request) {
                         } else {
                             failedCount++;
                             const err: any = res.reason;
-                            if (err && (err.statusCode === 410 || err.statusCode === 404)) {
+                            if (err && (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 401 || err.statusCode === 403)) {
                                 if (chunk[idx]?.id) {
                                     expiredIds.push(chunk[idx].id);
                                 }

@@ -171,7 +171,7 @@ export async function processDueScheduledNotices(supabase: SupabaseClient): Prom
               results.forEach((res, idx) => {
                 if (res.status === 'rejected') {
                   const err: any = res.reason;
-                  if (err && (err.statusCode === 410 || err.statusCode === 404)) {
+                  if (err && (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 401 || err.statusCode === 403)) {
                     if (chunk[idx]?.id) {
                       expiredIds.push(chunk[idx].id);
                     }

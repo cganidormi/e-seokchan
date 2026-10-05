@@ -93,8 +93,8 @@ export async function POST(request: Request) {
                             : sub.subscription_json;
                         await webpush.sendNotification(subscription, payload);
                     } catch (err: any) {
-                        if (err.statusCode === 410 || err.statusCode === 404) {
-                            // 만료된 구독 삭제
+                        if (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 401 || err.statusCode === 403) {
+                            // 만료 또는 VAPID 키 불일치 구독 삭제
                             await supabase.from('push_subscriptions').delete().eq('id', sub.id);
                         }
                     }

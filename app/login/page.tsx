@@ -143,6 +143,28 @@ export default function LoginPage() {
       });
 
       if (studentData?.success) {
+        // 브라우저 접속 차단 검사 (PWA 앱 독립 실행 모드 여부 확인)
+        const isStandalone = typeof window !== 'undefined' && (
+          window.matchMedia('(display-mode: standalone)').matches ||
+          (navigator as any).standalone ||
+          document.referrer.includes('android-app://')
+        );
+        const isLocalhost = typeof window !== 'undefined' && (
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1'
+        );
+        const isMaster =
+          id === '3317홍길동' ||
+          id.startsWith('3317') ||
+          id === '3318이순신' ||
+          id.startsWith('3318');
+
+        if (!isStandalone && !isLocalhost && !isMaster) {
+          setError("학생은 웹 브라우저에서 로그인할 수 없습니다. 스마트폰 홈 화면에 '이석찬' 앱을 설치한 후 앱에서 로그인해주세요.");
+          setIsLoggingIn(false);
+          return;
+        }
+
         if (studentData.must_change_password) {
           router.replace(`/change-password?role=student&id=${id}`);
         } else {

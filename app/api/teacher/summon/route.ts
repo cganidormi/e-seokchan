@@ -124,18 +124,18 @@ export async function POST(request: Request) {
                 return webpush.sendNotification(subscription, payload, {
                     headers: {
                         'Urgency': 'high',
-                        'TTL': '60'
+                        'TTL': '86400'
                     }
                 });
             })
         );
 
-        // 4. 만료된 구형 토큰(410 Gone, 404 Not Found) 자동 삭제 정리
+        // 4. 만료된 구형 토큰(410 Gone, 404 Not Found) 및 VAPID 키 불일치(401 Unauthorized, 403 Forbidden) 자동 삭제 정리
         const expiredSubIds: string[] = [];
         results.forEach((r, idx) => {
             if (r.status === 'rejected') {
                 const err: any = r.reason;
-                if (err && (err.statusCode === 410 || err.statusCode === 404)) {
+                if (err && (err.statusCode === 410 || err.statusCode === 404 || err.statusCode === 401 || err.statusCode === 403)) {
                     if (subs[idx]?.id) {
                         expiredSubIds.push(subs[idx].id);
                     }

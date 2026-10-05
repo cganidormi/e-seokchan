@@ -21,28 +21,80 @@ function urlBase64ToUint8Array(base64String: string) {
     return outputArray;
 }
 
+// Uint8Array 또는 ArrayBuffer VAPID 키 일치 여부 정밀 비교
+function areKeysEqual(buf: ArrayBuffer | null | undefined, expectedKey: Uint8Array): boolean {
+    if (!buf) return false;
+    const actual = new Uint8Array(buf);
+    if (actual.length !== expectedKey.length) return false;
+    for (let i = 0; i < actual.length; i++) {
+        if (actual[i] !== expectedKey[i]) return false;
+    }
+    return true;
+}
+
 export function NotificationPermissionBanner({ userId, userType, parentToken }: Props) {
     const [permission, setPermission] = useState<NotificationPermission>('default');
     const [isSupported, setIsSupported] = useState(true);
     const [isIOS, setIsIOS] = useState(false);
+    const [isStandalone, setIsStandalone] = useState(true);
 
-    // 1번 조치: 무음 자동 갱신 함수 (알림 권한이 허용된 계정 접속 시 백그라운드 키 최신화)
+    // 무음 자동 갱신 함수 (앱 실행 시 최신 VAPID 키 검사 및 구형 토큰 강제 파기/재발급)
     const autoSyncSubscription = useCallback(async () => {
         if (!userId && !parentToken) return;
+        const currentVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        if (!currentVapidKey) return;
+
         try {
             const registration = await navigator.serviceWorker.ready;
-            if (!registration || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
+            if (!registration) return;
 
+            const expectedKeyBytes = urlBase64ToUint8Array(currentVapidKey);
+
+            // 1. 현재 브라우저에 등록된 PushSubscription 확인
             let sub = await registration.pushManager.getSubscription();
+
+            // 2. 기존 구독이 최신 VAPID 키로 생성된 것인지 정밀 검사
+            let isCurrentKey = false;
+            if (sub) {
+                // (1) sub.options.applicationServerKey 검사
+                const existingKeyBuffer = sub.options?.applicationServerKey;
+                const bufferMatch = areKeysEqual(existingKeyBuffer, expectedKeyBytes);
+
+                // (2) localStorage에 기록된 키와 일치 여부 확인
+                const savedKey = localStorage.getItem('dormichan_active_vapid_key');
+                const storageMatch = savedKey === currentVapidKey;
+
+                // 키 버퍼가 제공되는 경우 버퍼 일치 여부 우선, 미제공 시 storage 확인
+                isCurrentKey = existingKeyBuffer ? bufferMatch : storageMatch;
+            }
+
+            let oldEndpoint: string | null = null;
+
+            // 3. 만약 기존 구독이 옛날 키이거나 유효하지 않다면 즉시 파기(unsubscribe)
+            if (sub && !isCurrentKey) {
+                console.log('[Push] Outdated VAPID key detected. Forcing unsubscribe and renewal...');
+                oldEndpoint = sub.endpoint;
+                try {
+                    await sub.unsubscribe();
+                } catch (unsubErr) {
+                    console.warn('[Push] Error unsubscribing outdated subscription:', unsubErr);
+                }
+                sub = null;
+            }
+
+            // 4. 구독이 없거나 방금 파기했다면 최신 VAPID 키로 새로 구독 생성
             if (!sub) {
-                const convertedVapidKey = urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
                 sub = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
-                    applicationServerKey: convertedVapidKey
+                    applicationServerKey: expectedKeyBytes
                 });
+                console.log('[Push] Successfully created fresh subscription with latest VAPID key!');
             }
 
             if (!sub) return;
+
+            // 최신 키를 localStorage에 영구 기록
+            localStorage.setItem('dormichan_active_vapid_key', currentVapidKey);
 
             const payload: any = {
                 subscription_json: sub,
@@ -54,7 +106,32 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
             else if (userType === 'student') payload.student_id = userId;
             else if (userType === 'parent') payload.parent_token = parentToken;
 
-            // 동일 endpoint 중복 방지 (기존 토큰 있으면 last_used_at 갱신, 없으면 신규 저장)
+            // 5. 옛날 구형 endpoint가 있었다면 DB에서 이전 레코드 삭제 정리
+            if (oldEndpoint && oldEndpoint !== sub.endpoint) {
+                try {
+                    let oldQuery = supabase.from('push_subscriptions').select('id, subscription_json');
+                    if (userType === 'teacher') oldQuery = oldQuery.eq('teacher_id', userId);
+                    else if (userType === 'student') oldQuery = oldQuery.eq('student_id', userId);
+                    else if (userType === 'parent') oldQuery = oldQuery.eq('parent_token', parentToken);
+
+                    const { data: oldRows } = await oldQuery;
+                    const oldMatchIds = oldRows?.filter((r: any) => {
+                        const ep = typeof r.subscription_json === 'string'
+                            ? JSON.parse(r.subscription_json)?.endpoint
+                            : r.subscription_json?.endpoint;
+                        return ep === oldEndpoint;
+                    }).map((r: any) => r.id);
+
+                    if (oldMatchIds && oldMatchIds.length > 0) {
+                        await supabase.from('push_subscriptions').delete().in('id', oldMatchIds);
+                        console.log(`[Push] Removed ${oldMatchIds.length} obsolete subscriptions for updated key.`);
+                    }
+                } catch (cleanErr) {
+                    console.warn('[Push] Error cleaning up old endpoint row:', cleanErr);
+                }
+            }
+
+            // 6. 최신 토큰 DB 업서트 (동일 endpoint가 있으면 last_used_at 갱신, 없으면 insert)
             const endpoint = sub.endpoint;
             let existingId: string | null = null;
             if (endpoint) {
@@ -90,15 +167,21 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
+        const iosDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        setIsIOS(iosDevice);
+
+        const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+        setIsStandalone(!!standalone);
+
         if (!('Notification' in window) || !('serviceWorker' in navigator)) {
             setIsSupported(false);
             return;
         }
+
         const currentPerm = Notification.permission;
         setPermission(currentPerm);
-        setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent));
 
-        // 1번 조치 실행: 이미 알림이 허용된 사용자는 백그라운드에서 키 자동 갱신
+        // 이미 알림이 허용된 사용자는 백그라운드에서 키 자동 무음 갱신
         if (currentPerm === 'granted') {
             autoSyncSubscription();
         }
@@ -106,12 +189,11 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
 
     const handleRequestPermission = async () => {
         if (!isSupported) {
-            toast.error('이 환경에서는 알림을 사용할 수 없습니다.');
+            toast.error('이 환경에서는 실시간 알림을 사용할 수 없습니다.');
             return;
         }
 
         try {
-            // 1. Request Permission
             const result = await Notification.requestPermission();
             setPermission(result);
 
@@ -120,7 +202,7 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
                 toast.success('알림이 성공적으로 켜졌습니다! 🔔');
             } else if (result === 'denied') {
                 toast.error(
-                    '알림이 차단되어 있습니다. 알림 차단을 해제하신 후 배너를 다시 터치하시면 알림이 등록됩니다! 🔔',
+                    '알림이 차단되어 있습니다. 스마트폰 설정에서 알림 차단을 해제해주세요! 🔔',
                     { duration: 5000 }
                 );
             }
@@ -130,10 +212,29 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
         }
     };
 
-    if (!isSupported) return null; // Don't show if technically impossible (e.g. HTTP)
+    // 아이폰 사파리 탭으로 접속하여 알림 API를 지원하지 않는 경우: 홈화면 추가 안내 배너 노출
+    if (!isSupported && isIOS && !isStandalone) {
+        return (
+            <div className="w-full p-4 mb-4 rounded-xl shadow-md border bg-indigo-50 border-indigo-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <span className="text-2xl">📱</span>
+                    <div className="text-left">
+                        <p className="font-bold text-sm text-indigo-800">
+                            아이폰 알림 받기 설정 안내
+                        </p>
+                        <p className="text-xs mt-0.5 text-indigo-600 font-medium">
+                            사파리 하단 <strong>[공유] ➔ [홈 화면에 추가]</strong>로 앱을 설치해야 실시간 알림을 받을 수 있습니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isSupported) return null; // 그 외 기술적 미지원 브라우저는 숨김
     if (permission === 'granted') return null; // 알림 허용 시 배너 자동 숨김
 
-    // 2번 조치: PWA/설치형 웹앱 맞춤 알림 재허용 유도 배너
+    // 알림 미허용 또는 차단 사용자 대상 안내 배너
     return (
         <div
             onClick={handleRequestPermission}
@@ -147,7 +248,7 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
                     </p>
                     <p className="text-xs mt-0.5 text-red-600 font-bold">
                         {permission === 'denied'
-                            ? '터치하여 알림 재허용 시도 (폰 설정에서 차단 해제 필요)'
+                            ? '스마트폰 설정에서 알림 차단 해제 후 터치해주세요'
                             : '여기를 터치하여 알림을 켜면 정상적으로 이용 가능합니다.'}
                     </p>
                 </div>
@@ -158,4 +259,5 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
         </div>
     );
 }
+
 
