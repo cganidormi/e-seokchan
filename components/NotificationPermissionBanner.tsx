@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/supabaseClient';
 import toast from 'react-hot-toast';
 
@@ -38,11 +38,19 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
     const [isIOS, setIsIOS] = useState(false);
     const [isStandalone, setIsStandalone] = useState(true);
 
+    const isSyncingRef = useRef(false);
+    const lastSyncTimeRef = useRef(0);
+
     // 무음 자동 갱신 함수 (앱 실행 시 최신 VAPID 키 검사 및 구형 토큰 강제 파기/재발급)
     const autoSyncSubscription = useCallback(async () => {
         if (!userId && !parentToken) return;
         const currentVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
         if (!currentVapidKey) return;
+
+        // 과도한 중복 호출 방지 (30초 이내 중복 실행 차단 및 동시 실행 방지)
+        if (isSyncingRef.current) return;
+        if (Date.now() - lastSyncTimeRef.current < 30000) return;
+        isSyncingRef.current = true;
 
         try {
             const registration = await navigator.serviceWorker.ready;
@@ -159,8 +167,11 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
             } else {
                 await supabase.from('push_subscriptions').insert(payload);
             }
+            lastSyncTimeRef.current = Date.now();
         } catch (err) {
             console.log('Silent push sync notice:', err);
+        } finally {
+            isSyncingRef.current = false;
         }
     }, [userId, userType, parentToken]);
 
@@ -178,13 +189,27 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
             return;
         }
 
-        const currentPerm = Notification.permission;
-        setPermission(currentPerm);
+        const handleVisibilityOrFocus = () => {
+            const currentPerm = Notification.permission;
+            setPermission(currentPerm);
 
-        // 이미 알림이 허용된 사용자는 백그라운드에서 키 자동 무음 갱신
-        if (currentPerm === 'granted') {
-            autoSyncSubscription();
-        }
+            // 앱이 화면에 표시되었을 때 (최초 마운트 또는 백그라운드 멀티태스킹에서 앱 복귀 시)
+            if (document.visibilityState === 'visible' && currentPerm === 'granted') {
+                autoSyncSubscription();
+            }
+        };
+
+        // 1. 초기 마운트 시 즉시 검사
+        handleVisibilityOrFocus();
+
+        // 2. 백그라운드 멀티태스킹에서 앱으로 복귀 시 실시간 감지
+        document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+        window.addEventListener('focus', handleVisibilityOrFocus);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+            window.removeEventListener('focus', handleVisibilityOrFocus);
+        };
     }, [autoSyncSubscription]);
 
     const handleRequestPermission = async () => {
