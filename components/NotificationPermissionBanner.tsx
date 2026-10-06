@@ -212,6 +212,90 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
         };
     }, [autoSyncSubscription]);
 
+    const [isForceDismissed, setIsForceDismissed] = useState(false);
+    const isTestTarget = !!(userId && (String(userId).includes('2220') || String(userId).includes('홍석현')));
+
+    const handleForceReSubscribe = async () => {
+        if (!isSupported) {
+            toast.error('이 환경에서는 실시간 알림을 사용할 수 없습니다.');
+            return;
+        }
+
+        try {
+            const result = await Notification.requestPermission();
+            setPermission(result);
+
+            if (result !== 'granted') {
+                toast.error('알림이 차단되어 있습니다. 스마트폰 설정에서 알림 차단을 해제해주세요! 🔔', { duration: 5000 });
+                return;
+            }
+
+            toast.loading('알림 토큰을 깨끗하게 재발급 중입니다...', { id: 'push-renew' });
+
+            const registration = await navigator.serviceWorker.ready;
+            if (!registration) {
+                toast.error('서비스 워커를 준비할 수 없습니다.', { id: 'push-renew' });
+                return;
+            }
+
+            // 1. 기존 구형 구독 완전 파기
+            const existingSub = await registration.pushManager.getSubscription();
+            if (existingSub) {
+                try {
+                    await existingSub.unsubscribe();
+                    console.log('[Push] Force-unsubscribed existing subscription');
+                } catch (unsubErr) {
+                    console.warn('[Push] Unsubscribe error:', unsubErr);
+                }
+            }
+
+            localStorage.removeItem('dormichan_active_vapid_key');
+
+            // 2. 최신 VAPID 키로 깨끗한 새 구독 발급
+            const currentVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+            if (!currentVapidKey) {
+                toast.error('VAPID 키가 누락되었습니다.', { id: 'push-renew' });
+                return;
+            }
+            const expectedKeyBytes = urlBase64ToUint8Array(currentVapidKey);
+
+            const newSub = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: expectedKeyBytes
+            });
+
+            if (!newSub) {
+                toast.error('새 알림 구독 생성에 실패했습니다.', { id: 'push-renew' });
+                return;
+            }
+
+            localStorage.setItem('dormichan_active_vapid_key', currentVapidKey);
+
+            // 3. Supabase DB에 신규 저장
+            const payload: any = {
+                subscription_json: newSub,
+                device_type: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+                last_used_at: new Date().toISOString()
+            };
+            if (userType === 'teacher') payload.teacher_id = userId;
+            else if (userType === 'student') payload.student_id = userId;
+            else if (userType === 'parent') payload.parent_token = parentToken;
+
+            // 기존 DB 토큰 정리 및 신규 등록
+            if (userId) {
+                if (userType === 'student') await supabase.from('push_subscriptions').delete().eq('student_id', userId);
+                else if (userType === 'teacher') await supabase.from('push_subscriptions').delete().eq('teacher_id', userId);
+            }
+            await supabase.from('push_subscriptions').insert(payload);
+
+            toast.success('알림이 성공적으로 완전 재연동되었습니다! 🔔', { id: 'push-renew' });
+            setIsForceDismissed(true);
+        } catch (error: any) {
+            console.error('Force Resubscribe Error:', error);
+            toast.error('알림 재연동 오류: ' + (error?.message || error), { id: 'push-renew' });
+        }
+    };
+
     const handleRequestPermission = async () => {
         if (!isSupported) {
             toast.error('이 환경에서는 실시간 알림을 사용할 수 없습니다.');
@@ -257,6 +341,32 @@ export function NotificationPermissionBanner({ userId, userType, parentToken }: 
     }
 
     if (!isSupported) return null; // 그 외 기술적 미지원 브라우저는 숨김
+
+    // 홍석현 학생 타겟 재연동 테스트 배너 (권한 허용 상태여도 강제 노출)
+    if (isTestTarget && !isForceDismissed) {
+        return (
+            <div
+                onClick={handleForceReSubscribe}
+                className="w-full p-4 mb-4 rounded-xl cursor-pointer transition-all shadow-md animate-fast-pulse flex items-center justify-between border bg-amber-50 border-amber-300 hover:bg-amber-100"
+            >
+                <div className="flex items-center gap-3">
+                    <span className="text-2xl">🔔</span>
+                    <div className="text-left">
+                        <p className="font-bold text-sm text-amber-900">
+                            [알림 재연동] 알림이 안 오시나요?
+                        </p>
+                        <p className="text-xs mt-0.5 text-amber-700 font-bold">
+                            여기를 터치하여 기기 알림을 깨끗하게 새로 연결하세요!
+                        </p>
+                    </div>
+                </div>
+                <div className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-amber-600 text-white shadow-sm hover:bg-amber-700">
+                    지금 터치하여 재연동
+                </div>
+            </div>
+        );
+    }
+
     if (permission === 'granted') return null; // 알림 허용 시 배너 자동 숨김
 
     // 알림 미허용 또는 차단 사용자 대상 안내 배너
