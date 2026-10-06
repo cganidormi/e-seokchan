@@ -27,6 +27,12 @@ export default function TeachersPage() {
   // 교사 목록 불러오기
   // ----------------------------------------
   const fetchTeachers = async () => {
+    const role = typeof window !== 'undefined' ? (localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role')) : null;
+    if (role !== 'teacher') {
+      console.warn('[Security] Unauthorized attempt to fetch teachers blocked.');
+      return;
+    }
+
     const { data, error } = await supabase
       .from("teachers")
       .select("*")

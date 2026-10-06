@@ -31,6 +31,13 @@ export default function TimetablePage() {
 
   /* eslint-disable react-hooks/exhaustive-deps */
   const fetchData = async () => {
+    const role = typeof window !== 'undefined' ? (localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role')) : null;
+    if (role !== 'teacher') {
+      console.warn('[Security] Unauthorized attempt to fetch timetable blocked.');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase

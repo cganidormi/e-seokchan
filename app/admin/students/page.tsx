@@ -52,6 +52,12 @@ export default function StudentsPage() {
   // 학생 데이터 불러오기
   // -------------------------
   const fetchStudents = async () => {
+    const role = typeof window !== 'undefined' ? (localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role')) : null;
+    if (role !== 'teacher') {
+      console.warn('[Security] Unauthorized attempt to fetch students blocked.');
+      return;
+    }
+
     const { data, error } = await supabase
       .from("students")
       .select("*")
