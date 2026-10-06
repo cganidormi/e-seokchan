@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminRequest } from '@/lib/adminAuth';
 
 export async function POST(request: Request) {
     try {
+        // 1. 관리자/교사 신분증(인증) 엄격 검증
+        const authResult = await verifyAdminRequest(request);
+        if (!authResult.authorized) {
+            return authResult.errorResponse!;
+        }
+
         const { student_ids } = await request.json();
 
         const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminRequest } from '@/lib/adminAuth';
 
 export async function POST(request: Request) {
     try {
+        // 1. 관리자/교사 신분증(인증) 엄격 검증
+        const authResult = await verifyAdminRequest(request);
+        if (!authResult.authorized) {
+            return authResult.errorResponse!;
+        }
+
         const { student_id } = await request.json();
         if (!student_id) {
             return NextResponse.json({ error: 'student_id 필요' }, { status: 400 });
@@ -29,4 +36,3 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: e.message }, { status: 500 });
     }
 }
-

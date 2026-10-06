@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminRequest } from '@/lib/adminAuth';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,6 +9,12 @@ const supabase = createClient(
 
 export async function POST(request: Request) {
     try {
+        // 1. 관리자/교사 신분증(인증) 엄격 검증
+        const authResult = await verifyAdminRequest(request);
+        if (!authResult.authorized) {
+            return authResult.errorResponse!;
+        }
+
         const { teacher_id } = await request.json();
         if (!teacher_id) {
             return NextResponse.json({ error: 'teacher_id 필요' }, { status: 400 });

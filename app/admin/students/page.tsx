@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
+import { getAdminHeaders } from "@/lib/adminClientHeaders";
 
 import { FaTrash } from "react-icons/fa";
 
@@ -209,7 +210,7 @@ export default function StudentsPage() {
     if (student_id) {
       await fetch('/api/admin/delete-student-auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ student_id }),
       }).catch(() => { });
     }
@@ -219,7 +220,7 @@ export default function StudentsPage() {
     if (legacy_id !== student_id) {
       await fetch('/api/admin/delete-student-auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ student_id: legacy_id }),
       }).catch(() => { });
     }
@@ -299,7 +300,7 @@ export default function StudentsPage() {
         await supabase.from("monthly_return_applications").delete().eq("student_id", o.student_id);
         await fetch('/api/admin/delete-student-auth', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAdminHeaders(),
           body: JSON.stringify({ student_id: o.student_id }),
         }).catch(() => { });
       }
@@ -307,7 +308,7 @@ export default function StudentsPage() {
       const legacy_id = `${s.grade}${String(s.class).padStart(2, "0")}${String(s.number).padStart(2, "0")}`;
       await fetch('/api/admin/delete-student-auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ student_id: legacy_id }),
       }).catch(() => { });
 
@@ -318,7 +319,7 @@ export default function StudentsPage() {
       try {
         const uResp = await fetch('/api/admin/upsert-students', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAdminHeaders(),
           body: JSON.stringify({ students: studentsToUpsert }),
         });
         if (!uResp.ok) {
@@ -379,7 +380,7 @@ export default function StudentsPage() {
       if (old_student_id && old_student_id !== student_id) {
         await fetch('/api/admin/delete-student-auth', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAdminHeaders(),
           body: JSON.stringify({ student_id: old_student_id }),
         }).catch(() => { });
       }
@@ -389,7 +390,7 @@ export default function StudentsPage() {
       if (legacy_id !== student_id) {
         await fetch('/api/admin/delete-student-auth', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAdminHeaders(),
           body: JSON.stringify({ student_id: legacy_id }),
         }).catch(() => { });
       }
@@ -400,7 +401,7 @@ export default function StudentsPage() {
         try {
           const resp = await fetch('/api/admin/reset-student-password', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAdminHeaders(),
             body: JSON.stringify({ student_id, new_password: tempPassword }),
           });
           if (!resp.ok) {
@@ -428,7 +429,7 @@ export default function StudentsPage() {
         try {
           const authResp = await fetch('/api/admin/get-students-auth', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAdminHeaders(),
             body: JSON.stringify({ student_ids: studentIds }),
           });
           if (authResp.ok) {
@@ -498,7 +499,7 @@ export default function StudentsPage() {
     try {
       const authResp = await fetch('/api/admin/get-students-auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ student_ids: studentIds }),
       });
       if (authResp.ok) {
@@ -633,9 +634,7 @@ export default function StudentsPage() {
     try {
       const response = await fetch('/api/admin/reset-student-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAdminHeaders(),
         body: JSON.stringify({
           student_id,
           new_password: newPw,

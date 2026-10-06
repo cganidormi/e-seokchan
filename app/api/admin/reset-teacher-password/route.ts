@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminRequest } from '@/lib/adminAuth';
 
-// Supabase Service Role Key (Bypasses RLS)
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -9,6 +9,12 @@ const supabase = createClient(
 
 export async function POST(request: Request) {
     try {
+        // 1. 관리자/교사 신분증(인증) 엄격 검증
+        const authResult = await verifyAdminRequest(request);
+        if (!authResult.authorized) {
+            return authResult.errorResponse!;
+        }
+
         const { teacher_id, new_password } = await request.json();
 
         if (!teacher_id || !new_password) {
@@ -18,7 +24,7 @@ export async function POST(request: Request) {
             );
         }
 
-        // 서버 사이드에서 SERVICE_ROLE 키를 사용하여 RLS를 무시하고 비밀번호 초기화 (upsert)
+        // 서버 사이드에서 SERVICE_ROLE 키를 사용하여 비밀번호 초기화 (upsert)
         const { error } = await supabase.from('teachers_auth').upsert(
             {
                 teacher_id,

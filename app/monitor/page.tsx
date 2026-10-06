@@ -9,14 +9,17 @@ export default function MonitorPage() {
     const [currentFloor, setCurrentFloor] = useState(3);
     const [currentTime, setCurrentTime] = useState("");
     const [isClient, setIsClient] = useState(false);
+    const [isAuthorized, setIsAuthorized] = useState(false);
 
     useEffect(() => {
         setIsClient(true);
-        // Check auth
+        // Check auth (모니터 또는 교사만 접근 허용)
         const role = localStorage.getItem("dormichan_role");
-        if (role !== "monitor") {
+        if (role !== "monitor" && role !== "teacher") {
             router.replace("/login");
+            return;
         }
+        setIsAuthorized(true);
 
         // Clock
         const timer = setInterval(() => {
@@ -28,7 +31,7 @@ export default function MonitorPage() {
         return () => clearInterval(timer);
     }, [router]);
 
-    if (!isClient) return null;
+    if (!isClient || !isAuthorized) return null;
 
     return (
         <div className="h-screen w-screen overflow-hidden bg-[#121212] flex flex-col">

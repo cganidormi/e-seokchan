@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
 import { FaTimes } from "react-icons/fa";
+import { getAdminHeaders } from "@/lib/adminClientHeaders";
 
 // ... (imports done)
 
@@ -141,7 +142,7 @@ export default function TeachersPage() {
     if (teacher.teacher_id) {
       await fetch('/api/admin/delete-teacher-auth', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAdminHeaders(),
         body: JSON.stringify({ teacher_id: teacher.teacher_id }),
       }).catch(() => { });
     }
@@ -205,7 +206,7 @@ export default function TeachersPage() {
       if (oldTeacherId && oldTeacherId !== newTeacherId) {
         await fetch('/api/admin/delete-teacher-auth', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAdminHeaders(),
           body: JSON.stringify({ teacher_id: oldTeacherId }),
         }).catch(() => { }); // 없어도 계속 진행
       }
@@ -220,7 +221,7 @@ export default function TeachersPage() {
       try {
         const resp = await fetch('/api/admin/reset-teacher-password', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAdminHeaders(),
           body: JSON.stringify({ teacher_id: newTeacherId, new_password: tempPassword }),
         });
         if (!resp.ok) {
@@ -463,9 +464,7 @@ export default function TeachersPage() {
                       try {
                         const response = await fetch('/api/admin/reset-teacher-password', {
                           method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                          },
+                          headers: getAdminHeaders(),
                           body: JSON.stringify({
                             teacher_id: t.teacher_id,
                             new_password: newPw,
