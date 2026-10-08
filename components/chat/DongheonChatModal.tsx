@@ -257,8 +257,8 @@ export default function DongheonChatModal({
       : '실시간 1:1 대화 및 상담';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white w-full max-w-md h-[90vh] max-h-[680px] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-amber-200">
+    <div className="fixed inset-0 z-[100000] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white w-full max-w-md h-[88dvh] max-h-[720px] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-amber-200">
         {/* 상단 헤더 */}
         <div className="bg-gradient-to-r from-amber-500 via-orange-400 to-[#FF6F61] p-4 text-white flex items-center justify-between shadow-md select-none shrink-0">
           <div className="flex items-center gap-2.5">
@@ -365,7 +365,7 @@ export default function DongheonChatModal({
         {/* 메시지 입력창 하단 바 */}
         <form
           onSubmit={handleSendMessage}
-          className="p-3 bg-white border-t border-amber-100 flex items-end gap-2 shrink-0"
+          className="p-3 bg-white border-t border-amber-100 flex items-end gap-2 shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"
         >
           <div className="flex-1 bg-amber-50/60 rounded-xl border border-amber-200 focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-200/50 transition p-1.5 flex items-center">
             <textarea
