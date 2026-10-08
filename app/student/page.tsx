@@ -43,6 +43,16 @@ export default function StudentPage() {
   const router = useRouter(); // Initialized useRouter
 
   useEffect(() => {
+    // URL preview 파라미터 지원 (예: /student?preview=2101강동헌)
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const previewStudent = sp.get('preview');
+      if (previewStudent) {
+        localStorage.setItem('dormichan_login_id', previewStudent);
+        localStorage.setItem('dormichan_role', 'student');
+      }
+    }
+
     // 1. Session & Role Check
     const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
     const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');

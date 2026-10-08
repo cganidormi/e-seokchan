@@ -14,6 +14,7 @@ import PullToRefresh from '@/components/PullToRefresh';
 import LoadingScreen from '@/components/LoadingScreen';
 import AnniversaryBanner from '@/components/parent/ParentsDayCelebration';
 import SwipeWrapper from '@/components/teacher/SwipeWrapper';
+import DongheonChatModal from '@/components/chat/DongheonChatModal';
 
 // 메모리 캐싱을 통해 뒤로가기 시 로딩 화면(학교 로고)이 나타나는 지연 현상 방지
 let globalTeacherId: string | null = null;
@@ -33,6 +34,45 @@ export default function TeacherPage() {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(globalLeaveRequests);
   const [showQR, setShowQR] = useState(false);
   const [unifiedViewMode, setUnifiedViewMode] = useState<'my_active' | 'all_active' | 'past_all' | 'search_name'>('my_active');
+  const [isDongheonChatOpen, setIsDongheonChatOpen] = useState(false);
+  const [unreadDongheonChatCount, setUnreadDongheonChatCount] = useState(0);
+
+  // 이상찬 관리자님 여부 체크 (오직 이상찬 관리자님에게만 노출)
+  const isSangchanAdmin = Boolean(
+    teacherName?.includes('이상찬') || teacherLoginId?.includes('이상찬')
+  );
+
+  useEffect(() => {
+    if (!isSangchanAdmin) return;
+
+    const fetchUnread = async () => {
+      try {
+        const { count } = await supabase
+          .from('dongheon_chats')
+          .select('*', { count: 'exact', head: true })
+          .eq('sender_role', 'student')
+          .eq('is_read', false);
+        setUnreadDongheonChatCount(count || 0);
+      } catch (e) {}
+    };
+
+    fetchUnread();
+
+    const channel = supabase
+      .channel('dongheon_unread_badge_teacher')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'dongheon_chats' },
+        () => {
+          fetchUnread();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isSangchanAdmin]);
 
   const router = useRouter();
 
@@ -530,6 +570,8 @@ export default function TeacherPage() {
           </div>
         </button>
 
+
+
         {teacherPosition === '관리자' && (
           <button
             onClick={() => router.push('/admin')}
@@ -553,6 +595,9 @@ export default function TeacherPage() {
           teacherPosition={teacherPosition}
           unifiedViewMode={unifiedViewMode}
           onTabChange={setUnifiedViewMode}
+          isSangchanAdmin={isSangchanAdmin}
+          unreadDongheonChatCount={unreadDongheonChatCount}
+          onOpenDongheonChat={() => setIsDongheonChatOpen(true)}
         />
         <div className="mt-8 text-center pb-8">
           <a href="/privacy" className="text-xs text-gray-400 underline hover:text-gray-600 transition-colors">
@@ -596,6 +641,19 @@ export default function TeacherPage() {
           </div>
         </div>
       )}
+
+        {/* 이상찬 관리자님 전용 2101 강동헌 학생과의 실시간 톡 모달 */}
+        {isSangchanAdmin && (
+          <DongheonChatModal
+            isOpen={isDongheonChatOpen}
+            onClose={() => {
+              setIsDongheonChatOpen(false);
+              setUnreadDongheonChatCount(0);
+            }}
+            currentRole="teacher"
+            currentName="이상찬"
+          />
+        )}
       </div>
     </SwipeWrapper>
   );

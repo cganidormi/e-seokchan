@@ -16,6 +16,15 @@ export default function StudentLayout({
 
     useEffect(() => {
         const checkAuth = async () => {
+            if (typeof window !== 'undefined') {
+                const sp = new URLSearchParams(window.location.search);
+                const previewStudent = sp.get('preview');
+                if (previewStudent) {
+                    localStorage.setItem('dormichan_login_id', previewStudent);
+                    localStorage.setItem('dormichan_role', 'student');
+                }
+            }
+
             const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
             const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
 

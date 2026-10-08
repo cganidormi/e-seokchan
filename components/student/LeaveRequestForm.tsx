@@ -9,6 +9,7 @@ import clsx from 'clsx';
 import { Student, Teacher } from './types';
 import { supabase } from '@/supabaseClient';
 import { isWeeklyHomeTime } from '@/lib/weeklyReturn';
+import DongheonChatModal from '@/components/chat/DongheonChatModal';
 
 interface LeaveRequestFormProps {
     studentId: string;
@@ -71,6 +72,56 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
     const [endDate, setEndDate] = useState<Date | null>(null);
     const [targetDate, setTargetDate] = useState<Date>(new Date());
     const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
+    const [isChatOpen, setIsChatOpen] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return new URLSearchParams(window.location.search).get('open_chat') === 'true';
+        }
+        return false;
+    });
+    const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+    // 2101 강동헌 학생 여부 판별 (오직 강동헌 학생에게만 채팅 버튼 노출)
+    const isDongheon = React.useMemo(() => {
+        const idToCheck = (actualLoginId || studentId || '').trim();
+        if (idToCheck === '2101강동헌' || idToCheck === '2101' || idToCheck.startsWith('2101')) return true;
+        const s = students.find(item => item.student_id === idToCheck);
+        return (s?.grade === 2 && s?.class === 1 && s?.number === 1) || s?.name === '강동헌';
+    }, [actualLoginId, studentId, students]);
+
+    // 강동헌 학생일 경우 이상찬 선생님이 보낸 읽지 않은 메시지 실시간 감지
+    React.useEffect(() => {
+        if (!isDongheon) return;
+
+        const fetchUnread = async () => {
+            try {
+                const { count } = await supabase
+                    .from('dongheon_chats')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('sender_role', 'teacher')
+                    .eq('is_read', false);
+                setUnreadChatCount(count || 0);
+            } catch (e) {
+                // Table might not exist yet
+            }
+        };
+
+        fetchUnread();
+
+        const channel = supabase
+            .channel('dongheon_unread_badge_student')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'dongheon_chats' },
+                () => {
+                    fetchUnread();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [isDongheon]);
 
     // Keep targetDate in sync with current date if it is in the past (e.g. mobile browser kept in background)
     React.useEffect(() => {
@@ -709,9 +760,25 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
     return (
         <div className="flex flex-col w-full max-w-xl mx-auto relative">
             <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <div className="w-1.5 h-6 bg-[#FF6F61] rounded-full"></div>
                     <h1 className="text-xl font-extrabold text-gray-800">이석 신청</h1>
+                    {isDongheon && (
+                        <button
+                            type="button"
+                            onClick={() => setIsChatOpen(true)}
+                            className="relative inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-400 via-orange-400 to-[#FF6F61] hover:from-amber-500 hover:to-[#e8584a] text-white text-xs font-black rounded-full shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ml-1 select-none"
+                            title="이상찬 선생님께 편지 및 실시간 톡 보내기"
+                        >
+                            <span className="text-sm">💌</span>
+                            <span>쌤 편지요</span>
+                            {unreadChatCount > 0 && (
+                                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black text-white bg-red-600 border border-white rounded-full shadow-sm animate-pulse">
+                                    {unreadChatCount}
+                                </span>
+                            )}
+                        </button>
+                    )}
                 </div>
 
                 {isMasterAdmin && onSwitchStudent && (
@@ -1092,6 +1159,19 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     {isSubmitting ? 'APPLYING...' : 'APPLY'}
                 </span>
             </button>
+
+            {/* 강동헌 학생 전용 이상찬 쌤과의 실시간 톡 모달 */}
+            {isDongheon && (
+                <DongheonChatModal
+                    isOpen={isChatOpen}
+                    onClose={() => {
+                        setIsChatOpen(false);
+                        setUnreadChatCount(0);
+                    }}
+                    currentRole="student"
+                    currentName="강동헌"
+                />
+            )}
         </div>
     );
 };

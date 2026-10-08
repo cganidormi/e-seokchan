@@ -18,6 +18,9 @@ interface LeaveProcessListProps {
     teacherPosition?: string;
     unifiedViewMode: 'my_active' | 'all_active' | 'past_all' | 'search_name';
     onTabChange: (mode: 'my_active' | 'all_active' | 'past_all' | 'search_name') => void;
+    isSangchanAdmin?: boolean;
+    unreadDongheonChatCount?: number;
+    onOpenDongheonChat?: () => void;
 }
 
 export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
@@ -29,6 +32,9 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
     teacherPosition,
     unifiedViewMode,
     onTabChange,
+    isSangchanAdmin,
+    unreadDongheonChatCount = 0,
+    onOpenDongheonChat,
 }) => {
     const router = useRouter();
     const [filterType, setFilterType] = useState('전체'); // Added filter type state
@@ -105,8 +111,24 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <div className="w-1.5 h-6 bg-[#FF6F61] rounded-full"></div>
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <h1 className="text-xl font-extrabold text-gray-800">이석 처리 ({teacherName} 감독선생님)</h1>
+                        {isSangchanAdmin && onOpenDongheonChat && (
+                            <button
+                                type="button"
+                                onClick={onOpenDongheonChat}
+                                className="relative bg-gradient-to-r from-amber-500 via-orange-400 to-[#FF6F61] hover:from-amber-600 hover:to-[#e8584a] text-white font-extrabold py-1 px-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1 text-xs cursor-pointer select-none active:scale-95"
+                                title="2101 강동헌 학생과의 1:1 실시간 톡"
+                            >
+                                <span className="text-sm">💌</span>
+                                <span>동헌톡</span>
+                                {unreadDongheonChatCount > 0 && (
+                                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black text-white bg-red-600 border border-white rounded-full shadow-sm animate-pulse">
+                                        {unreadDongheonChatCount}
+                                    </span>
+                                )}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
