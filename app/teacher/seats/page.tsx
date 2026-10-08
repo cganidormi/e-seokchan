@@ -12,6 +12,7 @@ import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
 import { LeaveRequest } from '@/components/teacher/types';
 import SwipeWrapper from '@/components/teacher/SwipeWrapper';
 import SwipeNudgeDots from '@/components/teacher/SwipeNudgeDots';
+import { isWeeklyHomeTime } from '@/lib/weeklyReturn';
 
 interface Student {
     student_id: string;
@@ -51,28 +52,6 @@ interface TimetableEntry {
 
 
 
-const isWeeklyHomeTime = (date: Date) => {
-    const day = date.getDay();
-    const hour = date.getHours();
-    const minute = date.getMinutes();
-
-    // Friday (5) >= 17:00
-    if (day === 5) {
-        if (hour >= 17) return true;
-        return false;
-    }
-    // Saturday (6) - All day
-    if (day === 6) {
-        return true;
-    }
-    // Sunday (0) <= 18:50
-    if (day === 0) {
-        if (hour < 18) return true;
-        if (hour === 18 && minute <= 50) return true;
-        return false;
-    }
-    return false;
-};
 
 export default function SeatManagementPage() {
     const router = useRouter();
@@ -1131,7 +1110,7 @@ export default function SeatManagementPage() {
                                     let hasAwayConflict = false;
 
                                     // --- Weekly Home Goer Check ---
-                                    const isWeeklyHome = (assignment?.student?.weekend || weeklyReturnStudents.has(assignment?.student_id || '')) && isWeeklyHomeTime(currentTime);
+                                    const isWeeklyHome = (assignment?.student?.weekend || weeklyReturnStudents.has(assignment?.student_id || '')) && isWeeklyHomeTime(currentTime, specialHolidays);
 
                                     // Monitor Logic
                                     if (assignment && mode === 'monitor' && activeLeaves.length > 0) {

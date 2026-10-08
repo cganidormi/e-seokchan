@@ -14,6 +14,7 @@ import DashboardMain from '@/components/admin/DashboardMain';
 import { HiHome } from 'react-icons/hi';
 import SwipeWrapper from '@/components/teacher/SwipeWrapper';
 import SwipeNudgeDots from '@/components/teacher/SwipeNudgeDots';
+import { isWeeklyHomeTime } from '@/lib/weeklyReturn';
 
 // Room Layout Configuration (Row, Col) based on floor plan
 // Abstracted using last 2 digits (01-25)
@@ -109,28 +110,6 @@ const getAllRooms = () => {
 
 const ALL_ROOMS = getAllRooms();
 
-const isWeeklyHomeTime = (date: Date) => {
-    const day = date.getDay();
-    const hour = date.getHours();
-    const minute = date.getMinutes();
-
-    // Friday (5) >= 17:00
-    if (day === 5) {
-        if (hour >= 17) return true;
-        return false;
-    }
-    // Saturday (6) - All day
-    if (day === 6) {
-        return true;
-    }
-    // Sunday (0) <= 18:50
-    if (day === 0) {
-        if (hour < 18) return true;
-        if (hour === 18 && minute <= 50) return true;
-        return false;
-    }
-    return false;
-};
 
 export default function HeadcountPage() {
     const transformRef = useRef<any>(null);
@@ -214,6 +193,7 @@ export default function HeadcountPage() {
     const router = useRouter();
 
     const [students, setStudents] = useState<Student[]>([]);
+    const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
 
     useEffect(() => {
         // Fetch Data
@@ -227,6 +207,9 @@ export default function HeadcountPage() {
 
                 if (error) throw error;
                 if (studentsData) setStudents(studentsData);
+
+                const { data: holidayData } = await supabase.from('special_holidays').select('date');
+                if (holidayData) setSpecialHolidays(holidayData.map((h: any) => h.date));
 
                 // Initialize Status based on Rooms and Students
                 const initialStatus: any = {};
@@ -522,7 +505,7 @@ export default function HeadcountPage() {
             3: { present: 0, total: 0 }
         };
         const now = new Date();
-        const isWeekend = isWeeklyHomeTime(now);
+        const isWeekend = isWeeklyHomeTime(now, specialHolidays);
 
         Object.keys(layout).forEach(key => {
             const roomNum = currentFloor * 100 + Number(key);
@@ -980,7 +963,7 @@ export default function HeadcountPage() {
                                                                     ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
                                                                     : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
                                                                 : (roomData.left.name
-                                                                    ? (isWeeklyHomeTime(new Date()) && roomData.left.isWeekend
+                                                                    ? (isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend
                                                                         ? "bg-[#1f2937] border-gray-700 font-medium" // Weekly Home
                                                                         : "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10") // Present
                                                                     : "bg-[#1c1c1e] border-white/5" // Empty
@@ -999,14 +982,14 @@ export default function HeadcountPage() {
                                                 </span>
 
                                                 {/* Overlap background for Weekly Home Goer -> REMOVED to match empty dark color as requested */}
-                                                {/* {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.left.isWeekend && (
+                                                {/* {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend && (
                                                     <div className="absolute inset-0 bg-gray-200/90 z-20 flex items-center justify-center rounded-md" />
                                                 )} */}
 
                                                 {/* Student Name */}
                                                 <span className={clsx(
                                                     "truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30 font-medium",
-                                                    mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.left.isWeekend
+                                                    mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend
                                                         ? "text-gray-400"
                                                         : (
                                                             mode === 'check' && roomData.left.status === 'in' && roomData.left.name
@@ -1025,7 +1008,7 @@ export default function HeadcountPage() {
                                                             <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.left.student_id || roomData.left.name).replace(/^\d+/, '').trim()}</span>
                                                         </div>
                                                     ) : (mode === 'assign' ? '빈 침대' : '-')}
-                                                    {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.left.isWeekend && (
+                                                    {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend && (
                                                         <span className="text-[10px] font-bold text-gray-600 mt-0.5">매주귀가</span>
                                                     )}
                                                 </span>
@@ -1052,7 +1035,7 @@ export default function HeadcountPage() {
                                                                     ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
                                                                     : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
                                                                 : (roomData.right.name
-                                                                    ? (isWeeklyHomeTime(new Date()) && roomData.right.isWeekend
+                                                                    ? (isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend
                                                                         ? "bg-[#1f2937] border-gray-700 font-medium" // Weekly Home
                                                                         : "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10") // Present
                                                                     : "bg-[#1c1c1e] border-white/5" // Empty
@@ -1071,14 +1054,14 @@ export default function HeadcountPage() {
                                                 </span>
 
                                                 {/* Overlap background for Weekly Home Goer -> REMOVED to match empty dark color as requested */}
-                                                {/* {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.right.isWeekend && (
+                                                {/* {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend && (
                                                     <div className="absolute inset-0 bg-gray-200/90 z-20 flex items-center justify-center rounded-md" />
                                                 )} */}
 
                                                 {/* Student Name */}
                                                 <span className={clsx(
                                                     "truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30 font-medium",
-                                                    mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.right.isWeekend
+                                                    mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend
                                                         ? "text-gray-400"
                                                         : (
                                                             mode === 'check' && roomData.right.status === 'in' && roomData.right.name
@@ -1097,7 +1080,7 @@ export default function HeadcountPage() {
                                                             <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.right.student_id || roomData.right.name).replace(/^\d+/, '').trim()}</span>
                                                         </div>
                                                     ) : (mode === 'assign' ? '빈 침대' : '-')}
-                                                    {mode === 'check' && isWeeklyHomeTime(new Date()) && roomData.right.isWeekend && (
+                                                    {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend && (
                                                         <span className="text-[10px] font-bold text-gray-600 mt-0.5">매주귀가</span>
                                                     )}
                                                 </span>

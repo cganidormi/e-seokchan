@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import clsx from "clsx";
 import { supabase } from "@/supabaseClient";
+import { isWeeklyHomeTime } from "@/lib/weeklyReturn";
 
 // Room Layout Configuration (Same as Teacher Page)
 const DEFAULT_LAYOUT: Record<number, { row: number; col: number }> = {
@@ -51,27 +52,18 @@ const getAllRooms = () => {
 };
 const ALL_ROOMS = getAllRooms();
 
-const isWeeklyHomeTime = (date: Date) => {
-    const day = date.getDay();
-    const hour = date.getHours();
-    const minute = date.getMinutes();
-    if (day === 5) return hour >= 17;
-    if (day === 6) return true;
-    if (day === 0) {
-        if (hour < 18) return true;
-        if (hour === 18 && minute <= 50) return true;
-        return false;
-    }
-    return false;
-};
-
 export default function MonitorSeatingChart({ floor }: { floor: number }) {
     const [roomStatus, setRoomStatus] = useState<Record<number, any>>({});
+    const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchStatus = async () => {
         try {
-            const { data: students } = await supabase.from('students').select('*');
+            const [{ data: students }, { data: holidayData }] = await Promise.all([
+                supabase.from('students').select('*'),
+                supabase.from('special_holidays').select('date')
+            ]);
+            if (holidayData) setSpecialHolidays(holidayData.map((h: any) => h.date));
 
             const studentsByRoom: Record<number, any[]> = {};
             students?.forEach((s: any) => {
@@ -221,7 +213,7 @@ export default function MonitorSeatingChart({ floor }: { floor: number }) {
                                             const p = position as 'left' | 'right';
                                             const data = roomData[p];
                                             const isOut = data.status === 'out';
-                                            const isWeekend = isWeeklyHomeTime(new Date()) && data.isWeekend;
+                                            const isWeekend = isWeeklyHomeTime(new Date(), specialHolidays) && data.isWeekend;
                                             const isEmpty = !data.name;
 
                                             return (

@@ -13,6 +13,7 @@ import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
 import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
 import { LeaveRequest } from '@/components/teacher/types';
+import { isWeeklyHomeTime as isWeeklyReturnPeriod } from '@/lib/weeklyReturn';
 
 // Types
 interface DashboardStats {
@@ -74,50 +75,6 @@ interface Patient {
     created_at: string;
 }
 
-const isWeeklyReturnPeriod = (date: Date, holidaySet: Set<string> = new Set()) => {
-    const getFormatDateStr = (d: Date) => {
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
-    };
-
-    const d = new Date(date);
-    const day = d.getDay(); // 0: Sun, 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri, 6: Sat
-
-    let fri = new Date(d);
-    if (day === 0) fri.setDate(d.getDate() - 2);
-    else if (day === 1) fri.setDate(d.getDate() - 3);
-    else if (day === 2) fri.setDate(d.getDate() - 4);
-    else if (day === 3) fri.setDate(d.getDate() + 2);
-    else if (day === 4) fri.setDate(d.getDate() + 1);
-    else if (day === 5) fri.setDate(d.getDate());
-    else if (day === 6) fri.setDate(d.getDate() - 1);
-
-    const friStr = getFormatDateStr(fri);
-    const isFriHoliday = holidaySet.has(friStr);
-
-    const start = new Date(fri);
-    if (isFriHoliday) {
-        start.setDate(fri.getDate() - 1);
-    }
-    start.setHours(15, 30, 0, 0);
-
-    const mon = new Date(fri);
-    mon.setDate(fri.getDate() + 3);
-    const monStr = getFormatDateStr(mon);
-    const isMonHoliday = holidaySet.has(monStr);
-
-    const end = new Date(fri);
-    if (isMonHoliday) {
-        end.setDate(fri.getDate() + 3);
-    } else {
-        end.setDate(fri.getDate() + 2);
-    }
-    end.setHours(18, 50, 0, 0);
-
-    return date >= start && date <= end;
-};
 
 export default function DashboardMain() {
     const [stats, setStats] = useState<DashboardStats>({

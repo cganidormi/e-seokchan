@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import { Student, Teacher } from './types';
 import { supabase } from '@/supabaseClient';
+import { isWeeklyHomeTime } from '@/lib/weeklyReturn';
 
 interface LeaveRequestFormProps {
     studentId: string;
@@ -555,15 +556,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 const sDate = new Date(finalStartTime);
                 const eDate = new Date(finalEndTime);
                 
-                const isRestrictedTime = (date: Date) => {
-                    const day = date.getDay();
-                    const hour = date.getHours();
-                    const minute = date.getMinutes();
-                    if (day === 5 && hour >= 17) return true;
-                    if (day === 6) return true;
-                    if (day === 0 && (hour < 18 || (hour === 18 && minute <= 50))) return true;
-                    return false;
-                };
+                const isRestrictedTime = (date: Date) => isWeeklyHomeTime(date, specialHolidays);
 
                 let isOverlap = isRestrictedTime(sDate) || isRestrictedTime(eDate);
                 
@@ -578,7 +571,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 }
 
                 if (isOverlap) {
-                    toast.error('매주 귀가 학생은 귀가 시간대(금요일 17:00 ~ 일요일 18:50)가 포함된 신청을 할 수 없습니다.');
+                    toast.error('매주 귀가 학생은 정기 귀가 시간대(15:30 이후 귀가 시간)가 포함된 신청을 할 수 없습니다.');
                     setIsSubmitting(false);
                     return;
                 }

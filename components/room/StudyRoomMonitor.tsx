@@ -5,6 +5,7 @@ import { supabase } from '@/supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
 import clsx from 'clsx';
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import { isWeeklyHomeTime } from '@/lib/weeklyReturn';
 
 interface Student {
     student_id: string;
@@ -42,27 +43,6 @@ interface TimetableEntry {
     end_time: string;
 }
 
-const isWeeklyHomeTime = (date: Date) => {
-    const day = date.getDay();
-    const hour = date.getHours();
-    const minute = date.getMinutes();
-
-    // Friday (5) >= 17:00
-    if (day === 5) {
-        return hour >= 17;
-    }
-    // Saturday (6) - All day
-    if (day === 6) {
-        return true;
-    }
-    // Sunday (0) <= 18:50
-    if (day === 0) {
-        if (hour < 18) return true;
-        if (hour === 18 && minute <= 50) return true;
-        return false;
-    }
-    return false;
-};
 
 interface StudyRoomMonitorProps {
     roomId: number;
@@ -371,7 +351,7 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
                                             let currentActiveLeave: any = null;
                                             let hasAwayConflict = false;
 
-                                            const isWeeklyHome = (assignment?.student?.weekend || weeklyReturnStudents.has(assignment?.student_id || '')) && isWeeklyHomeTime(currentTime);
+                                            const isWeeklyHome = (assignment?.student?.weekend || weeklyReturnStudents.has(assignment?.student_id || '')) && isWeeklyHomeTime(currentTime, specialHolidays);
 
                                             if (assignment && activeLeaves.length > 0) {
                                                 const awayReq = activeLeaves.find(req =>
