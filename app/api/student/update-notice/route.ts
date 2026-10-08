@@ -61,6 +61,7 @@ export async function POST(request: Request) {
             action,
             scheduled_id,
             target_student_id,
+            target_student_ids,
             new_notice_text,
             send_push = true,
             is_scheduled = false,
@@ -110,8 +111,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: true, message: '공지 예약이 성공적으로 취소되었습니다.' });
         }
 
+        // 대상 학생 ID 목록 정리 (배열 및 단일값 호환)
+        const resolvedTargetIds: string[] = Array.isArray(target_student_ids) && target_student_ids.length > 0
+            ? target_student_ids
+            : (target_student_id ? [target_student_id] : ['all']);
+
         // 2. 신규 공지 등록 (공통 유효성 검사)
-        if (typeof new_notice_text !== 'string' || !target_student_id) {
+        if (typeof new_notice_text !== 'string' || resolvedTargetIds.length === 0) {
             return NextResponse.json(
                 { error: '대상 학생 및 텍스트 내용이 필요합니다.' },
                 { status: 400 }
@@ -131,7 +137,8 @@ export async function POST(request: Request) {
             const item = await addScheduledNotice(supabase, {
                 creator_id: student_id,
                 scheduled_at: new Date(scheduled_at).toISOString(),
-                target_student_id,
+                target_student_id: resolvedTargetIds[0] || 'all',
+                target_student_ids: resolvedTargetIds,
                 notice_text: new_notice_text,
                 send_push
             });
@@ -144,13 +151,15 @@ export async function POST(request: Request) {
             });
         }
 
-        // 2-B. 즉시 게시 처리 (기존 로직 유지)
+        // 2-B. 즉시 게시 처리 (전체 vs 다중/단일 개별 공지)
         let pushTargetQuery: any = null;
         let pushTitle = '📢 알림';
         let cleanPushBody = new_notice_text.replace(/\n?__ROOM_PUBLIC:(true|false)__/, '').trim();
         let pushBody = cleanPushBody.length > 30 ? cleanPushBody.substring(0, 30) + '...' : cleanPushBody;
 
-        if (target_student_id === 'all') {
+        const isAll = resolvedTargetIds.includes('all');
+
+        if (isAll) {
             // 1. 전체 공지 업데이트
             const { error: sysError } = await supabase
                 .from('system_settings')
@@ -169,19 +178,25 @@ export async function POST(request: Request) {
             pushTargetQuery = supabase.from('push_subscriptions').select('*').not('student_id', 'is', null);
             pushTitle = '📢 [전체 공지] 홍지관 안내문';
         } else {
-            // 1. 특정 학생의 개별 공지 업데이트
+            // 1. 선택된 학생들의 개별 공지 업데이트
             const { error: updateError } = await supabase
                 .from('students')
                 .update({ personal_notice: new_notice_text })
-                .eq('student_id', target_student_id);
+                .in('student_id', resolvedTargetIds);
             if (updateError) throw updateError;
 
-            // 2. 푸시 알림 타겟: 특정 학생
-            const targetNumericId = String(target_student_id).match(/^\d+/)?.[0];
-            const targetSearchIds = Array.from(new Set([String(target_student_id), targetNumericId].filter(Boolean) as string[]));
+            // 2. 푸시 알림 타겟: 선택된 학생들
+            const targetSearchIds = Array.from(new Set(
+                resolvedTargetIds.flatMap((id: string) => {
+                    const num = String(id).match(/^\d+/)?.[0];
+                    return [String(id), num].filter(Boolean) as string[];
+                })
+            ));
 
             pushTargetQuery = supabase.from('push_subscriptions').select('*').in('student_id', targetSearchIds);
-            pushTitle = '📝 [개별 공지] 홍지관 안내문';
+            pushTitle = resolvedTargetIds.length === 1
+                ? '📝 [개별 공지] 홍지관 안내문'
+                : `📝 [공지 안내] 홍지관 안내문 (${resolvedTargetIds.length}명)`;
         }
 
         // 알림 푸시 전송 (send_push 가 true 일 때만 발송)

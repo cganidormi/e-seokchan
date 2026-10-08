@@ -32,6 +32,10 @@ export default function StudentPage() {
   const [sendPushNotification, setSendPushNotification] = useState(false);
   const [isSavingNotice, setIsSavingNotice] = useState(false);
   const [targetStudentId, setTargetStudentId] = useState('all');
+  const [noticeTargetType, setNoticeTargetType] = useState<'all' | 'custom'>('all');
+  const [selectedTargetStudentIds, setSelectedTargetStudentIds] = useState<string[]>([]);
+  const [noticeStudentSearch, setNoticeStudentSearch] = useState('');
+  const [noticeGradeFilter, setNoticeGradeFilter] = useState<'all' | number>('all');
   const [showRoomInfo, setShowRoomInfo] = useState(false);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
 
@@ -505,6 +509,12 @@ export default function StudentPage() {
       return;
     }
 
+    const isAll = noticeTargetType === 'all';
+    if (!isAll && selectedTargetStudentIds.length === 0) {
+      toast.error('안내를 전송할 학생을 최소 1명 이상 선택해주세요.');
+      return;
+    }
+
     if (isScheduled) {
       if (!scheduledDateTime) {
         toast.error('예약 일시를 선택해주세요.');
@@ -518,9 +528,11 @@ export default function StudentPage() {
     }
 
     setIsSavingNotice(true);
-    const payloadNoticeText = targetStudentId === 'all'
+    const payloadNoticeText = isAll
       ? `${editNoticeContent}\n__ROOM_PUBLIC:${showRoomInfo}__`
       : editNoticeContent;
+
+    const targetIds = isAll ? ['all'] : selectedTargetStudentIds;
 
     try {
       const res = await fetch('/api/student/update-notice', {
@@ -528,7 +540,8 @@ export default function StudentPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           student_id: actualLoginId || studentId,
-          target_student_id: targetStudentId,
+          target_student_id: targetIds[0] || 'all',
+          target_student_ids: targetIds,
           new_notice_text: payloadNoticeText,
           send_push: sendPushNotification,
           is_scheduled: isScheduled,
@@ -550,17 +563,27 @@ export default function StudentPage() {
         if (actualLoginId) fetchPendingSchedules(actualLoginId);
       } else {
         if (sendPushNotification) {
-          toast.success(targetStudentId === 'all' ? '전체 공지가 업데이트되고 푸시 알림이 발송되었습니다.' : '개별 공지가 업데이트되고 푸시 알림이 발송되었습니다.');
+          toast.success(
+            isAll
+              ? '전체 공지가 업데이트되고 푸시 알림이 발송되었습니다.'
+              : selectedTargetStudentIds.length === 1
+                ? '개별 공지가 업데이트되고 푸시 알림이 발송되었습니다.'
+                : `${selectedTargetStudentIds.length}명의 학생에게 개별 공지가 발송되었습니다.`
+          );
         } else {
-          toast.success('공지 내용만 조용히 업데이트되었습니다. (푸시 알림 미발송)');
+          toast.success(
+            isAll
+              ? '전체 공지 내용이 업데이트되었습니다. (푸시 미발송)'
+              : `${selectedTargetStudentIds.length}명의 학생에게 공지 내용이 저장되었습니다. (푸시 미발송)`
+          );
         }
 
-        if (targetStudentId === 'all') {
+        if (isAll) {
           setNoticeText(editNoticeContent);
           setStudents(prev => prev.map(s => ({ ...s, personal_notice: undefined } as any)));
         } else {
           setStudents(prev => prev.map(s =>
-            s.student_id === targetStudentId
+            selectedTargetStudentIds.includes(s.student_id)
               ? { ...s, personal_notice: editNoticeContent } as any
               : s
           ));
@@ -568,6 +591,8 @@ export default function StudentPage() {
       }
       setIsEditingNotice(false);
       setIsScheduled(false);
+      setNoticeTargetType('all');
+      setSelectedTargetStudentIds([]);
       setTargetStudentId('all');
     } catch (e: any) {
       toast.error(e.message);
@@ -633,6 +658,19 @@ export default function StudentPage() {
 
   const isPersonalNotice = !!(currentStudent as any)?.personal_notice;
   const displayNoticeText = isPersonalNotice ? (currentStudent as any).personal_notice : noticeText;
+
+  // 공지 대상 학생 필터링
+  const filteredNoticeStudents = students
+    .filter(s => {
+      if (noticeGradeFilter !== 'all' && s.grade !== noticeGradeFilter) return false;
+      if (noticeStudentSearch.trim()) {
+        const query = noticeStudentSearch.trim().toLowerCase();
+        const info = `${s.grade}${s.class}${s.number} ${s.name} ${s.student_id}`.toLowerCase();
+        return info.includes(query);
+      }
+      return true;
+    })
+    .sort((a, b) => `${a.grade}${a.class}${a.number}`.localeCompare(`${b.grade}${b.class}${b.number}`));
 
   // Compute Room and Bed Position
   let bedInfoText = '배정중';
@@ -730,6 +768,10 @@ export default function StudentPage() {
               <button
                 onClick={() => {
                   setTargetStudentId('all');
+                  setNoticeTargetType('all');
+                  setSelectedTargetStudentIds([]);
+                  setNoticeStudentSearch('');
+                  setNoticeGradeFilter('all');
                   setEditNoticeContent(noticeText);
                   setIsScheduled(false);
                   setIsEditingNotice(true);
@@ -743,32 +785,166 @@ export default function StudentPage() {
 
           {isEditingNotice ? (
             <div className="space-y-2 mt-2">
-              <select
-                value={targetStudentId}
-                onChange={(e) => {
-                  setTargetStudentId(e.target.value);
-                  if (e.target.value !== 'all') {
-                    setEditNoticeContent('');
-                  } else {
+              {/* 전송 대상 선택 탭: 전체 학생 vs 개별/다중 학생 */}
+              <div className="flex items-center gap-1.5 p-1 bg-amber-100/70 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNoticeTargetType('all');
                     setEditNoticeContent(noticeText);
-                  }
-                }}
-                className="w-full text-sm p-2 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white text-gray-900 font-semibold"
-              >
-                <option value="all">📢 전체 학생</option>
-                <optgroup label="개별 학생 선택">
-                  {students.sort((a, b) => `${a.grade}${a.class}${a.number}`.localeCompare(`${b.grade}${b.class}${b.number}`)).map(s => (
-                    <option key={s.student_id} value={s.student_id}>
-                      {s.grade}-{s.class} {s.name}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+                  }}
+                  className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-md transition cursor-pointer ${
+                    noticeTargetType === 'all'
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : 'bg-transparent text-gray-700 hover:bg-amber-200/60'
+                  }`}
+                >
+                  📢 전체 학생
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNoticeTargetType('custom');
+                    setEditNoticeContent('');
+                  }}
+                  className={`flex-1 py-1.5 px-2 text-xs font-bold rounded-md transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    noticeTargetType === 'custom'
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : 'bg-transparent text-gray-700 hover:bg-amber-200/60'
+                  }`}
+                >
+                  <span>👥 학생 직접 선택</span>
+                  {selectedTargetStudentIds.length > 0 && (
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                      noticeTargetType === 'custom' ? 'bg-white text-amber-600' : 'bg-amber-500 text-white'
+                    }`}>
+                      {selectedTargetStudentIds.length}명
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* 학생 직접 선택 모드 (다중 선택 UI) */}
+              {noticeTargetType === 'custom' && (
+                <div className="space-y-1.5 p-2 bg-amber-50/80 border border-amber-200 rounded-lg">
+                  {/* 선택된 학생 뱃지/칩 목록 */}
+                  {selectedTargetStudentIds.length > 0 && (
+                    <div className="p-1.5 bg-white border border-amber-200/80 rounded-md">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] font-bold text-amber-900">
+                          선택된 학생 ({selectedTargetStudentIds.length}명)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTargetStudentIds([])}
+                          className="text-[10px] text-rose-600 hover:underline font-bold cursor-pointer"
+                        >
+                          모두 해제
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto pr-1">
+                        {selectedTargetStudentIds.map(id => {
+                          const s = students.find(item => item.student_id === id);
+                          return (
+                            <span
+                              key={id}
+                              className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[11px] font-semibold"
+                            >
+                              <span>{s ? `${s.grade}-${s.class} ${s.name}` : id}</span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTargetStudentIds(prev => prev.filter(item => item !== id))}
+                                className="text-amber-800 hover:text-red-700 font-extrabold ml-0.5 leading-none cursor-pointer"
+                                title="선택 해제"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 학년 필터 & 검색 & 빠른 선택 */}
+                  <div className="space-y-1.5 bg-white p-2 border border-amber-200 rounded-md">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {(['all', 1, 2, 3] as const).map(g => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setNoticeGradeFilter(g)}
+                          className={`px-2 py-0.5 text-[11px] font-bold rounded transition cursor-pointer ${
+                            noticeGradeFilter === g
+                              ? 'bg-amber-500 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {g === 'all' ? '전체 학년' : `${g}학년`}
+                        </button>
+                      ))}
+                      <div className="ml-auto flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const filteredIds = filteredNoticeStudents.map(s => s.student_id);
+                            setSelectedTargetStudentIds(prev => Array.from(new Set([...prev, ...filteredIds])));
+                          }}
+                          className="text-[10px] px-1.5 py-0.5 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-bold cursor-pointer"
+                        >
+                          현재 목록 전체 선택
+                        </button>
+                      </div>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={noticeStudentSearch}
+                      onChange={(e) => setNoticeStudentSearch(e.target.value)}
+                      placeholder="🔍 이름 또는 학번으로 검색..."
+                      className="w-full text-xs p-1.5 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 bg-white text-gray-900 font-medium"
+                    />
+
+                    {/* 학생 체크박스 목록 */}
+                    <div className="max-h-36 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 gap-1 pt-1 border-t border-gray-100 pr-0.5">
+                      {filteredNoticeStudents.map(s => {
+                        const isSelected = selectedTargetStudentIds.includes(s.student_id);
+                        return (
+                          <label
+                            key={s.student_id}
+                            className={`flex items-center gap-1.5 p-1 rounded border text-xs cursor-pointer select-none transition ${
+                              isSelected
+                                ? 'bg-amber-100 border-amber-400 font-bold text-amber-950'
+                                : 'bg-gray-50/60 border-gray-200 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                setSelectedTargetStudentIds(prev =>
+                                  isSelected ? prev.filter(id => id !== s.student_id) : [...prev, s.student_id]
+                                );
+                              }}
+                              className="w-3.5 h-3.5 rounded text-amber-600 accent-amber-500 cursor-pointer"
+                            />
+                            <span className="truncate">{s.grade}-{s.class} {s.name}</span>
+                          </label>
+                        );
+                      })}
+                      {filteredNoticeStudents.length === 0 && (
+                        <p className="col-span-full text-center text-xs text-gray-400 py-3">검색 결과가 없습니다.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <textarea
                 value={editNoticeContent}
                 onChange={(e) => setEditNoticeContent(e.target.value)}
                 className="w-full text-sm p-2 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-400 min-h-[60px] resize-none text-gray-900 font-medium"
-                placeholder="공지내용 입력..."
+                placeholder={noticeTargetType === 'all' ? '전체 공지내용 입력...' : '선택한 학생들에게 전송할 안내 내용 입력...'}
               />
 
               {/* 게시 방식 선택: 즉시 게시 vs 예약 게시 */}
@@ -867,10 +1043,23 @@ export default function StudentPage() {
               </div>
               <div className="space-y-1.5">
                 {pendingSchedules.map(sch => {
-                  const targetStudent = students.find(s => s.student_id === sch.target_student_id);
-                  const targetLabel = sch.target_student_id === 'all'
-                    ? '전체 학생'
-                    : targetStudent ? `${targetStudent.grade}-${targetStudent.class} ${targetStudent.name}` : sch.target_student_id;
+                  const rawTargetIds = Array.isArray(sch.target_student_ids) && sch.target_student_ids.length > 0
+                    ? sch.target_student_ids
+                    : (sch.target_student_id ? [sch.target_student_id] : ['all']);
+
+                  let targetLabel = '전체 학생';
+                  if (!rawTargetIds.includes('all')) {
+                    const targetNames = rawTargetIds.map((id: string) => {
+                      const found = students.find(s => s.student_id === id);
+                      return found ? `${found.grade}-${found.class} ${found.name}` : id;
+                    });
+                    if (targetNames.length === 1) {
+                      targetLabel = targetNames[0];
+                    } else {
+                      targetLabel = `${targetNames[0]} 외 ${targetNames.length - 1}명`;
+                    }
+                  }
+
                   const cleanText = sch.notice_text.replace(/\n?__ROOM_PUBLIC:(true|false)__/, '').trim();
                   const dateStr = new Date(sch.scheduled_at).toLocaleString('ko-KR', {
                     month: 'numeric',
@@ -885,7 +1074,7 @@ export default function StudentPage() {
                       <div className="truncate flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <span className="font-extrabold text-amber-800">[{dateStr} 게시 예정]</span>
-                          <span className="bg-amber-200/80 text-amber-900 px-1.5 py-0.2 rounded text-[10px] font-bold">
+                          <span className="bg-amber-200/80 text-amber-900 px-1.5 py-0.2 rounded text-[10px] font-bold" title={rawTargetIds.join(', ')}>
                             {targetLabel}
                           </span>
                           {sch.send_push && (

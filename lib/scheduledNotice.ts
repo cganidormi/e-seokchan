@@ -5,7 +5,8 @@ export interface ScheduledNoticeItem {
   id: string;
   created_at: string;
   scheduled_at: string; // ISO 8601 string
-  target_student_id: string; // 'all' or specific student_id (e.g. '3317홍길동')
+  target_student_id?: string; // 단일 ID (레거시 호환용)
+  target_student_ids?: string[]; // 다중 학생 ID 지원 ('all' 또는 ['student_id', ...])
   notice_text: string;
   send_push: boolean;
   status: 'pending' | 'published' | 'cancelled';
@@ -47,17 +48,25 @@ export async function addScheduledNotice(
   params: {
     creator_id: string;
     scheduled_at: string;
-    target_student_id: string;
+    target_student_id?: string;
+    target_student_ids?: string[];
     notice_text: string;
     send_push: boolean;
   }
 ): Promise<ScheduledNoticeItem> {
   const list = await getScheduledNotices(supabase);
+  const targetIds = params.target_student_ids && params.target_student_ids.length > 0
+    ? params.target_student_ids
+    : (params.target_student_id ? [params.target_student_id] : ['all']);
+
+  const primaryTargetId = targetIds[0] || 'all';
+
   const newItem: ScheduledNoticeItem = {
     id: `notice_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     created_at: new Date().toISOString(),
     scheduled_at: params.scheduled_at,
-    target_student_id: params.target_student_id,
+    target_student_id: primaryTargetId,
+    target_student_ids: targetIds,
     notice_text: params.notice_text,
     send_push: params.send_push,
     status: 'pending',
@@ -110,7 +119,11 @@ export async function processDueScheduledNotices(supabase: SupabaseClient): Prom
         let cleanPushBody = item.notice_text.replace(/\n?__ROOM_PUBLIC:(true|false)__/, '').trim();
         let pushBody = cleanPushBody.length > 30 ? cleanPushBody.substring(0, 30) + '...' : cleanPushBody;
 
-        if (item.target_student_id === 'all') {
+        const targetIds = (Array.isArray(item.target_student_ids) && item.target_student_ids.length > 0)
+          ? item.target_student_ids
+          : (item.target_student_id ? [item.target_student_id] : ['all']);
+
+        if (targetIds.includes('all')) {
           // 1. 전체 공지 업데이트
           const { error: sysError } = await supabase
             .from('system_settings')
@@ -128,15 +141,19 @@ export async function processDueScheduledNotices(supabase: SupabaseClient): Prom
           pushTargetQuery = supabase.from('push_subscriptions').select('*').not('student_id', 'is', null);
           pushTitle = '📢 [전체 공지] 홍지관 안내문';
         } else {
-          // 1. 특정 학생의 개별 공지 업데이트
+          // 1. 특정 다수/단일 학생의 개별 공지 업데이트
           const { error: updateError } = await supabase
             .from('students')
             .update({ personal_notice: item.notice_text })
-            .eq('student_id', item.target_student_id);
+            .in('student_id', targetIds);
           if (updateError) throw updateError;
 
-          const targetNumericId = String(item.target_student_id).match(/^\d+/)?.[0];
-          const targetSearchIds = Array.from(new Set([String(item.target_student_id), targetNumericId].filter(Boolean) as string[]));
+          const targetSearchIds = Array.from(new Set(
+            targetIds.flatMap((id: string) => {
+              const num = String(id).match(/^\d+/)?.[0];
+              return [String(id), num].filter(Boolean) as string[];
+            })
+          ));
 
           pushTargetQuery = supabase.from('push_subscriptions').select('*').in('student_id', targetSearchIds);
           pushTitle = '📝 [개별 공지] 홍지관 안내문';
