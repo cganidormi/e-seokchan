@@ -49,8 +49,10 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
     useEffect(() => {
         if (isOpen) {
             if (initialFilter) setFilterType(initialFilter);
+            setSelectedStudent(null);
             document.body.style.overflow = 'hidden';
         } else if (!document.querySelector('.modal-open')) {
+            setSelectedStudent(null);
             const otherModals = document.querySelectorAll('[key*="modal-overlay"]');
             if (otherModals.length <= 1) {
                 document.body.style.overflow = 'unset';
@@ -217,12 +219,12 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                         initial={{ scale: 0.98, opacity: 0, y: 10 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.98, opacity: 0, y: 10 }}
-                        className="bg-white w-full max-w-[95vw] lg:max-w-6xl rounded-3xl shadow-2xl flex flex-col max-h-[96vh] overflow-hidden border border-gray-100"
+                        className="bg-white w-full max-w-[95vw] lg:max-w-6xl rounded-3xl shadow-2xl flex flex-col h-[85vh] sm:h-[80vh] min-h-[480px] max-h-[92vh] overflow-hidden border border-gray-100"
                     >
                         {/* Compact Header */}
-                        <div className="px-5 py-3 flex flex-wrap items-center justify-between gap-3 bg-gray-50/50 border-b border-gray-100">
+                        <div className="px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 bg-gray-50/50 border-b border-gray-100 shrink-0">
                             <div className="flex items-center gap-3">
-                                <div className="p-1.5 bg-rose-500 rounded-lg shadow-sm shadow-rose-100">
+                                <div className="p-1.5 bg-rose-500 rounded-lg shadow-sm shadow-rose-100 shrink-0">
                                     <FaChartBar className="text-white text-sm" />
                                 </div>
                                 <div>
@@ -235,7 +237,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                 {/* Filter Toggle Tabs */}
                                 <div className="flex bg-gray-200/80 p-0.5 rounded-xl border border-gray-200 ml-2">
                                     <button
-                                        onClick={() => setFilterType('today')}
+                                        onClick={() => { setFilterType('today'); setSelectedStudent(null); }}
                                         className={clsx(
                                             "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
                                             filterType === 'today' ? "bg-rose-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900"
@@ -244,7 +246,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                         🚨 금일 위반
                                     </button>
                                     <button
-                                        onClick={() => setFilterType('month')}
+                                        onClick={() => { setFilterType('month'); setSelectedStudent(null); }}
                                         className={clsx(
                                             "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
                                             filterType === 'month' ? "bg-rose-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900"
@@ -271,180 +273,184 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                         type="month"
                                         className="bg-white border border-gray-200 rounded-xl px-2 py-1.5 text-xs font-black text-gray-700 focus:ring-1 focus:ring-rose-200 outline-none"
                                         value={selectedMonth}
-                                        onChange={e => setSelectedMonth(e.target.value)}
+                                        onChange={e => { setSelectedMonth(e.target.value); setSelectedStudent(null); }}
                                     />
                                 )}
                                 <button 
                                     onClick={onClose} 
-                                    className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all text-sm font-bold ml-1"
+                                    className="w-8 h-8 flex items-center justify-center bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all text-sm font-bold ml-1 cursor-pointer"
                                 >
                                     ✕
                                 </button>
                             </div>
                         </div>
 
-                        {/* High-Density Content */}
-                        <div className="flex-1 overflow-y-auto p-3 sm:p-5 bg-white relative">
-                            {isLoading ? (
-                                <div className="flex flex-col items-center justify-center py-20 gap-3">
-                                    <div className="w-8 h-8 border-3 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
-                                    <p className="text-[11px] font-bold text-gray-400">데이터 로딩 중...</p>
-                                </div>
-                            ) : filtered.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-20 text-gray-200">
-                                    <FaSearch size={32} className="mb-2 opacity-30" />
-                                    <p className="text-xs font-bold">위반 학생이 없습니다.</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1.5">
-                                    {filtered.map((student, idx) => {
-                                        return (
-                                            <div 
-                                                key={student.student_id || `student-idx-${idx}`} 
-                                                onClick={() => setSelectedStudent(student)}
-                                                className={clsx(
-                                                    "relative p-2 rounded-2xl border transition-all group overflow-hidden cursor-pointer active:scale-95 flex flex-col justify-between",
-                                                    student.count >= 3 
-                                                        ? "bg-rose-50 border-rose-100 shadow-sm" 
-                                                        : "bg-gray-50 border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-sm"
-                                                )}
-                                            >
-                                                {/* Top Row: Student ID & Count Badge */}
-                                                <div className="flex items-center justify-between gap-1 mb-1">
-                                                    <span className="text-[9px] font-black text-gray-400 leading-none">{student.student_id}</span>
-                                                    <span className={clsx(
-                                                        "px-1.5 py-0.5 rounded-md text-[9px] font-black leading-none shrink-0",
-                                                        student.count >= 3 ? "bg-rose-500 text-white" : "bg-rose-100 text-rose-700 border border-rose-200/60"
-                                                    )}>
-                                                        {student.count}회
-                                                    </span>
-                                                </div>
-
-                                                {/* Name & Room Badge */}
-                                                <div className="mb-1.5 flex items-center justify-between gap-1">
-                                                    <span className="text-xs font-black text-gray-800 line-clamp-1">{student.name}</span>
-                                                    {(student.room_number || (student as any).room) && (
-                                                        <span className="text-[9px] font-extrabold text-blue-600 bg-blue-50 px-1 py-0.5 rounded border border-blue-100/80 leading-none shrink-0">
-                                                            {(student.room_number || (student as any).room)}호
+                        {/* Main Content Area */}
+                        <div className="flex-1 min-h-0 bg-white flex flex-col relative overflow-hidden">
+                            {selectedStudent ? (
+                                /* Chronological Detail View */
+                                <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-5 overflow-hidden bg-white">
+                                    <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100 shrink-0 gap-2">
+                                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                                            <div className="w-10 h-10 bg-gray-900 rounded-2xl flex items-center justify-center text-white font-black text-sm shrink-0 shadow-xs">
+                                                {selectedStudent.name[0]}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h3 className="text-base sm:text-lg font-black text-gray-900 leading-tight truncate">
+                                                    {selectedStudent.name} 상세 내역
+                                                </h3>
+                                                <p className="text-xs text-gray-500 font-bold mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                                    <span>{selectedStudent.student_id}</span>
+                                                    {(selectedStudent.room_number || (selectedStudent as any).room) && (
+                                                        <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-extrabold text-[10px] border border-blue-100/80 leading-none">
+                                                            {(selectedStudent.room_number || (selectedStudent as any).room)}호
                                                         </span>
                                                     )}
-                                                </div>
-
-                                                <div className="flex flex-wrap gap-1">
-                                                    {(() => {
-                                                        const counts = student.details.reduce((acc: any, d: any) => {
-                                                            acc[d.note] = (acc[d.note] || 0) + 1;
-                                                            return acc;
-                                                        }, {});
-                                                        
-                                                        return Object.entries(counts).slice(0, 4).map(([note, count], nIdx) => {
-                                                            const Icon = VIOLATION_ICONS[note as string] || FaChartBar;
-                                                            return (
-                                                                <div 
-                                                                    key={nIdx} 
-                                                                    title={`${note}: ${count}회`}
-                                                                    className="relative w-5 h-5 bg-white/60 rounded-lg flex items-center justify-center text-gray-400 group-hover:text-rose-400 transition-colors border border-gray-100/50"
-                                                                >
-                                                                    <Icon size={11} />
-                                                                    {(count as number) > 1 && (
-                                                                        <span className="absolute -bottom-1 -right-1 bg-gray-900 text-white text-[7px] font-black w-3 h-3 rounded-full flex items-center justify-center ring-1 ring-white">
-                                                                            {count as number}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        });
-                                                    })()}
-                                                    {Array.from(new Set(student.details.map(d => d.note))).length > 4 && (
-                                                        <div className="text-[7px] font-black text-gray-300 self-center ml-0.5">
-                                                            +{Array.from(new Set(student.details.map(d => d.note))).length - 4}
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                    <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded font-extrabold text-[10px] border border-rose-100/80 leading-none">
+                                                        총 {selectedStudent.count}건
+                                                    </span>
+                                                </p>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            {/* Chronological Detail View Overlay */}
-                            <AnimatePresence>
-                                {selectedStudent && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        className="absolute inset-0 z-50 bg-white/90 backdrop-blur-sm p-5 flex flex-col"
-                                    >
-                                        <div className="flex items-center justify-between mb-6">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center text-white font-black text-sm">
-                                                    {selectedStudent.name[0]}
-                                                </div>
-                                                <div>
-                                                    <h3 className="text-lg font-black text-gray-900 leading-none">{selectedStudent.name} 상세 내역</h3>
-                                                    <p className="text-xs text-gray-500 font-bold mt-1">
-                                                        {selectedStudent.student_id}
-                                                        {(selectedStudent.room_number || (selectedStudent as any).room) ? ` (${(selectedStudent.room_number || (selectedStudent as any).room)}호)` : ''}
-                                                        • 위반 {selectedStudent.count}건
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <button 
-                                                onClick={() => setSelectedStudent(null)}
-                                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-black rounded-xl transition-all text-xs"
-                                            >
-                                                목록으로
-                                            </button>
                                         </div>
+                                        <button 
+                                            onClick={() => setSelectedStudent(null)}
+                                            className="px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-black rounded-xl transition-all text-xs cursor-pointer shrink-0 active:scale-95 flex items-center gap-1 shadow-xs"
+                                        >
+                                            <span>← 목록으로</span>
+                                        </button>
+                                    </div>
 
-                                        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                                            {selectedStudent.details.map((v, vIdx) => {
-                                                const Icon = VIOLATION_ICONS[v.note] || FaChartBar;
-                                                const date = new Date(v.checked_at);
+                                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0 overscroll-contain">
+                                        {selectedStudent.details.map((v, vIdx) => {
+                                            const Icon = VIOLATION_ICONS[v.note] || FaChartBar;
+                                            const date = new Date(v.checked_at);
+                                            return (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, x: -6 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: vIdx * 0.03 }}
+                                                    key={v.id || `detail-${vIdx}`} 
+                                                    className="flex items-center justify-between bg-white border border-gray-100 hover:border-gray-200 p-3 sm:p-4 rounded-2xl shadow-xs transition-all"
+                                                >
+                                                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                                                        <div className="w-9 h-9 bg-rose-50 border border-rose-100/80 rounded-xl flex items-center justify-center text-rose-500 shrink-0">
+                                                            <Icon size={16} />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <span className="text-xs sm:text-sm font-black text-gray-800 block truncate leading-snug">{v.note}</span>
+                                                            <span className="text-[10px] sm:text-[11px] text-gray-400 font-semibold">
+                                                                {date.getFullYear()}. {date.getMonth() + 1}. {date.getDate()} ({['일','월','화','수','목','금','토'][date.getDay()]}) {String(date.getHours()).padStart(2, '0')}:{String(date.getMinutes()).padStart(2, '0')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
+                                                        <button
+                                                            onClick={() => handleDeleteViolation(v.id)}
+                                                            className="px-2.5 py-1.5 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all flex items-center gap-1 text-xs font-bold cursor-pointer"
+                                                            title="위반 내역 삭제"
+                                                        >
+                                                            <FaTrash size={12} />
+                                                            <span>삭제</span>
+                                                        </button>
+                                                        <div className="text-[10px] font-black text-gray-300 w-5 text-right">
+                                                            #{vIdx + 1}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : (
+                                /* High-Density List Grid */
+                                <div className="flex-1 overflow-y-auto p-3 sm:p-5 min-h-0 overscroll-contain">
+                                    {isLoading ? (
+                                        <div className="flex flex-col items-center justify-center py-20 gap-3">
+                                            <div className="w-8 h-8 border-3 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <p className="text-[11px] font-bold text-gray-400">데이터 로딩 중...</p>
+                                        </div>
+                                    ) : filtered.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center py-20 text-gray-300">
+                                            <FaSearch size={32} className="mb-2 opacity-30" />
+                                            <p className="text-xs font-bold">위반 학생이 없습니다.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1.5 sm:gap-2">
+                                            {filtered.map((student, idx) => {
                                                 return (
-                                                    <motion.div 
-                                                        initial={{ opacity: 0, x: -10 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        transition={{ delay: vIdx * 0.05 }}
-                                                        key={v.id || `detail-${vIdx}`} 
-                                                        className="flex items-center justify-between bg-white border border-gray-100 p-4 rounded-2xl shadow-sm"
+                                                    <div 
+                                                        key={student.student_id || `student-idx-${idx}`} 
+                                                        onClick={() => setSelectedStudent(student)}
+                                                        className={clsx(
+                                                            "relative p-2 rounded-2xl border transition-all group overflow-hidden cursor-pointer active:scale-95 flex flex-col justify-between",
+                                                            student.count >= 3 
+                                                                ? "bg-rose-50 border-rose-100 shadow-sm" 
+                                                                : "bg-gray-50 border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-sm"
+                                                        )}
                                                     >
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="w-9 h-9 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
-                                                                <Icon size={16} />
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-sm font-black text-gray-800 block">{v.note}</span>
-                                                                <span className="text-[10px] text-gray-400 font-bold">
-                                                                    {date.getFullYear()}. {date.getMonth() + 1}. {date.getDate()} ({['일','월','화','수','목','금','토'][date.getDay()]})
+                                                        {/* Top Row: Student ID & Count Badge */}
+                                                        <div className="flex items-center justify-between gap-1 mb-1">
+                                                            <span className="text-[9px] font-black text-gray-400 leading-none">{student.student_id}</span>
+                                                            <span className={clsx(
+                                                                "px-1.5 py-0.5 rounded-md text-[9px] font-black leading-none shrink-0",
+                                                                student.count >= 3 ? "bg-rose-500 text-white" : "bg-rose-100 text-rose-700 border border-rose-200/60"
+                                                            )}>
+                                                                {student.count}회
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Name & Room Badge */}
+                                                        <div className="mb-1.5 flex items-center justify-between gap-1">
+                                                            <span className="text-xs font-black text-gray-800 line-clamp-1">{student.name}</span>
+                                                            {(student.room_number || (student as any).room) && (
+                                                                <span className="text-[9px] font-extrabold text-blue-600 bg-blue-50 px-1 py-0.5 rounded border border-blue-100/80 leading-none shrink-0">
+                                                                    {(student.room_number || (student as any).room)}호
                                                                 </span>
-                                                            </div>
+                                                            )}
                                                         </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <button
-                                                                onClick={() => handleDeleteViolation(v.id)}
-                                                                className="p-2 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all flex items-center gap-1 text-xs font-bold"
-                                                                title="위반 내역 삭제"
-                                                            >
-                                                                <FaTrash size={13} />
-                                                                <span>삭제</span>
-                                                            </button>
-                                                            <div className="text-[10px] font-black text-gray-300">
-                                                                #{vIdx + 1}
-                                                            </div>
+
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {(() => {
+                                                                const counts = student.details.reduce((acc: any, d: any) => {
+                                                                    acc[d.note] = (acc[d.note] || 0) + 1;
+                                                                    return acc;
+                                                                }, {});
+                                                                
+                                                                return Object.entries(counts).slice(0, 4).map(([note, count], nIdx) => {
+                                                                    const Icon = VIOLATION_ICONS[note as string] || FaChartBar;
+                                                                    return (
+                                                                        <div 
+                                                                            key={nIdx} 
+                                                                            title={`${note}: ${count}회`}
+                                                                            className="relative w-5 h-5 bg-white/60 rounded-lg flex items-center justify-center text-gray-400 group-hover:text-rose-400 transition-colors border border-gray-100/50"
+                                                                        >
+                                                                            <Icon size={11} />
+                                                                            {(count as number) > 1 && (
+                                                                                <span className="absolute -bottom-1 -right-1 bg-gray-900 text-white text-[7px] font-black w-3 h-3 rounded-full flex items-center justify-center ring-1 ring-white">
+                                                                                    {count as number}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                });
+                                                            })()}
+                                                            {Array.from(new Set(student.details.map(d => d.note))).length > 4 && (
+                                                                <div className="text-[7px] font-black text-gray-300 self-center ml-0.5">
+                                                                    +{Array.from(new Set(student.details.map(d => d.note))).length - 4}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    </motion.div>
+                                                    </div>
                                                 );
                                             })}
                                         </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Minimal Footer */}
-                        <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                        <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-1.5">
                                     <div className="w-2 h-2 rounded-full bg-rose-500 shadow-sm"></div>
@@ -461,7 +467,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={onClose}
-                                    className="px-6 py-1.5 bg-gray-900 text-white font-black rounded-xl hover:bg-black active:scale-95 transition-all text-[11px]"
+                                    className="px-6 py-1.5 bg-gray-900 text-white font-black rounded-xl hover:bg-black active:scale-95 transition-all text-[11px] cursor-pointer"
                                 >
                                     닫기
                                 </button>
