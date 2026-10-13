@@ -575,9 +575,8 @@ export default function TeacherPage() {
         {teacherPosition === '관리자' && (
           <button
             onClick={() => router.push('/admin')}
-            className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center gap-2 text-sm"
+            className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center text-sm"
           >
-            <span>🔧</span>
             <span>관리자</span>
           </button>
         )}

@@ -145,6 +145,18 @@ export default function HeadcountPage() {
         }
     }, []);
 
+    // 모바일(갤럭시/안드로이드) 호실 배치도 드래그 시 당겨서 새로고침(Pull-to-refresh) 방지
+    useEffect(() => {
+        const originalBodyOverscroll = document.body.style.overscrollBehaviorY;
+        const originalHtmlOverscroll = document.documentElement.style.overscrollBehaviorY;
+        document.body.style.overscrollBehaviorY = 'none';
+        document.documentElement.style.overscrollBehaviorY = 'none';
+        return () => {
+            document.body.style.overscrollBehaviorY = originalBodyOverscroll;
+            document.documentElement.style.overscrollBehaviorY = originalHtmlOverscroll;
+        };
+    }, []);
+
     const fetchStudentHistory = async (studentId: string, name: string) => {
         try {
             const { data } = await supabase
@@ -639,7 +651,7 @@ export default function HeadcountPage() {
 
     return (
         <SwipeWrapper prevPath="/teacher/seats" topBottomOnly={true}>
-            <div className="h-screen flex flex-col bg-black text-white font-sans selection:bg-orange-500 selection:text-white overflow-hidden">
+            <div className="h-screen flex flex-col bg-black text-white font-sans selection:bg-orange-500 selection:text-white overflow-hidden overscroll-y-none">
                 <Toaster toastOptions={{
                 className: 'bg-gray-800 text-white border border-white/10',
                 style: { background: '#1f2937', color: '#fff' }
@@ -843,7 +855,7 @@ export default function HeadcountPage() {
             <div
                 onClick={handleCanvasClick}
                 onDoubleClick={handleCanvasDoubleClick}
-                className="flex-1 relative overflow-hidden bg-[#121212] w-full h-full"
+                className="flex-1 relative overflow-hidden bg-[#121212] w-full h-full overscroll-y-none"
             >
                 <TransformWrapper
                     ref={transformRef}

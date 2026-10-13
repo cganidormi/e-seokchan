@@ -76,8 +76,8 @@ export default function SwipeWrapper({ children, prevPath, nextPath, topBottomOn
       onPointerDown={handlePointerDown}
       onDragEnd={handleDragEnd}
       style={{ x }}
-      // 세로 스크롤은 유지하되 가로 터치는 드래그로 인식하도록 touch-pan-y 적용
-      className="w-full min-h-screen touch-pan-y"
+      // 세로 스크롤은 유지하되 가로 터치는 드래그로 인식하도록 touch-pan-y 적용, 당겨서 새로고침 방지를 위한 overscroll-y-none 추가
+      className="w-full min-h-screen touch-pan-y overscroll-y-none"
     >
       {children}
     </motion.div>
