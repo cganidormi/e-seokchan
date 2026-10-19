@@ -761,13 +761,13 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
         <div className="flex flex-col w-full max-w-xl mx-auto relative">
             <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                 <div className="flex items-center gap-2 flex-wrap">
-                    <div className="w-1.5 h-6 bg-[#FF6F61] rounded-full"></div>
+                    <div className="w-[3px] h-5 bg-[#0E8694] rounded-full shrink-0"></div>
                     <h1 className="text-xl font-extrabold text-gray-800">이석 신청</h1>
                     {isDongheon && (
                         <button
                             type="button"
                             onClick={() => setIsChatOpen(true)}
-                            className="relative inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-400 via-orange-400 to-[#FF6F61] hover:from-amber-500 hover:to-[#e8584a] text-white text-xs font-black rounded-full shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ml-1 select-none"
+                            className="relative inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-teal-500 via-cyan-500 to-[#0E8694] hover:from-teal-600 hover:to-[#08707c] text-white text-xs font-black rounded-full shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer ml-1 select-none"
                             title="이상찬 선생님께 편지 및 실시간 톡 보내기"
                         >
                             <span className="text-sm">💌</span>
@@ -789,7 +789,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         <select
                             value={studentId}
                             onChange={(e) => onSwitchStudent(e.target.value)}
-                            className="text-xs font-bold text-gray-800 bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF6F61] cursor-pointer"
+                            className="text-xs font-bold text-gray-800 bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0E8694] cursor-pointer"
                         >
                             <option value={actualLoginId}>
                                 ⭐ {actualLoginId} (본인)
@@ -1000,7 +1000,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                         onChange={(date) => { if (date) { setTargetDate(date); setPeriods([]); } }}
                                         dateFormat="yyyy-MM-dd"
                                         minDate={minSelectableDate}
-                                        className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full text-center shadow-sm cursor-pointer transition-all hover:border-[#FF6F61] font-bold text-gray-900"
+                                        className="h-12 px-4 rounded-2xl border border-gray-200 bg-white w-full text-center shadow-sm cursor-pointer transition-all hover:border-[#0E8694] font-bold text-gray-900"
                                     />
                                 );
                             })()}
@@ -1121,7 +1121,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                 <select
                                     value={place}
                                     onChange={e => setPlace(e.target.value)}
-                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-[#FF6F61] shadow-sm w-full appearance-none pr-10 text-gray-900"
+                                    className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-[#0E8694] shadow-sm w-full appearance-none pr-10 text-gray-900"
                                 >
                                     <option value="" className="text-gray-500">이석 장소 선택</option>
                                     {leavePlaces.map(p => <option key={p} className="text-gray-900">{p}</option>)}
@@ -1132,7 +1132,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                     </svg>
                                 </div>
                             </div>
-                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-[#FF6F61] shadow-sm w-full text-gray-900" placeholder="이석 사유" />
+                            <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="h-12 px-4 rounded-2xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-[#0E8694] shadow-sm w-full text-gray-900" placeholder="이석 사유" />
                         </div>
                     )}
                 </div>
@@ -1148,9 +1148,9 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         : "text-white hover:shadow-xl transform active:scale-95 hover:brightness-105"
                 )}
                 style={!isSubmitting ? {
-                    backgroundImage: `linear-gradient(to right, rgba(255, 111, 97, 0.35), rgba(255, 111, 97, 0.45)), url('/images/starry_crescent_coral.jpg')`,
+                    backgroundImage: `linear-gradient(to right, rgba(14, 134, 148, 0.4), rgba(6, 182, 212, 0.4)), url('/images/almond_blossom.jpg')`,
                     backgroundSize: 'cover',
-                    backgroundPosition: 'right 8%',
+                    backgroundPosition: 'center 40%',
                     backgroundRepeat: 'no-repeat'
                 } : undefined}
             >

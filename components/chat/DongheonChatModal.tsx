@@ -258,9 +258,9 @@ export default function DongheonChatModal({
 
   return (
     <div className="fixed inset-0 z-[100000] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white w-full max-w-md h-[88dvh] max-h-[720px] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-amber-200">
+      <div className="bg-white w-full max-w-md h-[88dvh] max-h-[720px] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-teal-200">
         {/* 상단 헤더 */}
-        <div className="bg-gradient-to-r from-amber-500 via-orange-400 to-[#FF6F61] p-4 text-white flex items-center justify-between shadow-md select-none shrink-0">
+        <div className="bg-gradient-to-r from-teal-600 via-cyan-600 to-[#0E8694] p-4 text-white flex items-center justify-between shadow-md select-none shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-white text-lg shadow-inner">
               <BsChatDotsFill />
@@ -338,8 +338,8 @@ export default function DongheonChatModal({
                     <div
                       className={`px-3.5 py-2.5 rounded-2xl text-xs md:text-sm font-medium leading-relaxed whitespace-pre-wrap break-words shadow-sm ${
                         isMine
-                          ? 'bg-gradient-to-tr from-[#FF7A59] to-[#FF6F61] text-white rounded-br-xs'
-                          : 'bg-white text-gray-800 border border-amber-200/80 rounded-bl-xs'
+                          ? 'bg-gradient-to-tr from-teal-500 to-[#0E8694] text-white rounded-br-xs'
+                          : 'bg-white text-gray-800 border border-teal-200/80 rounded-bl-xs'
                       }`}
                     >
                       {msg.message}
@@ -387,7 +387,7 @@ export default function DongheonChatModal({
             disabled={!inputText.trim() || isSending}
             className={`w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all shadow-md shrink-0 cursor-pointer ${
               inputText.trim() && !isSending
-                ? 'bg-gradient-to-r from-amber-500 to-[#FF6F61] hover:shadow-amber-200 hover:scale-105 active:scale-95'
+                ? 'bg-gradient-to-r from-teal-600 to-[#0E8694] hover:shadow-teal-200 hover:scale-105 active:scale-95'
                 : 'bg-gray-300 cursor-not-allowed shadow-none'
             }`}
             title="보내기"

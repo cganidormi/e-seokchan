@@ -110,14 +110,14 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
         <div className="flex flex-col w-full max-w-xl mx-auto relative">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-6 bg-[#FF6F61] rounded-full"></div>
+                    <div className="w-[3px] h-5 bg-[#0E8694] rounded-full shrink-0"></div>
                     <div className="flex items-center gap-2 flex-wrap">
                         <h1 className="text-xl font-extrabold text-gray-800">이석 처리 ({teacherName} 감독선생님)</h1>
                         {isSangchanAdmin && onOpenDongheonChat && (
                             <button
                                 type="button"
                                 onClick={onOpenDongheonChat}
-                                className="relative bg-gradient-to-r from-amber-500 via-orange-400 to-[#FF6F61] hover:from-amber-600 hover:to-[#e8584a] text-white font-extrabold py-1 px-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1 text-xs cursor-pointer select-none active:scale-95"
+                                className="relative bg-gradient-to-r from-teal-500 via-cyan-500 to-[#0E8694] hover:from-teal-600 hover:to-[#08707c] text-white font-extrabold py-1 px-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1 text-xs cursor-pointer select-none active:scale-95"
                                 title="2101 강동헌 학생과의 1:1 실시간 톡"
                             >
                                 <span className="text-sm">💌</span>
@@ -143,7 +143,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                 onClick={() => router.push('/teacher/seats')}
                 className="w-full mb-2 py-3 rounded-xl text-sm font-medium transition-all text-white shadow-sm text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
                 style={{
-                    backgroundImage: `linear-gradient(to right, rgba(255, 111, 97, 0) 30%, rgba(255, 111, 97, 1) 100%), url('/study_room.png')`,
+                    backgroundImage: `linear-gradient(to right, rgba(14, 134, 148, 0) 30%, rgba(14, 134, 148, 1) 100%), url('/study_room.png')`,
                     backgroundPosition: 'center 70%'
                 }}
             >
@@ -191,7 +191,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                             className={clsx(
                                 "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center whitespace-nowrap flex items-center justify-center gap-1 cursor-pointer",
                                 unifiedViewMode === tab.id
-                                    ? "bg-[#FF6F61] text-white shadow-sm font-extrabold"
+                                    ? "bg-[#0E8694] text-white shadow-sm font-extrabold"
                                     : tab.id === 'search_name'
                                         ? "text-white hover:text-gray-200 font-extrabold"
                                         : "text-gray-500 hover:text-gray-300"
@@ -214,7 +214,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                             placeholder="학생 이름 또는 학번 입력..."
                             enterKeyHint="search"
                             autoComplete="off"
-                            className="w-full pl-10 pr-9 py-2.5 text-[16px] sm:text-sm bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-[#FF6F61] focus:ring-1 focus:ring-[#FF6F61] shadow-inner transition-all"
+                            className="w-full pl-10 pr-9 py-2.5 text-[16px] sm:text-sm bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-[#0E8694] focus:ring-1 focus:ring-[#0E8694] shadow-inner transition-all"
                             style={{ fontSize: '16px' }}
                         />
                         {searchQuery && (
@@ -237,7 +237,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                             className={clsx(
                                 "px-3 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap border cursor-pointer",
                                 filterType === type
-                                    ? "bg-[#FF6F61] text-white border-[#FF6F61] shadow-sm"
+                                    ? "bg-[#0E8694] text-white border-[#0E8694] shadow-sm"
                                     : "bg-transparent text-gray-500 border-white/10 hover:border-white/20"
                             )}
                         >
@@ -250,11 +250,11 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             <div className="flex flex-col gap-3 pb-24">
                 {filtered.length === 0 ? (
                     <div
-                        className="relative overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-white/30 shadow-md text-center flex flex-col items-center justify-center min-h-[140px] bg-[#FF6F61] bg-cover bg-no-repeat transition-all"
+                        className="relative overflow-hidden p-8 sm:p-10 rounded-[2rem] border border-white/30 shadow-md text-center flex flex-col items-center justify-center min-h-[140px] bg-[#0E8694] bg-cover bg-no-repeat transition-all"
                         style={{
-                            backgroundImage: `linear-gradient(to right, rgba(255, 111, 97, 0.35), rgba(255, 111, 97, 0.45)), url('/images/starry_crescent_coral.jpg')`,
+                            backgroundImage: `linear-gradient(to right, rgba(14, 134, 148, 0.4), rgba(6, 182, 212, 0.4)), url('/images/almond_blossom.jpg')`,
                             backgroundSize: 'cover',
-                            backgroundPosition: '85% top'
+                            backgroundPosition: 'center 40%'
                         }}
                     >
                         <div className="relative z-10 flex flex-col items-center justify-center gap-1.5">

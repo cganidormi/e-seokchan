@@ -136,11 +136,40 @@ export default function HeadcountPage() {
     const [disciplineRoomNum, setDisciplineRoomNum] = useState<number | undefined>(undefined);
 
     useEffect(() => {
-        const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
+        const rawLoginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id') || '';
+        const loginId = rawLoginId.trim();
+
+        const isSpecialTeacher = (str?: string | null) => {
+            if (!str) return false;
+            const clean = str.trim();
+            return clean === '이소라' || clean === '고보배';
+        };
+
         if (loginId) {
-            supabase.from('teachers').select('position').eq('teacher_id', loginId).single()
+            // 로컬 스토리지 ID가 이소라 또는 고보배 선생님인 경우 즉시 1층으로 설정
+            if (isSpecialTeacher(loginId)) {
+                setCurrentFloor(1);
+            }
+
+            // teachers 테이블에서 교사 정보 조회
+            supabase
+                .from('teachers')
+                .select('name, teacher_id, position')
+                .or(`teacher_id.eq.${loginId},name.ilike.%${loginId}%`)
                 .then(({ data }) => {
-                    if (data) setTeacherPosition(data.position);
+                    if (data && data.length > 0) {
+                        const matched = data.find((t: any) =>
+                            (t.teacher_id && t.teacher_id.trim() === loginId) ||
+                            (t.name && t.name.trim() === loginId)
+                        ) || data[0];
+
+                        if (matched) {
+                            if (matched.position) setTeacherPosition(matched.position);
+                            if (isSpecialTeacher(matched.name) || isSpecialTeacher(matched.teacher_id)) {
+                                setCurrentFloor(1);
+                            }
+                        }
+                    }
                 });
         }
     }, []);

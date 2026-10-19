@@ -326,7 +326,7 @@ export default function StudentSeatPage() {
                         {/* Title & Room Segment Selector */}
                         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                             <div className="flex items-center gap-1.5">
-                                <div className="w-1.5 h-6 bg-yellow-400 rounded-full shrink-0"></div>
+                                <div className="w-[3px] h-5 bg-yellow-400 rounded-full shrink-0"></div>
                                 <h1 className="text-base sm:text-xl font-black text-gray-800 whitespace-nowrap">
                                     현황모니터
                                 </h1>
