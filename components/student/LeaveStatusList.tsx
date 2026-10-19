@@ -203,7 +203,7 @@ export const LeaveStatusList: React.FC<LeaveStatusListProps> = ({
                             className={clsx(
                                 "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-center",
                                 unifiedViewMode === tab.id
-                                    ? "bg-blue-600 text-white shadow-sm"
+                                    ? "bg-[#0E8694] text-white shadow-sm font-extrabold"
                                     : "text-gray-500 hover:text-gray-300"
                             )}
                         >
