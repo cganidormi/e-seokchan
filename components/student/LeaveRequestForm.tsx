@@ -221,6 +221,55 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
     const handleSubmit = async () => {
         if (isSubmitting) return;
 
+        // [Security/Anti-Cheat] 자리비움은 단말기 시계 조작 방지를 위해 전용 서버 API(/api/student/apply-away)로 검증 및 생성
+        if (leaveType === '자리비움') {
+            if (!studentId) {
+                toast.error('학생 정보가 올바르지 않습니다.');
+                return;
+            }
+            try {
+                setIsSubmitting(true);
+                const res = await fetch('/api/student/apply-away', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ studentId }),
+                });
+                const result = await res.json();
+                if (!res.ok || !result.success) {
+                    if (result.restrictionType) {
+                        setAwayRestrictionNotice({
+                            isOpen: true,
+                            title: result.title || `${result.periodName || '자리비움'} 신청 제한`,
+                            message: result.message || result.error || '자리비움 신청이 제한되었습니다.',
+                        });
+                    }
+                    toast.error(result.error || '자리비움 신청에 실패했습니다.', { duration: 6000 });
+                    return;
+                }
+
+                toast.success('10분간 자리비움이 승인되었습니다.');
+                onSubmitSuccess();
+                setLeaveType('');
+                setTeacherId('');
+                setPlace('');
+                setReason('');
+                setPeriods([]);
+                setStartDate(null);
+                setEndDate(null);
+                setTargetDate(new Date());
+                const loginStudent = students.find(s => s.student_id === studentId);
+                if (loginStudent) {
+                    setAddedStudents([loginStudent]);
+                }
+            } catch (err: any) {
+                console.error('Apply away error:', err);
+                toast.error('자리비움 신청 중 오류가 발생했습니다.');
+            } finally {
+                setIsSubmitting(false);
+            }
+            return;
+        }
+
         try {
             setIsSubmitting(true);
 
@@ -501,116 +550,6 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         }
                     }
                 }
-            } else if (leaveType === '자리비움') {
-                const now = new Date();
-                const { data: timetable } = await supabase.from('timetable_entries').select('*');
-
-                // 1. Determine Current Period Constraints
-                let limitStartTime = new Date(now);
-                let limitEndTime = new Date(now);
-                let isInsidePeriod = false;
-                let periodName = '';
-
-                if (timetable) {
-                    const currentHHmm = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-                    const isHoliday = isDateHoliday(now);
-                    let matchType = '';
-                    if (isHoliday) {
-                        // Weekend logic simplification
-                        if (currentHHmm < '13:00') matchType = 'weekend morning';
-                        else if (currentHHmm < '18:30') matchType = 'weekend day'; // Afternoon
-                        else matchType = 'weekend night';
-                    } else {
-                        // Weekday
-                        if (currentHHmm < '19:00') matchType = 'weekday day';
-                        else matchType = 'weekday night';
-                    }
-
-                    const entry = timetable.find(t => {
-                        const dt = t.day_type.toLowerCase();
-                        const normalizedMatchType = matchType.toLowerCase();
-                        // Find entry that covers NOW
-                        if (dt.includes(normalizedMatchType)) {
-                            return currentHHmm >= t.start_time && currentHHmm <= t.end_time;
-                        }
-                        return false;
-                    });
-
-                    if (entry) {
-                        isInsidePeriod = true;
-                        periodName = entry.description;
-                        const [sh, sm] = entry.start_time.split(':').map(Number);
-                        const [eh, em] = entry.end_time.split(':').map(Number);
-                        limitStartTime.setHours(sh, sm, 0, 0);
-                        limitEndTime.setHours(eh, em, 59, 999);
-
-                        // ---------------------------------------------------
-                        // [New Rule] 10-minute Restriction Logic
-                        // ---------------------------------------------------
-                        const allowedStart = new Date(limitStartTime.getTime() + 10 * 60 * 1000);
-                        const allowedEnd = new Date(limitEndTime.getTime() - 10 * 60 * 1000);
-
-                        if (now < allowedStart) {
-                            setAwayRestrictionNotice({
-                                isOpen: true,
-                                title: `${periodName} 시작 후 10분 동안 신청 제한`,
-                                message: `${periodName} 시작 후 10분 동안은 시스템을 통한 자리비움 신청이 되지 않습니다.`,
-                            });
-                            toast.error(`${periodName} 시작 후 10분 동안은 신청 불가! 꼭 가야 한다면 감독선생님께 보고 후 자리를 비워주세요.`, { duration: 6000 });
-                            return;
-                        }
-
-                        if (now > allowedEnd) {
-                            setAwayRestrictionNotice({
-                                isOpen: true,
-                                title: `${periodName} 종료 10분 전`,
-                                message: `${periodName} 종료 10분 전부터는 시스템을 통한 자리비움 신청이 되지 않습니다.`,
-                            });
-                            toast.error(`${periodName} 종료 10분 전부터는 신청 불가! 꼭 가야 한다면 감독선생님께 보고 후 자리를 비워주세요.`, { duration: 6000 });
-                            return;
-                        }
-                    }
-                }
-
-                // Fallback: If not in a defined period (Break time?), BLOCK IT.
-                if (!isInsidePeriod) {
-                    setAwayRestrictionNotice({
-                        isOpen: true,
-                        title: '쉬는 시간 및 수업 외 시간',
-                        message: '쉬는 시간 및 수업 외 시간에는 시스템을 통한 자리비움 신청을 할 수 없습니다.',
-                    });
-                    toast.error('쉬는 시간 및 수업 외 시간에는 신청이 되지 않습니다. 꼭 가야 한다면 감독선생님께 보고 후 자리를 비워주세요.', { duration: 6000 });
-                    return;
-                }
-
-                // 2. Check for EXISTING '자리비움' in this timeframe
-                // We look for any '자리비움' request created or active within [limitStartTime, limitEndTime]
-                // Since '자리비움' has a long end_time (end of day), we mainly check 'start_time' or 'created_at'.
-                // Ideally check if (req.start_time >= limitStartTime && req.start_time <= limitEndTime)
-
-                const { data: recentAway } = await supabase
-                    .from('leave_requests')
-                    .select('id, start_time')
-                    .eq('student_id', studentId)
-                    .eq('leave_type', '자리비움')
-                    .gte('start_time', limitStartTime.toISOString())
-                    .lte('start_time', limitEndTime.toISOString())
-                    .in('status', ['신청', '승인']) // Should be '승인' mostly
-                    .limit(1);
-
-                if (recentAway && recentAway.length > 0) {
-                    const msg = isInsidePeriod
-                        ? `[제한] ${periodName}에 이미 '자리비움'을 사용했습니다. (한 교시에 1회만 가능)`
-                        : `[제한] 최근에 이미 '자리비움'을 사용했습니다. 잠시 후 다시 시도하세요.`;
-                    toast.error(msg);
-                    return;
-                }
-
-                finalStartTime = now.toISOString();
-                // [Auto-Reset] Set end time to the end of the current period (or limitEndTime)
-                // This ensures the status automatically clears when the period ends.
-                finalEndTime = limitEndTime.toISOString();
-                finalStatus = '승인';
             }
 
             // [New] Weekly Returner Window Validation (Check target time, not now)
