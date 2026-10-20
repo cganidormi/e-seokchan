@@ -832,7 +832,7 @@ export default function SeatManagementPage() {
                     {/* Header & Controls */}
                     {/* Header & Controls */}
                     <div className="flex flex-col gap-3 mb-4">
-                        {/* Row 1: Title, Centered Search Bar, & Seat Management Toggle */}
+                        {/* Row 1: Title & Seat Management Toggle */}
                         <div className="flex items-center justify-between gap-2 w-full">
                             {/* Title */}
                             <div className="flex items-center gap-1.5 shrink-0">
@@ -842,17 +842,42 @@ export default function SeatManagementPage() {
                                 </h1>
                             </div>
 
-                            {/* Centered Student Seat Search Bar */}
-                            <div className="relative flex-1 max-w-xs sm:max-w-sm mx-1 sm:mx-3">
+                            {/* Seat Management Toggle (Top Right Corner) - Only for Authorized Roles */}
+                            {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자') && (
+                                <div className="flex items-center bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0 ml-auto">
+                                    <button
+                                        onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
+                                        className={clsx(
+                                            "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center gap-1.5",
+                                            mode === 'edit'
+                                                ? "bg-gray-900 text-white shadow-sm"
+                                                : "bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
+                                        )}
+                                    >
+                                        <span>{mode === 'edit' ? '저장 & BACK' : '⚙️ 좌석 관리'}</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Row 2: Swipe Nudge Dots */}
+                        <div className="flex justify-center w-full">
+                            <SwipeNudgeDots currentIndex={1} className="bg-gray-200/70 py-1.5 px-4 rounded-full shadow-inner" />
+                        </div>
+
+                        {/* Row 3: Student Seat Search Bar (Directly Above Room Selector) */}
+                        <div className="flex items-center justify-center w-full">
+                            <div className="relative w-full max-w-xs sm:max-w-sm">
                                 <div className="relative flex items-center">
                                     <input
                                         type="text"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="학생 검색..."
-                                        className="w-full bg-white border border-gray-300 text-gray-800 text-xs sm:text-sm rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 pl-7 sm:pl-8 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-sm"
+                                        placeholder="학생 자리 검색..."
+                                        className="w-full bg-white border border-gray-300 text-gray-800 text-[16px] sm:text-sm rounded-xl px-3 py-2 pl-8 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-sm"
+                                        style={{ fontSize: '16px' }}
                                     />
-                                    <span className="absolute left-2 sm:left-2.5 text-gray-400 text-xs">🔍</span>
+                                    <span className="absolute left-2.5 text-gray-400 text-xs">🔍</span>
                                     {searchQuery && (
                                         <button
                                             onClick={() => setSearchQuery('')}
@@ -865,7 +890,7 @@ export default function SeatManagementPage() {
 
                                 {/* Search Results Dropdown */}
                                 {searchQuery.trim() && (
-                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto min-w-[200px]">
+                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto">
                                         {searchResults.length > 0 ? (
                                             searchResults.map((res, idx) => (
                                                 <button
@@ -889,33 +914,9 @@ export default function SeatManagementPage() {
                                     </div>
                                 )}
                             </div>
-
-                            {/* Seat Management Toggle (Top Right Corner) - Only for Authorized Roles */}
-                            {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자') ? (
-                                <div className="flex items-center bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0">
-                                    <button
-                                        onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
-                                        className={clsx(
-                                            "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center gap-1.5",
-                                            mode === 'edit'
-                                                ? "bg-gray-900 text-white shadow-sm"
-                                                : "bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
-                                        )}
-                                    >
-                                        <span>{mode === 'edit' ? '저장 & BACK' : '⚙️ 좌석 관리'}</span>
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="w-0 shrink-0" />
-                            )}
                         </div>
 
-                        {/* Row 2: Swipe Nudge Dots */}
-                        <div className="flex justify-center w-full">
-                            <SwipeNudgeDots currentIndex={1} className="bg-gray-200/70 py-1.5 px-4 rounded-full shadow-inner" />
-                        </div>
-
-                        {/* Row 3: Navigation (<<) + Room Selector + (>>) */}
+                        {/* Row 4: Navigation (<<) + Room Selector + (>>) */}
                         <div className="flex items-center justify-between w-full">
                             {/* Left Screen Switch Button (<<) -> /teacher */}
                             <button
