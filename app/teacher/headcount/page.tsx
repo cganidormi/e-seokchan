@@ -724,24 +724,28 @@ export default function HeadcountPage() {
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                        {/* Mode Toggle */}
-                        <div className="flex bg-gray-800 rounded-lg p-0.5 sm:p-1 border border-gray-700">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Authentic iOS Segmented Control */}
+                        <div className="flex items-center bg-black/50 backdrop-blur-2xl rounded-full p-1 border border-white/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.6)]">
                             <button
                                 onClick={() => setMode('check')}
                                 className={clsx(
-                                    "px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
-                                    mode === 'check' ? "bg-blue-600 text-white shadow-md" : "text-gray-400 hover:text-white"
+                                    "px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap flex items-center gap-1 cursor-pointer",
+                                    mode === 'check'
+                                        ? "bg-white text-gray-950 shadow-[0_2px_8px_rgba(0,0,0,0.4)] font-black scale-[1.02]"
+                                        : "text-gray-400 hover:text-white hover:bg-white/5"
                                 )}
                             >
-                                📋 점검
+                                📋 점호
                             </button>
                             {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자' || !teacherPosition) && (
                                 <button
                                     onClick={() => setMode('assign')}
                                     className={clsx(
-                                        "px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-bold transition-all whitespace-nowrap",
-                                        mode === 'assign' ? "bg-purple-600 text-white shadow-md" : "text-gray-400 hover:text-white"
+                                        "px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap flex items-center gap-1 cursor-pointer",
+                                        mode === 'assign'
+                                            ? "bg-white text-gray-950 shadow-[0_2px_8px_rgba(0,0,0,0.4)] font-black scale-[1.02]"
+                                            : "text-gray-400 hover:text-white hover:bg-white/5"
                                     )}
                                 >
                                     ⚙️ 배정
@@ -753,7 +757,7 @@ export default function HeadcountPage() {
                         {mode === 'assign' && (
                             <button
                                 onClick={handleResetAssignments}
-                                className="px-1.5 sm:px-2 py-1 sm:py-1.5 text-red-400 font-bold text-xs bg-gray-800 rounded-lg border border-red-900/30 hover:bg-red-900/20 transition-all whitespace-nowrap"
+                                className="px-2.5 sm:px-3 py-1 sm:py-1.5 text-red-300 font-bold text-xs bg-red-950/50 backdrop-blur-xl rounded-full border border-red-500/40 hover:bg-red-900/50 shadow-sm transition-all whitespace-nowrap cursor-pointer active:scale-95"
                             >
                                 ⚠️ 초기화
                             </button>

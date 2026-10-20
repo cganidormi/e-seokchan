@@ -573,6 +573,7 @@ export default function SeatManagementPage() {
 
             toast.success(studentId ? '학생이 배정되었습니다.' : '배정이 해제되었습니다.');
             fetchRoomData(selectedRoom); // Refresh
+            fetchCommonData(); // Keep allAssignments in sync for search and filters
             setIsModalOpen(false);
             setSelectedSeat(null);
 
@@ -595,6 +596,7 @@ export default function SeatManagementPage() {
 
             toast.success('초기화되었습니다.');
             fetchRoomData(selectedRoom);
+            fetchCommonData();
         } catch (err) {
             toast.error('초기화 실패');
         }
@@ -1434,11 +1436,30 @@ export default function SeatManagementPage() {
                                 })()}
 
                                 <div className="mb-6">
-                                    <label className="block text-xs font-bold text-gray-400 mb-2">학생 선택</label>
+                                    <label className="block text-xs font-bold text-gray-400 mb-2">
+                                        학생 선택 ({selectedRoom}학년 전용)
+                                    </label>
                                     <Select
                                         autoFocus
                                         options={students
-                                            .filter(s => !assignments.some(a => a.student_id === s.student_id)) // Filter out already assigned students
+                                            .filter(s => {
+                                                // 1. Filter out already assigned students across all rooms
+                                                const isAssigned = assignments.some(a => a.student_id === s.student_id) || allAssignments.some(a => a.student_id === s.student_id);
+                                                if (isAssigned) return false;
+
+                                                // 2. Only show students matching the current room's grade (1실=1학년, 2실=2학년, 3실=3학년)
+                                                let studentGrade: number | undefined = undefined;
+                                                if (s.grade && [1, 2, 3].includes(Number(s.grade))) {
+                                                    studentGrade = Number(s.grade);
+                                                } else if (s.student_id && /^[1-3]/.test(String(s.student_id))) {
+                                                    studentGrade = parseInt(String(s.student_id)[0], 10);
+                                                }
+
+                                                if (selectedRoom >= 1 && selectedRoom <= 3) {
+                                                    return studentGrade === selectedRoom;
+                                                }
+                                                return true;
+                                            })
                                             .map(s => ({
                                                 value: s.student_id,
                                                 label: `${s.student_id} ${s.name}`,
@@ -1447,7 +1468,8 @@ export default function SeatManagementPage() {
                                         onChange={(option: any) => {
                                             assignStudent(option.value);
                                         }}
-                                        placeholder="이름 또는 학번 검색..."
+                                        placeholder={`${selectedRoom}학년 학생 이름 또는 학번 검색...`}
+                                        noOptionsMessage={() => `배정 가능한 ${selectedRoom}학년 학생이 없습니다`}
                                         styles={{
                                             control: (base) => ({
                                                 ...base,
