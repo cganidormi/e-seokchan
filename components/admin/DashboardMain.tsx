@@ -6,7 +6,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import {
     FaWrench,
     FaFirstAid, FaHome, FaPlus, FaTrash, FaBell, FaCheck, FaUsers,
-    FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt, FaChartBar
+    FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt, FaChartBar, FaExclamationCircle
 } from "react-icons/fa";
 import { HiHome } from 'react-icons/hi';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
@@ -111,8 +111,8 @@ export default function DashboardMain() {
     // Modals
     const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
     const [isViolationStatsOpen, setIsViolationStatsOpen] = useState(false);
+    const [violationStatsFilter, setViolationStatsFilter] = useState<'today' | 'month'>('month');
     const [isWeeklyListModalOpen, setIsWeeklyListModalOpen] = useState(false);
-    const [violationModal, setViolationModal] = useState<{ grade: number, classNum: number } | null>(null);
 
     // Refresh Trigger for Realtime
     const [refreshKey, setRefreshKey] = useState(0);
@@ -590,7 +590,33 @@ export default function DashboardMain() {
         } else {
             toast.success(`상태가 ${newStatus}로 변경되었습니다`);
         }
-    }
+    };
+
+    const handleDeleteViolation = async (v: any) => {
+        if (!confirm(`${v.student_id} ${v.student_name} 학생의 '${v.note}' 위반 내역을 삭제하시겠습니까?`)) return;
+
+        const originalStats = { ...stats };
+        setStats(prev => ({
+            ...prev,
+            violationCount: Math.max(0, prev.violationCount - 1),
+            violationList: prev.violationList.filter(item => item.id !== v.id)
+        }));
+
+        try {
+            const { error } = await supabase.from('morning_checks').delete().eq('id', v.id);
+            if (error) {
+                console.error('[Dashboard] Delete Error:', error);
+                toast.error('삭제 실패 (DB 권한 확인 필요)');
+                setStats(originalStats);
+            } else {
+                toast.success('위반 내역이 삭제되었습니다.');
+            }
+        } catch (e) {
+            console.error('[Dashboard] Delete Exception:', e);
+            toast.error('삭제 중 오류가 발생했습니다.');
+            setStats(originalStats);
+        }
+    };
 
     const handleCreatePatient = async (selectedStudent?: any) => {
         const targetId = selectedStudent?.student_id || newPatient.studentId;
@@ -878,208 +904,194 @@ export default function DashboardMain() {
                         ) : null}
                     </div>
 
-                                {/* Monthly Returnee Status */}
-                                <div className="bg-white p-6 rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-50 mb-4">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="bg-orange-50 p-2 rounded-xl text-orange-500"><FaHome /></div>
-                                            <h3 className="font-bold text-gray-800 text-[12px]">이번달 매주귀가자 현황</h3>
-                                        </div>
-                                        <button
-                                            onClick={() => setIsWeeklyListModalOpen(true)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-[10px] font-bold"
-                                        >
-                                            <FaUsers size={12} />
-                                            귀가자 명단
-                                        </button>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                        {[1, 2, 3].map(grade => {
-                                            const gradeInfo = stats.studentsByGrade.find(g => g.grade === grade);
-                                            const gradeTotal = gradeInfo?.count || 0;
-                                            const gradeWeekly = weeklyReturnees.filter(s => s.grade === grade).length;
-                                            const gradeDorm = gradeTotal - gradeWeekly;
-
-                                            return (
-                                                <div key={grade} className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-[12px] ${grade === 1 ? 'bg-blue-100 text-blue-600' :
-                                                            grade === 2 ? 'bg-purple-100 text-purple-600' :
-                                                                'bg-orange-100 text-orange-600'
-                                                            }`}>
-                                                            {grade}
-                                                        </div>
-                                                        <span className="font-bold text-gray-700 text-[12px]">{grade}학년</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-3 text-[12px] font-medium">
-                                                        <div className="flex flex-col items-center min-w-[30px]">
-                                                            <span className="text-[12px] text-gray-400 mb-0.5">총원</span>
-                                                            <span className="text-gray-800 font-bold text-[12px]">{gradeTotal}</span>
-                                                        </div>
-                                                        <div className="w-px h-6 bg-gray-200"></div>
-                                                        <div className="flex flex-col items-center min-w-[30px]">
-                                                            <span className="text-[12px] text-gray-400 mb-0.5">매주귀가</span>
-                                                            <span className="text-orange-500 font-bold text-[12px]">{gradeWeekly}</span>
-                                                        </div>
-                                                        <div className="w-px h-6 bg-gray-200"></div>
-                                                        <div className="flex flex-col items-center min-w-[30px]">
-                                                            <span className="text-[12px] text-gray-400 mb-0.5">기숙</span>
-                                                            <span className="text-blue-500 font-bold text-[12px]">{gradeDorm}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-
-                                        <div className="flex items-center justify-between p-3 bg-gray-900 rounded-2xl shadow-sm mt-1">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-[12px] bg-gray-700 text-white">
-                                                    ALL
-                                                </div>
-                                                <span className="font-bold text-white text-[12px]">전학년</span>
-                                            </div>
-                                            <div className="flex items-center gap-3 text-[12px] font-medium text-white">
-                                                <div className="flex flex-col items-center min-w-[30px]">
-                                                    <span className="text-[12px] text-gray-400 mb-0.5">총원</span>
-                                                    <span className="font-bold text-[12px]">{stats.totalStudents}</span>
-                                                </div>
-                                                <div className="w-px h-6 bg-gray-700"></div>
-                                                <div className="flex flex-col items-center min-w-[30px]">
-                                                    <span className="text-[12px] text-gray-400 mb-0.5">매주귀가</span>
-                                                    <span className="text-orange-400 font-bold text-[12px]">{weeklyReturnees.length}</span>
-                                                </div>
-                                                <div className="w-px h-6 bg-gray-700"></div>
-                                                <div className="flex flex-col items-center min-w-[30px]">
-                                                    <span className="text-[12px] text-gray-400 mb-0.5">기숙</span>
-                                                    <span className="text-blue-400 font-bold text-[12px]">{stats.totalStudents - weeklyReturnees.length}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                    {/* Violation Counter & List */}
-                    <div className="bg-rose-50/60 p-3 rounded-2xl border border-rose-100 flex flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center p-1.5 shadow-sm">
+                    {/* Violation Counter & Cards */}
+                    <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-3.5">
+                        {/* Header: Title, Counts, and Monthly Stats Button */}
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center p-1.5 shadow-2xs shrink-0">
                                     <img src="/yellow_card.svg" className="w-full h-full object-contain" alt="Yellow Card" />
                                 </div>
                                 <div>
-                                    <span className="font-bold text-rose-900 text-[12px] block leading-tight">생활지도 위반자</span>
-                                    <span className="text-[10px] text-rose-500 font-semibold">18:00 ~ 익일 09:00</span>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-bold text-gray-800 text-xs sm:text-sm leading-tight">생활지도 위반자</h3>
+                                        <span className="text-[11px] font-extrabold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+                                            {stats.violationCount}명
+                                        </span>
+                                    </div>
+                                    <span className="text-[11px] text-gray-400 font-medium">18:00 ~ 익일 09:00 점호 기준</span>
                                 </div>
                             </div>
-                            <span className="text-[12px] font-bold text-rose-600">{stats.violationCount}명</span>
+
+                            {/* Monthly Stats Button */}
+                            <button
+                                onClick={() => {
+                                    setViolationStatsFilter('month');
+                                    setIsViolationStatsOpen(true);
+                                }}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-rose-50 hover:text-rose-600 border border-gray-200 hover:border-rose-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                            >
+                                <FaChartBar size={12} className="text-rose-500" />
+                                <span>월간 통계</span>
+                            </button>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-rose-100/50">
-                            {[1, 2, 3].map(grade => (
-                                [1, 2, 3].map(classNum => {
-                                    const classViolations = stats.violationList.filter(v => v.student_id.startsWith(`${grade}${classNum}`));
-                                    const hasViolations = classViolations.length > 0;
+                        {/* Cards List or Empty State */}
+                        <div className="pt-2 border-t border-gray-100">
+                            {stats.violationList.length === 0 ? (
+                                <div className="py-6 px-4 bg-gray-50/60 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
+                                    <div className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mb-1 text-sm font-bold shadow-2xs">
+                                        ✓
+                                    </div>
+                                    <p className="text-xs font-bold text-gray-700">금일 위반 학생이 없습니다</p>
+                                    <p className="text-[10px] text-gray-400 mt-0.5">모든 학생이 생활 수칙을 준수하고 있습니다</p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-0.5">
+                                    {stats.violationList.map((v, vIdx) => {
+                                        const noteConfig: { icon: any; style: string } = (
+                                            v.note === '스토퍼 미설치' ? { icon: FaDoorOpen, style: 'bg-amber-50 text-amber-700 border-amber-200' } :
+                                            v.note === '일과시간 미준수' ? { icon: FaClock, style: 'bg-orange-50 text-orange-700 border-orange-200' } :
+                                            v.note === '청소불량' ? { icon: FaBroom, style: 'bg-emerald-50 text-emerald-700 border-emerald-200' } :
+                                            v.note === '음식물 섭취 위반' ? { icon: FaUtensils, style: 'bg-red-50 text-red-700 border-red-200' } :
+                                            v.note === '박스 방치' ? { icon: FaBoxOpen, style: 'bg-indigo-50 text-indigo-700 border-indigo-200' } :
+                                            v.note === '퇴실수칙 불이행' ? { icon: FaSignOutAlt, style: 'bg-purple-50 text-purple-700 border-purple-200' } :
+                                            { icon: FaExclamationCircle, style: 'bg-rose-50 text-rose-700 border-rose-200' }
+                                        );
+                                        const IconComp = noteConfig.icon;
 
-                                    return (
-                                        <button
-                                            key={`${grade}-${classNum}`}
-                                            onClick={() => setViolationModal({ grade, classNum })}
-                                            className={`
-                        py-2.5 rounded-xl text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 border
-                        ${hasViolations
-                                                    ? 'bg-rose-100 text-rose-600 border-rose-200 shadow-sm'
-                                                    : 'bg-white text-gray-400 border-gray-100 hover:border-rose-200 hover:text-rose-400'}
-                      `}
-                                        >
-                                            <span>{grade}-{classNum}</span>
-                                            {hasViolations && (
-                                                <span className="bg-rose-200 text-rose-700 px-1.5 py-0.5 rounded text-[12px] leading-none">{classViolations.length}</span>
-                                            )}
-                                        </button>
-                                    );
-                                })
-                            ))}
+                                        return (
+                                            <div
+                                                key={v.id || `today-violation-${vIdx}`}
+                                                className="flex items-center justify-between bg-gray-50/80 hover:bg-gray-50 px-3.5 py-2.5 rounded-xl border border-gray-100 shadow-2xs hover:border-gray-200 transition-all"
+                                            >
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${noteConfig.style}`}>
+                                                        <IconComp size={14} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className="text-xs font-bold text-gray-800">
+                                                                {v.student_id} {v.student_name}
+                                                            </span>
+                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${noteConfig.style}`}>
+                                                                {v.note}
+                                                            </span>
+                                                        </div>
+                                                        {v.checked_at && (
+                                                            <span className="text-[10px] text-gray-400 block mt-0.5">
+                                                                {new Date(v.checked_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 기록
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDeleteViolation(v)}
+                                                    title="위반 기록 삭제"
+                                                    className="w-7 h-7 rounded-full bg-white hover:bg-rose-500 text-gray-400 hover:text-white border border-gray-200 hover:border-rose-500 flex items-center justify-center transition-colors shrink-0 ml-2 cursor-pointer active:scale-95 shadow-2xs"
+                                                >
+                                                    <FaTrash size={10} />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {violationModal && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => setViolationModal(null)}>
-                            <div className="bg-white w-full max-w-[300px] rounded-[1.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                                <div className="bg-rose-500 px-5 py-4 text-white flex justify-between items-center">
-                                    <h3 className="font-bold text-base">{violationModal.grade}학년 {violationModal.classNum}반 위반자 ({stats.violationList.filter(v => v.student_id.startsWith(`${violationModal.grade}${violationModal.classNum}`)).length}명)</h3>
-                                    <button onClick={() => setViolationModal(null)} className="opacity-80 hover:opacity-100 p-1">✕</button>
+                    {/* Monthly Returnee Status */}
+                    <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-3.5 mb-4">
+                        {/* Header: Title, Counts, and Returnee List Button */}
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-100 text-orange-500 flex items-center justify-center shadow-2xs shrink-0">
+                                    <FaHome size={16} />
                                 </div>
-                                <div className="p-4 max-h-[50vh] overflow-y-auto">
-                                    {stats.violationList.filter(v => v.student_id.startsWith(`${violationModal.grade}${violationModal.classNum}`)).length === 0 ? (
-                                        <p className="text-gray-400 text-center text-xs py-4">미준수자가 없습니다.</p>
-                                    ) : (
-                                        <div className="flex flex-col gap-2">
-                                            {stats.violationList
-                                                .filter(v => v.student_id.startsWith(`${violationModal.grade}${violationModal.classNum}`))
-                                                .map((v, vIdx) => (
-                                                    <div key={v.id || `violation-${vIdx}`} className="flex items-center justify-between bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${v.note === '스토퍼 미설치' ? 'bg-amber-100 text-amber-600' :
-                                                                v.note === '일과시간 미준수' ? 'bg-orange-100 text-orange-600' :
-                                                                    v.note === '청소불량' ? 'bg-green-100 text-green-600' :
-                                                                        v.note === '음식물 섭취 위반' ? 'bg-red-100 text-red-600' :
-                                                                            v.note === '퇴실수칙 불이행' ? 'bg-purple-100 text-purple-600' :
-                                                                                'bg-blue-100 text-blue-600'
-                                                                }`}>
-                                                                {v.note === '스토퍼 미설치' && <FaDoorOpen size={14} />}
-                                                                {v.note === '일과시간 미준수' && <FaClock size={14} />}
-                                                                {v.note === '청소불량' && <FaBroom size={14} />}
-                                                                {v.note === '음식물 섭취 위반' && <FaUtensils size={14} />}
-                                                                {v.note === '박스 방치' && <FaBoxOpen size={14} />}
-                                                                {v.note === '퇴실수칙 불이행' && <FaSignOutAlt size={14} />}
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-sm font-bold text-gray-800 block">{v.student_id} {v.student_name}</span>
-                                                                <span className="text-[11px] font-medium text-gray-500">{v.note}</span>
-                                                            </div>
-                                                        </div>
-                                                        <button
-                                                            onClick={async () => {
-                                                                if (!confirm('삭제하시겠습니까?')) return;
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-bold text-gray-800 text-xs sm:text-sm leading-tight">이번달 매주귀가자 현황</h3>
+                                        <span className="text-[11px] font-extrabold text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                                            {weeklyReturnees.length}명
+                                        </span>
+                                    </div>
+                                    <span className="text-[11px] text-gray-400 font-medium">정기 매주귀가 신청 현황</span>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setIsWeeklyListModalOpen(true)}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-blue-50 hover:text-blue-600 border border-gray-200 hover:border-blue-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                            >
+                                <FaUsers size={12} className="text-blue-500" />
+                                <span>귀가자 명단</span>
+                            </button>
+                        </div>
 
-                                                                const originalStats = { ...stats };
-                                                                setStats(prev => ({
-                                                                    ...prev,
-                                                                    violationCount: prev.violationCount - 1,
-                                                                    violationList: prev.violationList.filter(item => item.id !== v.id)
-                                                                }));
+                        {/* Grade Rows List */}
+                        <div className="pt-2 border-t border-gray-100 flex flex-col gap-1.5">
+                            {[1, 2, 3].map(grade => {
+                                const gradeInfo = stats.studentsByGrade.find(g => g.grade === grade);
+                                const gradeTotal = gradeInfo?.count || 0;
+                                const gradeWeekly = weeklyReturnees.filter(s => s.grade === grade).length;
+                                const gradeDorm = gradeTotal - gradeWeekly;
 
-                                                                const { error } = await supabase.from('morning_checks').delete().eq('id', v.id);
-
-                                                                if (error) {
-                                                                    console.error('[Dashboard] Delete Error:', error);
-                                                                    toast.error('삭제 실패 (DB 권한 확인 필요)');
-                                                                    setStats(originalStats);
-                                                                } else {
-                                                                    toast.success('삭제됨');
-                                                                }
-                                                            }}
-                                                            className="w-7 h-7 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center hover:bg-rose-500 hover:text-white transition-colors flex-shrink-0 ml-2"
-                                                        >
-                                                            <FaTrash size={10} />
-                                                        </button>
-                                                    </div>
-                                                ))
-                                            }
+                                return (
+                                    <div key={grade} className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50/80 hover:bg-gray-50 rounded-xl border border-gray-100 transition-colors">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs border ${grade === 1 ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                grade === 2 ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                    'bg-orange-50 text-orange-600 border-orange-100'
+                                                }`}>
+                                                {grade}
+                                            </div>
+                                            <span className="font-bold text-gray-800 text-xs">{grade}학년</span>
                                         </div>
-                                    )}
+                                        <div className="flex items-center gap-3 text-xs font-medium">
+                                            <div className="flex flex-col items-center min-w-[32px]">
+                                                <span className="text-[10px] text-gray-400 mb-0.5">총원</span>
+                                                <span className="text-gray-800 font-bold text-xs">{gradeTotal}</span>
+                                            </div>
+                                            <div className="w-px h-5 bg-gray-200"></div>
+                                            <div className="flex flex-col items-center min-w-[32px]">
+                                                <span className="text-[10px] text-gray-400 mb-0.5">매주귀가</span>
+                                                <span className="text-orange-500 font-bold text-xs">{gradeWeekly}</span>
+                                            </div>
+                                            <div className="w-px h-5 bg-gray-200"></div>
+                                            <div className="flex flex-col items-center min-w-[32px]">
+                                                <span className="text-[10px] text-gray-400 mb-0.5">기숙</span>
+                                                <span className="text-blue-500 font-bold text-xs">{gradeDorm}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-900 rounded-xl shadow-xs mt-0.5">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs bg-gray-700 text-white">
+                                        ALL
+                                    </div>
+                                    <span className="font-bold text-white text-xs">전학년</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs font-medium text-white">
+                                    <div className="flex flex-col items-center min-w-[32px]">
+                                        <span className="text-[10px] text-gray-400 mb-0.5">총원</span>
+                                        <span className="font-bold text-xs text-white">{stats.totalStudents}</span>
+                                    </div>
+                                    <div className="w-px h-5 bg-gray-700"></div>
+                                    <div className="flex flex-col items-center min-w-[32px]">
+                                        <span className="text-[10px] text-gray-400 mb-0.5">매주귀가</span>
+                                        <span className="text-orange-400 font-bold text-xs">{weeklyReturnees.length}</span>
+                                    </div>
+                                    <div className="w-px h-5 bg-gray-700"></div>
+                                    <div className="flex flex-col items-center min-w-[32px]">
+                                        <span className="text-[10px] text-gray-400 mb-0.5">기숙</span>
+                                        <span className="text-blue-400 font-bold text-xs">{stats.totalStudents - weeklyReturnees.length}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    )}
-
-                    <button
-                        onClick={() => setIsViolationStatsOpen(true)}
-                        className="w-full mt-3 py-3 rounded-xl text-sm font-bold transition-all text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 shadow-sm text-center flex items-center justify-center gap-2"
-                    >
-                        <FaChartBar size={14} />
-                        위반 학생 통계 (월별)
-                    </button>
+                    </div>
                 </div>
 
                 {/* Section 2: Tasks List */}
@@ -1235,9 +1247,10 @@ export default function DashboardMain() {
             />
 
             <ViolationStatsModal
-                key="main-violation-stats-modal"
+                key={`main-violation-stats-modal-${violationStatsFilter}`}
                 isOpen={isViolationStatsOpen}
                 onClose={() => setIsViolationStatsOpen(false)}
+                initialFilter={violationStatsFilter}
                 selectedDate={selectedDate}
             />
 
