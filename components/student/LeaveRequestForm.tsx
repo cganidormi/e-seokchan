@@ -79,6 +79,16 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
         return false;
     });
     const [unreadChatCount, setUnreadChatCount] = useState(0);
+    // 자리비움 제한 안내 모달 상태
+    const [awayRestrictionNotice, setAwayRestrictionNotice] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+    }>({
+        isOpen: false,
+        title: '',
+        message: '',
+    });
 
     // 2101 강동헌 학생 여부 판별 (오직 강동헌 학생에게만 채팅 버튼 노출)
     const isDongheon = React.useMemo(() => {
@@ -541,12 +551,22 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         const allowedEnd = new Date(limitEndTime.getTime() - 10 * 60 * 1000);
 
                         if (now < allowedStart) {
-                            toast.error(`${periodName} 시작 후 10분 동안은 신청이 제한됩니다.`);
+                            setAwayRestrictionNotice({
+                                isOpen: true,
+                                title: `${periodName} 시작 후 10분 동안 신청 제한`,
+                                message: `${periodName} 시작 후 10분 동안은 시스템을 통한 자리비움 신청이 되지 않습니다.`,
+                            });
+                            toast.error(`${periodName} 시작 후 10분 동안은 신청 불가! 꼭 가야 한다면 감독선생님께 보고 후 자리를 비워주세요.`, { duration: 6000 });
                             return;
                         }
 
                         if (now > allowedEnd) {
-                            toast.error(`${periodName} 종료 10분 전부터는 신청이 제한됩니다.`);
+                            setAwayRestrictionNotice({
+                                isOpen: true,
+                                title: `${periodName} 종료 10분 전`,
+                                message: `${periodName} 종료 10분 전부터는 시스템을 통한 자리비움 신청이 되지 않습니다.`,
+                            });
+                            toast.error(`${periodName} 종료 10분 전부터는 신청 불가! 꼭 가야 한다면 감독선생님께 보고 후 자리를 비워주세요.`, { duration: 6000 });
                             return;
                         }
                     }
@@ -554,7 +574,12 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
 
                 // Fallback: If not in a defined period (Break time?), BLOCK IT.
                 if (!isInsidePeriod) {
-                    toast.error('쉬는 시간 및 수업 외 시간에는 자리비움 신청을 할 수 없습니다.');
+                    setAwayRestrictionNotice({
+                        isOpen: true,
+                        title: '쉬는 시간 및 수업 외 시간',
+                        message: '쉬는 시간 및 수업 외 시간에는 시스템을 통한 자리비움 신청을 할 수 없습니다.',
+                    });
+                    toast.error('쉬는 시간 및 수업 외 시간에는 신청이 되지 않습니다. 꼭 가야 한다면 감독선생님께 보고 후 자리를 비워주세요.', { duration: 6000 });
                     return;
                 }
 
@@ -1171,6 +1196,38 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     currentRole="student"
                     currentName="강동헌"
                 />
+            )}
+
+            {/* 자리비움 제한 안내 모달 */}
+            {awayRestrictionNotice.isOpen && (
+                <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+                    <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-red-100 flex flex-col items-center text-center">
+                        <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-3xl mb-4 shadow-inner">
+                            🚨
+                        </div>
+                        <h3 className="text-lg font-black text-gray-900 mb-2">
+                            {awayRestrictionNotice.title || '자리비움 신청 불가 안내'}
+                        </h3>
+                        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mb-5 text-left w-full space-y-2.5">
+                            <p className="text-xs sm:text-sm font-bold text-red-800 leading-relaxed">
+                                {awayRestrictionNotice.message}
+                            </p>
+                            <div className="bg-white/95 border-2 border-red-300 rounded-xl p-3 shadow-xs">
+                                <p className="text-xs sm:text-sm font-black text-red-600 flex items-start gap-1.5 leading-snug">
+                                    <span className="text-base shrink-0">📢</span>
+                                    <span>꼭 가야 한다면 <u>감독선생님께 직접 보고 후</u> 자리를 비워주세요.</span>
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setAwayRestrictionNotice({ isOpen: false, title: '', message: '' })}
+                            className="w-full py-3.5 px-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer"
+                        >
+                            확인했습니다
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );
