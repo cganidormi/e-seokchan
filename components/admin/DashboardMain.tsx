@@ -1009,12 +1009,7 @@ export default function DashboardMain() {
                                     <FaHome size={16} />
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="font-bold text-gray-800 text-xs sm:text-sm leading-tight">이번달 매주귀가자 현황</h3>
-                                        <span className="text-[11px] font-extrabold text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
-                                            {weeklyReturnees.length}명
-                                        </span>
-                                    </div>
+                                    <h3 className="font-bold text-gray-800 text-xs sm:text-sm leading-tight">이번달 매주귀가자 현황</h3>
                                     <span className="text-[11px] text-gray-400 font-medium">정기 매주귀가 신청 현황</span>
                                 </div>
                             </div>
@@ -1121,32 +1116,63 @@ export default function DashboardMain() {
                                     value={newFacility.title}
                                     onChange={e => setNewFacility({ ...newFacility, title: e.target.value })}
                                 />
-                                <button onClick={handleCreateFacility} className="bg-gray-900 text-white w-12 rounded-xl flex items-center justify-center hover:bg-black active:scale-95 transition">
+                                <button onClick={handleCreateFacility} className="bg-gray-900 text-white w-12 h-[44px] rounded-xl flex items-center justify-center hover:bg-black active:scale-95 transition shrink-0 cursor-pointer shadow-xs">
                                     <FaPlus />
                                 </button>
                             </div>
 
-                            <div className="space-y-0.5">
+                            <div className="flex flex-col gap-2">
                                 {filteredFacility.length === 0 ? (
-                                    <div className="text-center py-4 text-gray-300 text-sm">요청 내역이 없습니다</div>
+                                    <div className="text-center py-5 text-gray-400 text-xs font-medium bg-gray-50/60 rounded-2xl border border-dashed border-gray-200">
+                                        요청 내역이 없습니다
+                                    </div>
                                 ) : filteredFacility.map((req, reqIdx) => (
-                                    <div key={req.id || `facility-${reqIdx}`} className="group flex items-center py-1.5 px-3 hover:bg-gray-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-gray-100">
+                                    <div
+                                        key={req.id || `facility-${reqIdx}`}
+                                        onClick={() => handleToggleFacilityStatus(req.id, req.status)}
+                                        className={`group flex items-center justify-between bg-[#1a1a1a] hover:bg-[#222] border border-white/5 rounded-[2rem] px-4 py-3 shadow-md transition-all cursor-pointer gap-3 min-h-[58px] ${
+                                            req.status === '완료' ? 'opacity-50 grayscale-[30%]' : ''
+                                        }`}
+                                    >
                                         <div
-                                            className={`w-5 h-5 rounded-md border-2 mr-3 flex items-center justify-center cursor-pointer transition-colors ${req.status === '완료' ? 'bg-blue-500 border-blue-500' : 'border-gray-300 hover:border-blue-400'}`}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleToggleFacilityStatus(req.id, req.status);
-                                            }}
+                                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                                req.status === '완료'
+                                                    ? 'bg-blue-500 border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]'
+                                                    : 'border-white/30 hover:border-blue-400 bg-white/5'
+                                            }`}
                                         >
                                             {req.status === '완료' && <FaCheck className="text-white text-[10px]" />}
                                         </div>
-                                        <div className="flex-1">
-                                            <h4 className={`font-bold text-[12px] transition-colors ${req.status === '완료' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>{req.title}</h4>
-                                            <p className="text-[12px] text-gray-400">
-                                                {req.room_number ? `${req.room_number}호` : '공용'} • {req.created_at.substring(5, 10)}
-                                            </p>
+
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className={`font-bold text-xs sm:text-sm truncate transition-colors ${
+                                                req.status === '완료' ? 'text-gray-400 line-through' : 'text-white'
+                                            }`}>
+                                                {req.title}
+                                            </h4>
+                                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-blue-300 border border-white/10">
+                                                    {req.room_number ? `${req.room_number}호` : '공용'}
+                                                </span>
+                                                <span className="text-[11px] text-gray-400">
+                                                    {req.created_at ? req.created_at.substring(5, 10).replace('-', '.') : ''}
+                                                </span>
+                                                {req.status === '완료' && (
+                                                    <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-full border border-blue-500/20">
+                                                        완료
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <button onClick={() => handleDeleteFacility(req.id)} className="text-gray-300 hover:text-red-500 p-2 transition">
+
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteFacility(req.id);
+                                            }}
+                                            title="삭제"
+                                            className="w-7 h-7 rounded-full bg-white/5 hover:bg-rose-500 text-gray-400 hover:text-white flex items-center justify-center transition-colors shrink-0 active:scale-95 cursor-pointer shadow-xs"
+                                        >
                                             <FaTrash size={10} />
                                         </button>
                                     </div>
@@ -1163,12 +1189,12 @@ export default function DashboardMain() {
                                 </div>
                             </div>
 
-                            <div className="mb-4 flex gap-2 items-start relative">
-                                <div className="relative w-32">
+                            <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:items-start relative">
+                                <div className="relative w-full sm:w-44 shrink-0">
                                     <input
                                         type="text"
                                         className="bg-gray-50 border-none rounded-xl px-4 py-3 text-sm w-full outline-none focus:bg-gray-100"
-                                        placeholder="이름/학번"
+                                        placeholder="이름/학번 검색"
                                         value={searchQuery}
                                         onFocus={() => setShowSearch(true)}
                                         onBlur={() => setTimeout(() => setShowSearch(false), 200)}
@@ -1178,11 +1204,11 @@ export default function DashboardMain() {
                                         }}
                                     />
                                     {showSearch && searchResults.length > 0 && (
-                                        <div className="absolute top-full left-0 w-48 bg-white border border-gray-100 shadow-xl rounded-xl mt-2 z-50 overflow-hidden">
+                                        <div className="absolute top-full left-0 w-full sm:w-56 bg-white border border-gray-100 shadow-xl rounded-xl mt-1.5 z-50 overflow-hidden">
                                             {searchResults.map((s, sIdx) => (
                                                 <div
                                                     key={s.student_id || `search-result-${sIdx}`}
-                                                    className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between group"
+                                                    className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between group border-b border-gray-50 last:border-b-0"
                                                     onClick={() => {
                                                         setNewPatient({ ...newPatient, studentId: s.student_id });
                                                         setSearchQuery(s.name);
@@ -1198,38 +1224,61 @@ export default function DashboardMain() {
                                     )}
                                 </div>
 
-                                <input
-                                    id="patient-symptom-input"
-                                    type="text"
-                                    className="bg-gray-50 border-none rounded-xl px-4 py-3 text-sm flex-1 outline-none focus:bg-gray-100"
-                                    placeholder="증상"
-                                    value={newPatient.symptom}
-                                    onChange={e => setNewPatient({ ...newPatient, symptom: e.target.value })}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') handleCreatePatient(searchResults.find(s => s.name === searchQuery || s.student_id === searchQuery));
-                                    }}
-                                />
-                                <button
-                                    onClick={() => handleCreatePatient(searchResults.find(s => s.name === searchQuery || s.student_id === searchQuery))}
-                                    className="bg-red-500 text-white w-12 h-[44px] rounded-xl flex items-center justify-center hover:bg-red-600 active:scale-95 transition flex-shrink-0"
-                                >
-                                    <FaPlus />
-                                </button>
+                                <div className="flex gap-2 flex-1 w-full">
+                                    <input
+                                        id="patient-symptom-input"
+                                        type="text"
+                                        className="bg-gray-50 border-none rounded-xl px-4 py-3 text-sm flex-1 outline-none focus:bg-gray-100 min-w-0"
+                                        placeholder="증상"
+                                        value={newPatient.symptom}
+                                        onChange={e => setNewPatient({ ...newPatient, symptom: e.target.value })}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleCreatePatient(searchResults.find(s => s.name === searchQuery || s.student_id === searchQuery));
+                                        }}
+                                    />
+                                    <button
+                                        onClick={() => handleCreatePatient(searchResults.find(s => s.name === searchQuery || s.student_id === searchQuery))}
+                                        className="bg-gray-900 text-white w-12 h-[44px] rounded-xl flex items-center justify-center hover:bg-black active:scale-95 transition shrink-0 cursor-pointer shadow-xs"
+                                    >
+                                        <FaPlus />
+                                    </button>
+                                </div>
                             </div>
 
-                            <div className="space-y-0.5">
+                            <div className="flex flex-col gap-2">
                                 {filteredPatients.length === 0 ? (
-                                    <div className="text-center py-4 text-gray-300 text-sm">환자가 없습니다</div>
+                                    <div className="text-center py-5 text-gray-400 text-xs font-medium bg-gray-50/60 rounded-2xl border border-dashed border-gray-200">
+                                        환자가 없습니다
+                                    </div>
                                 ) : filteredPatients.map((p, pIdx) => (
-                                    <div key={p.id || `patient-${pIdx}`} className="group flex items-center py-1.5 px-3 hover:bg-gray-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-gray-100">
-                                        <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-[12px] font-bold text-red-500 mr-3">
-                                            {p.student_name ? p.student_name[0] : '?'}
+                                    <div
+                                        key={p.id || `patient-${pIdx}`}
+                                        className="group flex items-center justify-between bg-[#1a1a1a] hover:bg-[#222] border border-white/5 rounded-[2rem] px-4 py-3 shadow-md transition-all gap-3 min-h-[58px]"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-red-500/20 border border-red-500/40 text-red-300 flex items-center justify-center text-xs font-black shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.3)]">
+                                            {p.student_name ? p.student_name[0] : '환'}
                                         </div>
-                                        <div className="flex-1">
-                                            <h4 className="font-bold text-gray-800 text-[12px]">{p.student_name} <span className="text-gray-400 font-normal">({p.student_id})</span></h4>
-                                            <p className="text-[12px] text-red-400 font-bold">{p.symptom}</p>
+
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-white font-bold text-xs sm:text-sm">{p.student_name}</span>
+                                                <span className="text-gray-400 text-xs font-normal">({p.student_id})</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/30">
+                                                    증상: {p.symptom}
+                                                </span>
+                                                <span className="text-[11px] text-gray-400">
+                                                    {p.created_at ? p.created_at.substring(5, 10).replace('-', '.') : ''}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <button onClick={() => handleDeletePatient(p.id)} className="text-gray-300 hover:text-red-500 p-2 transition">
+
+                                        <button
+                                            onClick={() => handleDeletePatient(p.id)}
+                                            title="삭제"
+                                            className="w-7 h-7 rounded-full bg-white/5 hover:bg-rose-500 text-gray-400 hover:text-white flex items-center justify-center transition-colors shrink-0 active:scale-95 cursor-pointer shadow-xs"
+                                        >
                                             <FaTrash size={10} />
                                         </button>
                                     </div>
