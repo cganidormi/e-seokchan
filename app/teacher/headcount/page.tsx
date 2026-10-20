@@ -763,53 +763,41 @@ export default function HeadcountPage() {
 
                 {/* Middle Row: Floor Grade Badges (2-line layout) */}
                 <div className="flex items-center justify-between w-full gap-1 sm:gap-1.5 whitespace-nowrap">
-                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1 sm:py-1.5 border border-yellow-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
-                        <span className="text-[11px] sm:text-xs font-bold text-yellow-400 leading-tight">1학년</span>
-                        <span className="text-xs sm:text-sm md:text-base font-black text-yellow-200 tabular-nums leading-tight mt-0.5">
+                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border border-yellow-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
+                        <span className="text-xs sm:text-sm font-extrabold text-yellow-400 leading-tight">1학년</span>
+                        <span className="text-sm sm:text-base md:text-lg font-black text-yellow-200 tabular-nums leading-tight mt-0.5">
                             {floorStats[1].present}/{floorStats[1].total}명
                         </span>
                     </div>
-                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1 sm:py-1.5 border border-sky-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
-                        <span className="text-[11px] sm:text-xs font-bold text-sky-400 leading-tight">2학년</span>
-                        <span className="text-xs sm:text-sm md:text-base font-black text-sky-200 tabular-nums leading-tight mt-0.5">
+                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border border-sky-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
+                        <span className="text-xs sm:text-sm font-extrabold text-sky-400 leading-tight">2학년</span>
+                        <span className="text-sm sm:text-base md:text-lg font-black text-sky-200 tabular-nums leading-tight mt-0.5">
                             {floorStats[2].present}/{floorStats[2].total}명
                         </span>
                     </div>
-                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1 sm:py-1.5 border border-red-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
-                        <span className="text-[11px] sm:text-xs font-bold text-red-400 leading-tight">3학년</span>
-                        <span className="text-xs sm:text-sm md:text-base font-black text-red-200 tabular-nums leading-tight mt-0.5">
+                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border border-red-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
+                        <span className="text-xs sm:text-sm font-extrabold text-red-400 leading-tight">3학년</span>
+                        <span className="text-sm sm:text-base md:text-lg font-black text-red-200 tabular-nums leading-tight mt-0.5">
                             {floorStats[3].present}/{floorStats[3].total}명
                         </span>
                     </div>
-                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1 sm:py-1.5 border border-gray-600 flex-1 min-w-0 whitespace-nowrap shadow-sm">
-                        <span className="text-[11px] sm:text-xs font-bold text-gray-300 leading-tight">{currentFloor}층 합계</span>
-                        <span className="text-xs sm:text-sm md:text-base font-black text-white tabular-nums leading-tight mt-0.5">
+                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border border-gray-600 flex-1 min-w-0 whitespace-nowrap shadow-sm">
+                        <span className="text-xs sm:text-sm font-extrabold text-gray-300 leading-tight">{currentFloor}층 합계</span>
+                        <span className="text-sm sm:text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
                             {floorStats[1].present + floorStats[2].present + floorStats[3].present}/{floorStats[1].total + floorStats[2].total + floorStats[3].total}명
                         </span>
                     </div>
                 </div>
 
-                {/* Bottom Row: Floor Selector Tabs & Student Search */}
-                <div className="flex items-center gap-1.5 sm:gap-2 w-full justify-between">
-                    <div className="flex gap-1 shrink-0">
-                        {[1, 2, 3, 4].map(floor => (
-                            <button
-                                key={floor}
-                                onClick={() => setCurrentFloor(floor)}
-                                className={clsx(
-                                    "px-2 sm:px-3 py-1 rounded text-xs font-bold transition-all border",
-                                    currentFloor === floor
-                                        ? "bg-orange-600 border-orange-500 text-white"
-                                        : "bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700"
-                                )}
-                            >
-                                {floor}F
-                            </button>
-                        ))}
-                    </div>
+                {/* Pagination Dots (스와이프 넛지) - 3번 화면용 */}
+                <div className="flex justify-center w-full pt-1 pb-0.5">
+                    <SwipeNudgeDots currentIndex={2} theme="dark" className="bg-white/10 py-1.5 px-4 rounded-full shadow-inner backdrop-blur-sm" />
+                </div>
 
-                    {/* Search Input Box */}
-                    <div className="relative flex-1 max-w-[160px] sm:max-w-[220px] min-w-[120px] shrink-0 ml-auto">
+                {/* Bottom Row: Student Search (Left) & Floor Selector Tabs (Right) */}
+                <div className="flex items-center justify-between w-full gap-2">
+                    {/* Left: Student Search Box */}
+                    <div className="relative flex-1 max-w-[180px] xs:max-w-[220px] sm:max-w-[260px] h-9 sm:h-10">
                         <input
                             type="text"
                             value={searchQuery}
@@ -817,13 +805,12 @@ export default function HeadcountPage() {
                             placeholder="🔍 학생 검색..."
                             enterKeyHint="search"
                             autoComplete="off"
-                            className="w-full px-2.5 py-1 text-[16px] sm:text-xs bg-gray-800/90 border border-gray-700 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 transition-all"
-                            style={{ fontSize: '16px' }}
+                            className="w-full h-full px-3 text-xs sm:text-sm font-medium bg-gray-800/90 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 transition-all shadow-sm"
                         />
                         {searchQuery && (
                             <button
                                 onClick={() => setSearchQuery('')}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs font-bold"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs font-bold p-1"
                             >
                                 ✕
                             </button>
@@ -831,7 +818,7 @@ export default function HeadcountPage() {
 
                         {/* Dropdown Results */}
                         {searchQuery.trim() && (
-                            <div className="absolute right-0 top-full mt-1 min-w-[180px] max-w-[240px] w-auto bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-50 max-h-56 overflow-y-auto whitespace-nowrap">
+                            <div className="absolute left-0 top-full mt-1 min-w-[200px] max-w-[260px] w-auto bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto whitespace-nowrap">
                                 {searchResults.length > 0 ? (
                                     searchResults.map((res, idx) => (
                                         <button
@@ -847,7 +834,7 @@ export default function HeadcountPage() {
                                                     }
                                                 }, 150);
                                             }}
-                                            className="w-full text-left px-2.5 py-1.5 text-xs text-gray-200 hover:bg-orange-600/30 hover:text-white border-b border-gray-800 last:border-0 flex items-center justify-start gap-2 transition-colors cursor-pointer"
+                                            className="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-orange-600/30 hover:text-white border-b border-gray-800 last:border-0 flex items-center justify-between gap-2 transition-colors cursor-pointer"
                                         >
                                             <span className="font-bold text-white truncate">
                                                 {res.displayName}
@@ -865,18 +852,24 @@ export default function HeadcountPage() {
                             </div>
                         )}
                     </div>
-                </div>
 
-                {/* Pagination Dots (스와이프 넛지) - 3번 화면용 */}
-                <div className="flex justify-center w-full pt-1 pb-0.5">
-                    <SwipeNudgeDots currentIndex={2} theme="dark" className="bg-white/10 py-1.5 px-4 rounded-full shadow-inner backdrop-blur-sm" />
-                </div>
-
-                {/* Double Touch Zoom Guide Text */}
-                <div className="flex items-center justify-center w-full">
-                    <p className="text-[10px] sm:text-[11px] text-yellow-400 font-semibold text-center tracking-tight">
-                        더블 터치 하시면 줌인 줌아웃이 됩니다.
-                    </p>
+                    {/* Right: Floor Selector Tabs */}
+                    <div className="flex items-center gap-1 bg-gray-900/90 p-1 rounded-xl border border-gray-700/80 shadow-inner shrink-0 h-9 sm:h-10">
+                        {[1, 2, 3, 4].map(floor => (
+                            <button
+                                key={floor}
+                                onClick={() => setCurrentFloor(floor)}
+                                className={clsx(
+                                    "h-full px-2.5 sm:px-3.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center justify-center",
+                                    currentFloor === floor
+                                        ? "bg-orange-500 text-white shadow-md font-bold scale-105"
+                                        : "text-gray-400 hover:text-white hover:bg-gray-800"
+                                )}
+                            >
+                                {floor}F
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </header>
 
