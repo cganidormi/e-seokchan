@@ -1,5 +1,5 @@
 // Install event - force new service worker to activate immediately causes the PWA to update
-// VERSION: 2026-02-08-v5 (App Badge Support)
+// VERSION: 2026-10-20-v6 (Dongheon Chat: suppress push while chat is open)
 self.addEventListener('install', function (event) {
     console.log('[SW] Installing new version (v5)...');
     self.skipWaiting();
@@ -9,6 +9,58 @@ self.addEventListener('install', function (event) {
 self.addEventListener('activate', function (event) {
     event.waitUntil(self.clients.claim());
 });
+
+// 동헌톡 대화창이 열려 있는 클라이언트(탭) ID 목록
+const dongheonChatOpenClients = new Set();
+
+self.addEventListener('message', function (event) {
+    const msg = event.data;
+    if (!msg || msg.type !== 'DONGHEON_CHAT_STATE' || !event.source) return;
+    if (msg.open) {
+        dongheonChatOpenClients.add(event.source.id);
+    } else {
+        dongheonChatOpenClients.delete(event.source.id);
+    }
+});
+
+// 동헌톡 창이 열린 채로 화면에 보이고 있는지 확인
+async function isDongheonChatVisible() {
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    
+    // 1) 메모리 Set에 있고 현재 화면이 보이는 경우
+    const hasInSet = clientList.some(function (c) {
+        return dongheonChatOpenClients.has(c.id) && c.visibilityState === 'visible';
+    });
+    if (hasInSet) return true;
+
+    // 2) SW 재시작 등으로 Set이 비었을 수 있으므로 화면이 켜져 있는 창에 직접 상태 질의 (Ping)
+    const visibleClients = clientList.filter(function (c) {
+        return c.visibilityState === 'visible';
+    });
+    if (visibleClients.length === 0) return false;
+
+    try {
+        const pingPromises = visibleClients.map(function (client) {
+            return new Promise(function (resolve) {
+                const messageChannel = new MessageChannel();
+                messageChannel.port1.onmessage = function (event) {
+                    if (event.data && event.data.isDongheonChatOpen) {
+                        dongheonChatOpenClients.add(client.id);
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                };
+                client.postMessage({ type: 'PING_DONGHEON_CHAT' }, [messageChannel.port2]);
+                setTimeout(function () { resolve(false); }, 300);
+            });
+        });
+        const results = await Promise.all(pingPromises);
+        return results.some(Boolean);
+    } catch (e) {
+        return false;
+    }
+}
 
 self.addEventListener('push', function (event) {
     if (event.data) {
@@ -30,6 +82,20 @@ self.addEventListener('push', function (event) {
                 url: data.url || '/'
             }
         };
+
+        if (data.tag === 'dongheon-chat') {
+            options.tag = 'dongheon-chat';
+            options.renotify = true;
+            event.waitUntil(
+                isDongheonChatVisible().then(function (visible) {
+                    // 대화 중(대화창이 열려 화면에 보이는 중)이면 알림 생략
+                    if (visible) return;
+                    return self.registration.showNotification(data.title, options);
+                })
+            );
+            return;
+        }
+
         event.waitUntil(
             self.registration.showNotification(data.title, options)
         );

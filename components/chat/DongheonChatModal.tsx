@@ -33,6 +33,23 @@ export default function DongheonChatModal({
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // 실시간 채널 (Presence로 상대방이 대화창을 보고 있는지 확인용)
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // 상대방이 현재 대화창을 열고 화면을 보고 있는지 여부
+  const isOpponentViewingChat = (): boolean => {
+    const channel = channelRef.current;
+    if (!channel) return false;
+    const oppositeRole = currentRole === 'student' ? 'teacher' : 'student';
+    try {
+      const state = channel.presenceState() as Record<string, Array<{ role?: string; visible?: boolean }>>;
+      return Object.values(state).some((metas) =>
+        metas.some((m) => m.role === oppositeRole && m.visible === true)
+      );
+    } catch {
+      return false;
+    }
+  };
 
   // 스크롤 맨 아래로 이동
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
@@ -86,9 +103,13 @@ export default function DongheonChatModal({
 
     fetchMessages();
 
-    // 3. 실시간 Realtime 구독 설정
+    // 3. 실시간 Realtime 구독 설정 (+ Presence: 대화창 열람 상태 공유)
+    const presenceKey = `${currentRole}-${Math.random().toString(36).slice(2, 10)}`;
     const channel = supabase
-      .channel('dongheon_chats_realtime')
+      .channel('dongheon_chats_realtime', {
+        config: { presence: { key: presenceKey } },
+      })
+      .on('presence', { event: 'sync' }, () => {})
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'dongheon_chats' },
@@ -118,10 +139,59 @@ export default function DongheonChatModal({
           );
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          trackPresence();
+        }
+      });
+
+    channelRef.current = channel;
+
+    // 화면이 보이는지(앱이 포그라운드인지) 상대방에게 알림
+    const trackPresence = () => {
+      channel
+        .track({
+          role: currentRole,
+          visible: document.visibilityState === 'visible',
+        })
+        .catch(() => {});
+    };
+
+    const handleVisibility = () => {
+      trackPresence();
+      // 다시 화면으로 돌아왔을 때 읽음 처리
+      if (document.visibilityState === 'visible') {
+        markAsRead();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // 서비스워커에도 대화창 열림 상태 전달 (푸시 수신 시 2차 필터)
+    navigator.serviceWorker?.controller?.postMessage({
+      type: 'DONGHEON_CHAT_STATE',
+      open: true,
+    });
+
+    // 서비스워커의 상태 질의(Ping)에 대화창 열림 응답
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'PING_DONGHEON_CHAT' && event.ports && event.ports[0]) {
+        event.ports[0].postMessage({
+          isDongheonChatOpen: isOpen && document.visibilityState === 'visible',
+        });
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleSwMessage);
 
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      navigator.serviceWorker?.removeEventListener('message', handleSwMessage);
+      navigator.serviceWorker?.controller?.postMessage({
+        type: 'DONGHEON_CHAT_STATE',
+        open: false,
+      });
+      channel.untrack().catch(() => {});
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [isOpen, currentRole]);
 
@@ -135,6 +205,11 @@ export default function DongheonChatModal({
   // 푸시 알림 발송 헬퍼
   const sendPushNotification = async (text: string) => {
     try {
+      // 상대방이 지금 대화창을 보고 있다면 푸시 알림 생략
+      if (isOpponentViewingChat()) {
+        return;
+      }
+
       if (currentRole === 'student') {
         // 학생 -> 이상찬 관리자님에게 푸시 발송
         const { data: teacherData } = await supabase
@@ -158,6 +233,7 @@ export default function DongheonChatModal({
                   subscription: sub.subscription_json,
                   title: '💬 [동헌이 톡] 새 메시지 도착',
                   message: `강동헌: "${text.length > 30 ? text.slice(0, 30) + '...' : text}"`,
+                  tag: 'dongheon-chat',
                 }),
               }).catch((e) => console.error('Push error:', e));
             });
@@ -179,6 +255,7 @@ export default function DongheonChatModal({
                 subscription: sub.subscription_json,
                 title: '💌 [이상찬 쌤] 답장이 도착했습니다',
                 message: text.length > 30 ? text.slice(0, 30) + '...' : text,
+                tag: 'dongheon-chat',
               }),
             }).catch((e) => console.error('Push error:', e));
           });

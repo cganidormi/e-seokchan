@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     let subEndpoint: string | null = null;
     try {
         initWebPush();
-        const { subscription, message, title, badge } = await request.json();
+        const { subscription, message, title, badge, tag } = await request.json();
 
         // 1. 구독 저장 요청인 경우 (message가 없음)
         if (!message) {
@@ -29,7 +29,8 @@ export async function POST(request: Request) {
             title: title || '알림',
             body: message,
             url: '/', // 클릭 시 이동할 URL
-            badge: badge // 앱 아이콘 숫자 표시
+            badge: badge, // 앱 아이콘 숫자 표시
+            tag: tag // 알림 종류 구분 (예: 'dongheon-chat')
         });
 
         await webpush.sendNotification(subscription, payload, {
