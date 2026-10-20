@@ -162,17 +162,16 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                 취침지도 호실배치도 →
             </button>
 
-            {/* Morning Checkout Button */}
+            {/* Today Dashboard Button */}
             <button
-                onClick={() => setIsMorningModalOpen(true)}
-                className="w-full mb-6 py-3 rounded-xl text-sm font-medium transition-all text-white shadow-lg text-right pr-6 bg-no-repeat bg-[#2d2d2d] hover:bg-[#3d3d3d]"
+                onClick={() => router.push('/today')}
+                className="w-full mb-6 py-3 rounded-xl text-sm font-medium transition-all text-emerald-100 shadow-lg text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
                 style={{
-                    backgroundImage: `url('/yellow_card.svg')`,
-                    backgroundPosition: '10px center',
-                    backgroundSize: '40px 40px'
+                    backgroundImage: `linear-gradient(to right, rgba(5, 150, 105, 0) 30%, rgba(5, 150, 105, 1) 100%), url('/dorm.jpg')`,
+                    backgroundPosition: 'center 68%'
                 }}
             >
-                생활규정 미준수지도 →
+                오늘의 홍지관 →
             </button>
 
             {/* 탭 전환 UI */}

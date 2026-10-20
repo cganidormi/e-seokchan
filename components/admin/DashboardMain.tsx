@@ -704,18 +704,7 @@ export default function DashboardMain() {
             {/* Header */}
             <div className="sticky top-0 bg-[#FDFDFD]/80 backdrop-blur-xl z-40 border-b border-gray-100/50 transition-all">
                 <div className="px-6 py-4 max-w-xl mx-auto md:max-w-4xl flex items-center justify-between">
-                    {/* Left: 교사 홈으로 버튼 */}
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => window.location.href = '/teacher'}
-                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold p-2 sm:p-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center cursor-pointer active:scale-95"
-                            title="교사 홈으로 이동"
-                        >
-                            <HiHome className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
-                        </button>
-                    </div>
-
-                    {/* Right: 달력 바 */}
+                    {/* Left: 달력 바 */}
                     <div
                         className="relative group cursor-pointer"
                         onClick={() => dateInputRef.current?.showPicker()}
@@ -735,6 +724,17 @@ export default function DashboardMain() {
                                 if (e.target.value) setSelectedDate(new Date(e.target.value));
                             }}
                         />
+                    </div>
+
+                    {/* Right: 교사 홈으로 버튼 */}
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => window.location.href = '/teacher'}
+                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold p-2 sm:p-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center cursor-pointer active:scale-95"
+                            title="교사 홈으로 이동"
+                        >
+                            <HiHome className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+                        </button>
                     </div>
                 </div>
             </div>
