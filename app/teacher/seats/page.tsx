@@ -831,88 +831,28 @@ export default function SeatManagementPage() {
                 <div className="flex flex-col w-full max-w-6xl mx-auto">
                     {/* Header & Controls */}
                     {/* Header & Controls */}
-                    <div className="flex flex-col gap-4 mb-3">
+                    <div className="flex flex-col gap-3 mb-4">
+                        {/* Row 1: Title, Centered Search Bar, & Seat Management Toggle */}
                         <div className="flex items-center justify-between gap-2 w-full">
-                            {/* Title & Room Segment Selector */}
-                            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                                <div className="flex items-center gap-1.5">
-                                    <div className="w-[3px] h-5 bg-yellow-400 rounded-full shrink-0"></div>
-                                    <h1 className="text-base sm:text-xl font-black text-gray-800 whitespace-nowrap">
-                                        현황모니터
-                                    </h1>
-                                </div>
-
-                                {/* Room Selector Segment Tabs */}
-                                <div className="flex items-center gap-1 bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0">
-                                    {[1, 2, 3].map((room) => (
-                                        <button
-                                            key={room}
-                                            onClick={() => setSelectedRoom(room)}
-                                            className={clsx(
-                                                "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap",
-                                                selectedRoom === room
-                                                    ? "bg-yellow-400 text-yellow-950 shadow-md scale-105"
-                                                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-300/60"
-                                            )}
-                                        >
-                                            제{room}실
-                                        </button>
-                                    ))}
-                                </div>
+                            {/* Title */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <div className="w-[3px] h-5 bg-yellow-400 rounded-full shrink-0"></div>
+                                <h1 className="text-base sm:text-xl font-black text-gray-800 whitespace-nowrap">
+                                    현황모니터
+                                </h1>
                             </div>
 
-                            {/* Seat Management Toggle (Top Right Corner) - Only for Authorized Roles */}
-                            {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자') && (
-                                <div className="flex items-center bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0 ml-auto">
-                                    <button
-                                        onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
-                                        className={clsx(
-                                            "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center gap-1.5",
-                                            mode === 'edit'
-                                                ? "bg-gray-900 text-white shadow-sm"
-                                                : "bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
-                                        )}
-                                    >
-                                        <span>{mode === 'edit' ? '저장 & BACK' : '⚙️ 좌석 관리'}</span>
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col items-center gap-3 w-full">
-                            {/* Leave List Button */}
-                            <button
-                                onClick={() => router.push('/teacher')}
-                                className="w-full max-w-sm mx-auto py-3 rounded-xl text-sm font-bold transition-all text-yellow-800 bg-yellow-400 hover:bg-yellow-300 shadow-sm cursor-pointer"
-                            >
-                                ← 이석현황 목록으로 돌아가기
-                            </button>
-
-                            {/* Pagination Dots (스와이프 넛지) - 2번 화면용 */}
-                            <div className="flex justify-center w-full">
-                                <SwipeNudgeDots currentIndex={1} className="bg-gray-200/70 py-1.5 px-4 rounded-full shadow-inner" />
-                            </div>
-                        </div>
-
-                        {/* Description Text & Search Bar Row */}
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 -mt-2">
-                            <p className="text-center sm:text-left text-xs text-red-500 leading-tight">
-                                학생이 자리에 없을 시 해당 학생 좌석을 더블터치 해 보세요.<br className="hidden sm:inline" />
-                                이석현황을 확인 하실수 있습니다.
-                            </p>
-
-                            {/* Student Seat Search Input */}
-                            <div className="relative w-full sm:w-auto min-w-[200px] max-w-[260px] shrink-0">
+                            {/* Centered Student Seat Search Bar */}
+                            <div className="relative flex-1 max-w-xs sm:max-w-sm mx-1 sm:mx-3">
                                 <div className="relative flex items-center">
                                     <input
                                         type="text"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="학생 자리 검색..."
-                                        className="w-full bg-white border border-gray-300 text-gray-800 text-[16px] sm:text-sm rounded-xl px-3 py-1.5 sm:py-2 pl-8 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-sm"
-                                        style={{ fontSize: '16px' }}
+                                        placeholder="학생 검색..."
+                                        className="w-full bg-white border border-gray-300 text-gray-800 text-xs sm:text-sm rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 pl-7 sm:pl-8 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 shadow-sm"
                                     />
-                                    <span className="absolute left-2.5 text-gray-400 text-xs">🔍</span>
+                                    <span className="absolute left-2 sm:left-2.5 text-gray-400 text-xs">🔍</span>
                                     {searchQuery && (
                                         <button
                                             onClick={() => setSearchQuery('')}
@@ -925,7 +865,7 @@ export default function SeatManagementPage() {
 
                                 {/* Search Results Dropdown */}
                                 {searchQuery.trim() && (
-                                    <div className="absolute right-0 left-0 sm:left-auto sm:w-[260px] top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto">
+                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto min-w-[200px]">
                                         {searchResults.length > 0 ? (
                                             searchResults.map((res, idx) => (
                                                 <button
@@ -949,6 +889,77 @@ export default function SeatManagementPage() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Seat Management Toggle (Top Right Corner) - Only for Authorized Roles */}
+                            {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자') ? (
+                                <div className="flex items-center bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0">
+                                    <button
+                                        onClick={() => setMode(mode === 'edit' ? 'monitor' : 'edit')}
+                                        className={clsx(
+                                            "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center gap-1.5",
+                                            mode === 'edit'
+                                                ? "bg-gray-900 text-white shadow-sm"
+                                                : "bg-white text-gray-700 hover:bg-gray-50 shadow-sm"
+                                        )}
+                                    >
+                                        <span>{mode === 'edit' ? '저장 & BACK' : '⚙️ 좌석 관리'}</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="w-0 shrink-0" />
+                            )}
+                        </div>
+
+                        {/* Row 2: Swipe Nudge Dots */}
+                        <div className="flex justify-center w-full">
+                            <SwipeNudgeDots currentIndex={1} className="bg-gray-200/70 py-1.5 px-4 rounded-full shadow-inner" />
+                        </div>
+
+                        {/* Row 3: Navigation (<<) + Room Selector + (>>) */}
+                        <div className="flex items-center justify-between w-full">
+                            {/* Left Screen Switch Button (<<) -> /teacher */}
+                            <button
+                                onClick={() => router.push('/teacher')}
+                                className="h-10 p-2 sm:px-3.5 rounded-xl bg-white border border-gray-200/80 text-gray-700 hover:text-yellow-700 hover:bg-yellow-50 hover:border-yellow-300 shadow-sm active:scale-95 transition-all flex items-center justify-center cursor-pointer shrink-0"
+                                title="이석현황 목록으로 이동"
+                                aria-label="이석현황 목록으로 이동"
+                            >
+                                <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="11 17 6 12 11 7" />
+                                    <polyline points="18 17 13 12 18 7" />
+                                </svg>
+                            </button>
+
+                            {/* Room Selector Segment Tabs (Centered) */}
+                            <div className="flex items-center gap-1 bg-gray-200/90 p-1 rounded-xl border border-gray-300/80 shadow-inner shrink-0 h-10">
+                                {[1, 2, 3].map((room) => (
+                                    <button
+                                        key={room}
+                                        onClick={() => setSelectedRoom(room)}
+                                        className={clsx(
+                                            "h-full px-2.5 sm:px-3.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center justify-center",
+                                            selectedRoom === room
+                                                ? "bg-yellow-400 text-yellow-950 shadow-md scale-105"
+                                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-300/60"
+                                        )}
+                                    >
+                                        제{room}실
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Right Screen Switch Button (>>) -> /teacher/headcount */}
+                            <button
+                                onClick={() => router.push('/teacher/headcount')}
+                                className="h-10 p-2 sm:px-3.5 rounded-xl bg-white border border-gray-200/80 text-gray-700 hover:text-yellow-700 hover:bg-yellow-50 hover:border-yellow-300 shadow-sm active:scale-95 transition-all flex items-center justify-center cursor-pointer shrink-0"
+                                title="점호 현황으로 이동"
+                                aria-label="점호 현황으로 이동"
+                            >
+                                <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="13 17 18 12 13 7" />
+                                    <polyline points="6 17 11 12 6 7" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
 
