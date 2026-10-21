@@ -793,9 +793,17 @@ export default function HeadcountPage() {
                     </div>
                 </div>
 
-                {/* Pagination Dots (스와이프 넛지) - 3번 화면용 */}
-                <div className="flex justify-center w-full pt-1 pb-0.5">
+                {/* Pagination Dots (스와이프 넛지) & 기능 안내 뱃지 - 3번 화면용 */}
+                <div className="flex flex-col items-center justify-center w-full pt-1 pb-0.5 gap-1.5">
                     <SwipeNudgeDots currentIndex={2} theme="dark" className="bg-white/10 py-1.5 px-4 rounded-full shadow-inner backdrop-blur-sm" />
+                    <div className="flex flex-col items-center justify-center gap-1 text-[11px] sm:text-xs tracking-tight text-gray-300 w-full">
+                        <span className="bg-white/5 border border-white/10 px-3 py-0.5 rounded-full shadow-xs text-center">
+                            호실 번호를 누르면 <span className="text-white font-bold">생활규정 위반 체크</span>
+                        </span>
+                        <span className="bg-white/5 border border-white/10 px-3 py-0.5 rounded-full shadow-xs text-center">
+                            화면 빈 곳을 두 번 터치하면 <span className="text-white font-bold">줌인/줌아웃</span> 됩니다
+                        </span>
+                    </div>
                 </div>
 
                 {/* Bottom Row: Student Search (Left) & Floor Selector Tabs (Right) */}
@@ -959,7 +967,7 @@ export default function HeadcountPage() {
                                                     "inline-flex items-center justify-center text-center h-6 px-2.5 rounded-full border border-white/20 bg-white/10 text-white font-extrabold tracking-tight hover:text-yellow-400 hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0 shadow-md leading-none",
                                                     isSideBySide ? "text-xs sm:text-sm" : "text-xs sm:text-sm"
                                                 )}
-                                                title="생활지도 기록"
+                                                title="생활규정 위반 체크"
                                             >
                                                 <span className="inline-block -translate-y-[1px]">{roomNum}</span>
                                             </button>

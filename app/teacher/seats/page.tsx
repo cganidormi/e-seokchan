@@ -96,6 +96,9 @@ export default function SeatManagementPage() {
     // Morning Checkout Modal State
     const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
 
+    // Supervision Tip Modal State
+    const [isTipModalOpen, setIsTipModalOpen] = useState(false);
+
     const [checkedSeats, setCheckedSeats] = useState<Set<string>>(new Set());
 
     // Close status menu when clicking outside
@@ -860,6 +863,20 @@ export default function SeatManagementPage() {
                                     </button>
                                 </div>
                             )}
+                        </div>
+
+                        {/* Row: Supervision Tip Button */}
+                        <div className="flex justify-center w-full">
+                            <button
+                                type="button"
+                                onClick={() => setIsTipModalOpen(true)}
+                                className="px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 shadow-xs hover:shadow transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                            >
+                                <span>학생이 없는 경우</span>
+                                <span className="font-black text-indigo-600 bg-indigo-50 border border-indigo-200/70 px-1.5 py-0.5 rounded text-[11px] tracking-wide">
+                                    TIP
+                                </span>
+                            </button>
                         </div>
 
                         {/* Row 2: Swipe Nudge Dots */}
@@ -1635,6 +1652,95 @@ export default function SeatManagementPage() {
                                         );
                                     })
                                 )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Supervision Tip Modal */}
+                {isTipModalOpen && (
+                    <div
+                        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => setIsTipModalOpen(false)}
+                    >
+                        <div
+                            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-150"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Modal Header */}
+                            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                                <div>
+                                    <span className="text-[11px] font-black tracking-widest text-slate-400 uppercase">
+                                        Supervision Guide
+                                    </span>
+                                    <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                        <span className="text-indigo-600">TIP</span>
+                                        <span className="text-sm font-semibold text-slate-500">학생이 없는 경우</span>
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => setIsTipModalOpen(false)}
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-200/70 text-slate-400 hover:text-slate-700 transition-colors text-sm font-bold cursor-pointer"
+                                    aria-label="닫기"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="p-6 flex flex-col gap-3 bg-white">
+                                <div className="group flex items-start gap-3.5 p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/40 hover:bg-slate-50 hover:border-slate-300 transition-all">
+                                    <span className="font-mono text-xs font-black text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-md mt-0.5 shadow-2xs shrink-0">
+                                        01
+                                    </span>
+                                    <div className="text-sm text-slate-700 leading-snug">
+                                        해당 학생의 좌석을 <span className="font-extrabold text-slate-950 underline decoration-indigo-300 underline-offset-4">더블터치</span> 합니다.
+                                    </div>
+                                </div>
+
+                                <div className="group flex items-start gap-3.5 p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/40 hover:bg-slate-50 hover:border-slate-300 transition-all">
+                                    <span className="font-mono text-xs font-black text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-md mt-0.5 shadow-2xs shrink-0">
+                                        02
+                                    </span>
+                                    <div className="text-sm text-slate-700 leading-snug flex items-center flex-wrap gap-1.5">
+                                        <span>팝업 상단의</span>
+                                        <span className="inline-flex items-center gap-1 bg-white px-2 py-1 rounded-xl border border-slate-200 shadow-2xs">
+                                            <span className="p-1.5 rounded-lg bg-red-500 border-b-2 border-red-700 text-white shadow-xs inline-flex items-center justify-center">
+                                                <FaBell className="w-3.5 h-3.5" />
+                                            </span>
+                                            <span className="text-[11px] font-black text-red-500">호출</span>
+                                        </span>
+                                        <span>버튼을 누릅니다.</span>
+                                    </div>
+                                </div>
+
+                                <div className="group flex items-start gap-3.5 p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/40 hover:bg-slate-50 hover:border-slate-300 transition-all">
+                                    <span className="font-mono text-xs font-black text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-md mt-0.5 shadow-2xs shrink-0">
+                                        03
+                                    </span>
+                                    <div className="text-sm text-slate-700 leading-snug">
+                                        미승인 이석이 있는 경우 <span className="font-extrabold text-indigo-700">담당선생님께 문의</span>합니다.
+                                    </div>
+                                </div>
+
+                                <div className="group flex items-start gap-3.5 p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/40 hover:bg-slate-50 hover:border-slate-300 transition-all">
+                                    <span className="font-mono text-xs font-black text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-md mt-0.5 shadow-2xs shrink-0">
+                                        04
+                                    </span>
+                                    <div className="text-sm text-slate-700 leading-snug">
+                                        해당 학생의 <span className="font-extrabold text-slate-950">학급 반장이나 주변 학생</span>에게 단톡방을 통해 소재 파악을 부탁합니다.
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 bg-slate-50/60 border-t border-slate-100 flex justify-end">
+                                <button
+                                    onClick={() => setIsTipModalOpen(false)}
+                                    className="w-full sm:w-auto px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition-all shadow-sm active:scale-98 cursor-pointer"
+                                >
+                                    확인
+                                </button>
                             </div>
                         </div>
                     </div>
