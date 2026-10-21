@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/supabaseClient";
 import toast, { Toaster } from 'react-hot-toast';
 import {
@@ -11,6 +11,8 @@ import {
 import { HiHome } from 'react-icons/hi';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
+import { FacilityStatsModal } from '@/components/admin/FacilityStatsModal';
+import { PatientStatsModal } from '@/components/admin/PatientStatsModal';
 import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
 import { LeaveRequest } from '@/components/teacher/types';
 import { isWeeklyHomeTime as isWeeklyReturnPeriod } from '@/lib/weeklyReturn';
@@ -112,6 +114,8 @@ export default function DashboardMain() {
     const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
     const [isViolationStatsOpen, setIsViolationStatsOpen] = useState(false);
     const [violationStatsFilter, setViolationStatsFilter] = useState<'today' | 'month'>('month');
+    const [isFacilityStatsOpen, setIsFacilityStatsOpen] = useState(false);
+    const [isPatientStatsOpen, setIsPatientStatsOpen] = useState(false);
     const [isWeeklyListModalOpen, setIsWeeklyListModalOpen] = useState(false);
 
     // Refresh Trigger for Realtime
@@ -231,7 +235,32 @@ export default function DashboardMain() {
     const isToday = (d: Date) => {
         const today = new Date();
         return isSameDay(d, today);
-    }
+    };
+
+    // 점호 기준 시간 계산 헬퍼 (18:00 ~ 익일 09:00)
+    const getRollcallRange = (baseDate: Date) => {
+        const now = new Date();
+        const isSelectedToday = isSameDay(now, baseDate);
+        let start: Date;
+        let end: Date;
+
+        if (isSelectedToday) {
+            if (now.getHours() < 18) {
+                // 새벽/오전/낮(00:00~17:59) 조회 시: 어제 18:00 ~ 오늘 09:00
+                start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 18, 0, 0, 0);
+                end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0, 0);
+            } else {
+                // 저녁/야간(18:00~23:59) 조회 시: 오늘 18:00 ~ 내일 09:00
+                start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0, 0);
+                end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
+            }
+        } else {
+            // 특정 과거/미래 날짜 조회 시: 해당일 18:00 ~ 익일 09:00
+            start = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 18, 0, 0, 0);
+            end = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + 1, 9, 0, 0, 0);
+        }
+        return { start, end };
+    };
 
     const fetchFacilityData = async () => {
         const { data } = await supabase.from("facility_requests").select("*").order("created_at", { ascending: false });
@@ -264,26 +293,8 @@ export default function DashboardMain() {
             const targetYear = nextMonthDate.getFullYear();
             const targetMonth = nextMonthDate.getMonth() + 1;
 
-            // 위반 학생 집계 범위 (점호 사이클: 18:00 ~ 익일 09:00)
-            const isToday = isSameDay(now, selectedDate);
-            let violationStart: Date;
-            let violationEnd: Date;
-
-            if (isToday) {
-                if (now.getHours() < 18) {
-                    // 새벽/오전/낮(00:00~17:59) 조회 시: 어제 18:00 ~ 오늘 09:00
-                    violationStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 18, 0, 0, 0);
-                    violationEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 0, 0, 0);
-                } else {
-                    // 저녁/야간(18:00~23:59) 조회 시: 오늘 18:00 ~ 내일 09:00
-                    violationStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0, 0);
-                    violationEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
-                }
-            } else {
-                // 특정 과거/미래 날짜 조회 시: 해당일 18:00 ~ 익일 09:00
-                violationStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 18, 0, 0, 0);
-                violationEnd = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() + 1, 9, 0, 0, 0);
-            }
+            // 점호 기준 시간대 (18:00 ~ 익일 09:00)
+            const { start: violationStart, end: violationEnd } = getRollcallRange(selectedDate);
 
             // Parallel Data Fetching
             const [
@@ -668,20 +679,16 @@ export default function DashboardMain() {
         }
     };
 
+    const rollcallRange = useMemo(() => getRollcallRange(selectedDate), [selectedDate]);
+
     const filteredFacility = facilityRequests.filter(req => {
         const created = new Date(req.created_at);
-        if (isToday(selectedDate)) {
-            return req.status !== '완료' || isSameDay(created, selectedDate);
-        }
-        return isSameDay(created, selectedDate);
+        return created >= rollcallRange.start && created <= rollcallRange.end;
     });
 
     const filteredPatients = patients.filter(p => {
         const created = new Date(p.created_at);
-        if (isToday(selectedDate)) {
-            return p.status !== '완치' || isSameDay(created, selectedDate);
-        }
-        return isSameDay(created, selectedDate);
+        return created >= rollcallRange.start && created <= rollcallRange.end;
     });
 
     const isSelectedToday = isSameDay(new Date(), selectedDate);
@@ -783,125 +790,151 @@ export default function DashboardMain() {
                         </div>
                     </div>
 
-                    {/* Stats Cards */}
-                    <div className="flex w-full items-stretch justify-between gap-1 mb-4">
-                        {stats.studentsByGrade.map(g => (
-                            <div key={`g-${g.grade}`} className="flex-1 bg-white py-2 rounded-[1rem] border border-gray-100 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] flex flex-col items-center justify-between gap-1 hover:bg-gray-50 transition-colors cursor-pointer group min-w-0">
-                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold border ${g.grade === 1 ? 'bg-blue-50 text-blue-500 border-blue-100' :
-                                    g.grade === 2 ? 'bg-purple-50 text-purple-500 border-purple-100' :
-                                        'bg-orange-50 text-orange-500 border-orange-100'
-                                    }`}>
-                                    {g.grade}
-                                </div>
-                                <div className="flex flex-col items-center gap-0.5 text-center w-full">
+                    {/* Grade-level Headcount (Horizontal) */}
+                    <div className="bg-white p-3.5 sm:p-4 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-2">
+                        {/* Column Header */}
+                        <div className="grid grid-cols-5 text-center text-[11px] font-bold text-gray-400 px-2 pb-0.5">
+                            <div className="text-left pl-1">학년</div>
+                            <div className="text-gray-600">총원</div>
+                            <div className="text-red-500">외박</div>
+                            <div className="text-emerald-600">외출</div>
+                            <div className="text-blue-600">현재</div>
+                        </div>
+
+                        {/* Rows */}
+                        <div className="flex flex-col gap-1.5">
+                            {stats.studentsByGrade.map(g => (
+                                <div
+                                    key={`g-${g.grade}`}
+                                    className="grid grid-cols-5 items-center text-center py-2 px-2 bg-gray-50/70 hover:bg-gray-50 rounded-xl border border-gray-100 transition-colors"
+                                >
+                                    {/* Grade Badge */}
+                                    <div className="flex items-center justify-start pl-1">
+                                        <span className={`px-2.5 py-1 rounded-lg font-black text-xs border ${
+                                            g.grade === 1 ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                                            g.grade === 2 ? 'bg-purple-50 text-purple-600 border-purple-200' :
+                                            'bg-orange-50 text-orange-600 border-orange-200'
+                                        }`}>
+                                            {g.grade}학년
+                                        </span>
+                                    </div>
+
                                     {/* 총원 */}
                                     <div className="flex flex-col items-center">
-                                        <span className="text-[9px] text-gray-400 font-medium leading-none">총원</span>
-                                        <span className="text-xs font-black text-gray-800 leading-none mt-0.5">{g.count}</span>
-                                        <div className="flex items-center gap-1.5 whitespace-nowrap leading-none mt-1">
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-[8px] font-medium text-gray-400">여</span>
-                                                <span className="text-[9px] font-bold text-gray-700 leading-none mt-0.5">{g.femaleCount || 0}</span>
-                                            </div>
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-[8px] font-medium text-gray-400">남</span>
-                                                <span className="text-[9px] font-bold text-gray-700 leading-none mt-0.5">{g.maleCount || 0}</span>
-                                            </div>
-                                        </div>
+                                        <span className="text-xs sm:text-sm font-black text-gray-800 leading-tight">{g.count}</span>
+                                        <span className="text-[9px] sm:text-[10px] text-gray-400 font-medium whitespace-nowrap mt-0.5">
+                                            여 {g.femaleCount || 0} · 남 {g.maleCount || 0}
+                                        </span>
                                     </div>
-                                    <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+
                                     {/* 외박 */}
                                     <div className="flex flex-col items-center">
-                                        <span className="text-[9px] text-gray-400 font-medium leading-none">외박</span>
-                                        <span className="text-xs font-black text-red-500 leading-none mt-0.5">{g.overnight}</span>
-                                        <div className="flex items-center gap-1.5 whitespace-nowrap leading-none mt-1">
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-[8px] font-medium text-gray-400">여</span>
-                                                <span className="text-[9px] font-bold text-red-500 leading-none mt-0.5">{g.femaleOvernight || 0}</span>
-                                            </div>
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-[8px] font-medium text-gray-400">남</span>
-                                                <span className="text-[9px] font-bold text-red-500 leading-none mt-0.5">{g.maleOvernight || 0}</span>
-                                            </div>
-                                        </div>
+                                        <span className="text-xs sm:text-sm font-black text-red-500 leading-tight">{g.overnight}</span>
+                                        <span className="text-[9px] sm:text-[10px] text-red-400 font-medium whitespace-nowrap mt-0.5">
+                                            여 {g.femaleOvernight || 0} · 남 {g.maleOvernight || 0}
+                                        </span>
                                     </div>
-                                    <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+
                                     {/* 외출 */}
                                     <div className="flex flex-col items-center">
-                                        <span className="text-[9px] text-gray-400 font-medium leading-none">외출</span>
-                                        <span className="text-xs font-black text-emerald-600 leading-none mt-0.5">{g.short}</span>
-                                        <div className="flex items-center gap-1.5 whitespace-nowrap leading-none mt-1">
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-[8px] font-medium text-gray-400">여</span>
-                                                <span className="text-[9px] font-bold text-emerald-600 leading-none mt-0.5">{g.femaleShort || 0}</span>
-                                            </div>
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-[8px] font-medium text-gray-400">남</span>
-                                                <span className="text-[9px] font-bold text-emerald-600 leading-none mt-0.5">{g.maleShort || 0}</span>
-                                            </div>
-                                        </div>
+                                        <span className="text-xs sm:text-sm font-black text-emerald-600 leading-tight">{g.short}</span>
+                                        <span className="text-[9px] sm:text-[10px] text-emerald-500 font-medium whitespace-nowrap mt-0.5">
+                                            여 {g.femaleShort || 0} · 남 {g.maleShort || 0}
+                                        </span>
                                     </div>
-                                    <div className="w-4 h-px bg-gray-100 my-0.5"></div>
+
                                     {/* 현재 */}
                                     <div className="flex flex-col items-center">
-                                        <span className="text-[9px] text-gray-400 font-medium leading-none">현재</span>
-                                        <span className="text-xs font-black text-blue-600 leading-none mt-0.5">{g.current}</span>
-                                        <div className="flex items-center gap-1.5 whitespace-nowrap leading-none mt-1">
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-[8px] font-medium text-gray-400">여</span>
-                                                <span className="text-[9px] font-bold text-blue-600 leading-none mt-0.5">{g.femaleCurrent || 0}</span>
-                                            </div>
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-[8px] font-medium text-gray-400">남</span>
-                                                <span className="text-[9px] font-bold text-blue-600 leading-none mt-0.5">{g.maleCurrent || 0}</span>
-                                            </div>
-                                        </div>
+                                        <span className="text-xs sm:text-sm font-black text-blue-600 leading-tight">{g.current}</span>
+                                        <span className="text-[9px] sm:text-[10px] text-blue-400 font-medium whitespace-nowrap mt-0.5">
+                                            여 {g.femaleCurrent || 0} · 남 {g.maleCurrent || 0}
+                                        </span>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
-                        <div className="w-px bg-gray-200 mx-0.5 my-2"></div>
-                        {stats.studentsByFloor.map(f => (
-                            <div key={`f-${f.floor}`} className="flex-1 bg-white py-2 rounded-[1rem] border border-gray-100 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] flex flex-col items-center justify-start gap-1 hover:bg-gray-50 transition-colors cursor-pointer group min-w-0">
-                                <div className="w-7 h-7 rounded-full bg-indigo-50 flex items-center justify-center text-[10px] font-bold text-indigo-500 border border-indigo-100">
-                                    {f.floor}F
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Floor-level Headcount (Horizontal, like real building floors 4F -> 1F) */}
+                    <div className="bg-white p-3.5 sm:p-4 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-2">
+                        {/* Column Header */}
+                        <div className="grid grid-cols-5 text-center text-[11px] font-bold text-gray-400 px-2 pb-0.5">
+                            <div className="text-left pl-1">층</div>
+                            <div className="text-gray-600">배정</div>
+                            <div className="text-red-500">외박</div>
+                            <div className="text-emerald-600">외출</div>
+                            <div className="text-blue-600">현재</div>
+                        </div>
+
+                        {/* Rows: 4F down to 1F like real building floors */}
+                        <div className="flex flex-col gap-1.5">
+                            {[...stats.studentsByFloor].reverse().map(f => (
+                                <div
+                                    key={`f-${f.floor}`}
+                                    className="grid grid-cols-5 items-center text-center py-2 px-2 bg-gray-50/70 hover:bg-gray-50 rounded-xl border border-gray-100 transition-colors"
+                                >
+                                    {/* Floor Badge */}
+                                    <div className="flex items-center justify-start pl-1">
+                                        <span className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xs font-black text-indigo-600">
+                                            {f.floor}F
+                                        </span>
+                                    </div>
+
+                                    {/* 배정 */}
+                                    <div className="flex flex-col items-center justify-center">
+                                        <span className="text-xs sm:text-sm font-black text-gray-800 leading-tight">{f.assigned}</span>
+                                    </div>
+
+                                    {/* 외박 */}
+                                    <div className="flex flex-col items-center justify-center">
+                                        <span className="text-xs sm:text-sm font-black text-red-500 leading-tight">{f.overnight}</span>
+                                    </div>
+
+                                    {/* 외출 */}
+                                    <div className="flex flex-col items-center justify-center">
+                                        <span className="text-xs sm:text-sm font-black text-emerald-600 leading-tight">{f.short}</span>
+                                    </div>
+
+                                    {/* 현재 */}
+                                    <div className="flex flex-col items-center justify-center">
+                                        <span className="text-xs sm:text-sm font-black text-indigo-600 leading-tight">{f.current}</span>
+                                    </div>
                                 </div>
-                                <div className="flex flex-col items-center gap-0.5 text-center w-full">
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] text-gray-400 font-medium transform scale-90">배정</span>
-                                        <strong className="text-xs text-gray-800 leading-none">{f.assigned}</strong>
-                                    </div>
-                                    <div className="w-4 h-px bg-gray-100 my-0.5"></div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] text-gray-400 font-medium transform scale-90">외박</span>
-                                        <strong className="text-xs text-red-500 leading-none">{f.overnight}</strong>
-                                    </div>
-                                    <div className="w-4 h-px bg-gray-100 my-0.5"></div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] text-gray-400 font-medium transform scale-90">외출</span>
-                                        <strong className="text-xs text-emerald-600 leading-none">{f.short}</strong>
-                                    </div>
-                                    <div className="w-4 h-px bg-gray-100 my-0.5"></div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] text-gray-400 font-medium transform scale-90">현재</span>
-                                        <strong className="text-xs text-indigo-600 leading-none">{f.current}</strong>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+
                         {stats.unassignedCount && stats.unassignedCount > 0 ? (
-                            <div key="unassigned-card" className="flex-1 bg-amber-50/60 py-2 rounded-[1rem] border border-amber-200/60 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] flex flex-col items-center justify-start gap-1 min-w-0" title="호실 미배정 학생">
-                                <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-[9px] font-bold text-amber-700 border border-amber-200">
-                                    미배정
-                                </div>
-                                <div className="flex flex-col items-center gap-0.5 text-center w-full">
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] text-amber-600 font-medium transform scale-90">인원</span>
-                                        <strong className="text-xs text-amber-800 leading-none">{stats.unassignedCount}</strong>
-                                    </div>
-                                </div>
+                            <div className="bg-amber-50/70 px-3 py-2 rounded-xl border border-amber-200/60 flex items-center justify-between text-xs mt-0.5">
+                                <span className="font-bold text-amber-800 text-[11px]">호실 미배정 학생</span>
+                                <span className="font-black text-amber-800 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-full text-[11px]">
+                                    {stats.unassignedCount}명
+                                </span>
                             </div>
                         ) : null}
+                    </div>
+
+                    {/* Monthly Returnee Wide Button */}
+                    <div>
+                        <button
+                            onClick={() => setIsWeeklyListModalOpen(true)}
+                            className="w-full py-4 px-5 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] border border-blue-500 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-between cursor-pointer text-white"
+                        >
+                            <div className="text-left">
+                                <div className="flex items-center gap-2.5">
+                                    <h3 className="font-black text-white text-sm sm:text-base tracking-tight">
+                                        귀가자 명단 / 관리
+                                    </h3>
+                                    <span className="text-[11px] font-extrabold text-blue-700 bg-white px-2.5 py-0.5 rounded-full shadow-xs">
+                                        매주 {weeklyReturnees.length}명
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-blue-100 font-medium mt-0.5">이번달 매주귀가 및 학년별 현황 보기</p>
+                            </div>
+
+                            <span className="text-xs font-bold text-white bg-white/20 hover:bg-white/30 border border-white/20 px-3 py-1.5 rounded-xl shadow-2xs">
+                                현황 보기
+                            </span>
+                        </button>
                     </div>
 
                     {/* Violation Counter & Cards */}
@@ -999,94 +1032,6 @@ export default function DashboardMain() {
                             )}
                         </div>
                     </div>
-
-                    {/* Monthly Returnee Status */}
-                    <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-3.5 mb-4">
-                        {/* Header: Title, Counts, and Returnee List Button */}
-                        <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-100 text-orange-500 flex items-center justify-center shadow-2xs shrink-0">
-                                    <FaHome size={16} />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-gray-800 text-xs sm:text-sm leading-tight">이번달 매주귀가자 현황</h3>
-                                    <span className="text-[11px] text-gray-400 font-medium">정기 매주귀가 신청 현황</span>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setIsWeeklyListModalOpen(true)}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-blue-50 hover:text-blue-600 border border-gray-200 hover:border-blue-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
-                            >
-                                <FaUsers size={12} className="text-blue-500" />
-                                <span>귀가자 명단</span>
-                            </button>
-                        </div>
-
-                        {/* Grade Rows List */}
-                        <div className="pt-2 border-t border-gray-100 flex flex-col gap-1.5">
-                            {[1, 2, 3].map(grade => {
-                                const gradeInfo = stats.studentsByGrade.find(g => g.grade === grade);
-                                const gradeTotal = gradeInfo?.count || 0;
-                                const gradeWeekly = weeklyReturnees.filter(s => s.grade === grade).length;
-                                const gradeDorm = gradeTotal - gradeWeekly;
-
-                                return (
-                                    <div key={grade} className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50/80 hover:bg-gray-50 rounded-xl border border-gray-100 transition-colors">
-                                        <div className="flex items-center gap-2.5">
-                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs border ${grade === 1 ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                grade === 2 ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                                    'bg-orange-50 text-orange-600 border-orange-100'
-                                                }`}>
-                                                {grade}
-                                            </div>
-                                            <span className="font-bold text-gray-800 text-xs">{grade}학년</span>
-                                        </div>
-                                        <div className="flex items-center gap-3 text-xs font-medium">
-                                            <div className="flex flex-col items-center min-w-[32px]">
-                                                <span className="text-[10px] text-gray-400 mb-0.5">총원</span>
-                                                <span className="text-gray-800 font-bold text-xs">{gradeTotal}</span>
-                                            </div>
-                                            <div className="w-px h-5 bg-gray-200"></div>
-                                            <div className="flex flex-col items-center min-w-[32px]">
-                                                <span className="text-[10px] text-gray-400 mb-0.5">매주귀가</span>
-                                                <span className="text-orange-500 font-bold text-xs">{gradeWeekly}</span>
-                                            </div>
-                                            <div className="w-px h-5 bg-gray-200"></div>
-                                            <div className="flex flex-col items-center min-w-[32px]">
-                                                <span className="text-[10px] text-gray-400 mb-0.5">기숙</span>
-                                                <span className="text-blue-500 font-bold text-xs">{gradeDorm}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-
-                            <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-900 rounded-xl shadow-xs mt-0.5">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs bg-gray-700 text-white">
-                                        ALL
-                                    </div>
-                                    <span className="font-bold text-white text-xs">전학년</span>
-                                </div>
-                                <div className="flex items-center gap-3 text-xs font-medium text-white">
-                                    <div className="flex flex-col items-center min-w-[32px]">
-                                        <span className="text-[10px] text-gray-400 mb-0.5">총원</span>
-                                        <span className="font-bold text-xs text-white">{stats.totalStudents}</span>
-                                    </div>
-                                    <div className="w-px h-5 bg-gray-700"></div>
-                                    <div className="flex flex-col items-center min-w-[32px]">
-                                        <span className="text-[10px] text-gray-400 mb-0.5">매주귀가</span>
-                                        <span className="text-orange-400 font-bold text-xs">{weeklyReturnees.length}</span>
-                                    </div>
-                                    <div className="w-px h-5 bg-gray-700"></div>
-                                    <div className="flex flex-col items-center min-w-[32px]">
-                                        <span className="text-[10px] text-gray-400 mb-0.5">기숙</span>
-                                        <span className="text-blue-400 font-bold text-xs">{stats.totalStudents - weeklyReturnees.length}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Section 2: Tasks List */}
@@ -1101,18 +1046,32 @@ export default function DashboardMain() {
                     <div className="space-y-0.5">
                         {/* Facility Card */}
                         <div className="bg-white p-6 rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-50">
-                            <div className="flex justify-between items-center mb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-blue-50 p-2 rounded-xl text-blue-500"><FaWrench /></div>
-                                    <h3 className="font-bold text-gray-800 text-[12px]">시설물 수리 요청</h3>
+                            <div className="flex justify-between items-center mb-4 gap-2">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-black text-gray-900 text-sm sm:text-base tracking-tight">시설물 수리 요청</h3>
+                                        <span className="text-[11px] font-extrabold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                                            {filteredFacility.length}건
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 font-medium mt-0.5">18:00 ~ 익일 09:00 점호 기준</p>
                                 </div>
+
+                                {/* Monthly Stats Button */}
+                                <button
+                                    onClick={() => setIsFacilityStatsOpen(true)}
+                                    className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                                >
+                                    <FaChartBar size={11} className="text-gray-500" />
+                                    <span>월간 통계</span>
+                                </button>
                             </div>
 
                             <div className="mb-4 flex gap-2">
                                 <input
                                     type="text"
                                     className="bg-gray-50 border-none rounded-xl px-4 py-3 text-sm w-full outline-none focus:bg-gray-100 transition"
-                                    placeholder="예: 305호 에어컨 고장"
+                                    placeholder="층과 호실을 꼭 기입해주세요."
                                     value={newFacility.title}
                                     onChange={e => setNewFacility({ ...newFacility, title: e.target.value })}
                                 />
@@ -1182,11 +1141,25 @@ export default function DashboardMain() {
 
                         {/* Patient Card */}
                         <div className="bg-white p-6 rounded-[2rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-50">
-                            <div className="flex justify-between items-center mb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-red-50 p-2 rounded-xl text-red-500"><FaFirstAid /></div>
-                                    <h3 className="font-bold text-gray-800 text-[12px]">환자 관리 (보건실)</h3>
+                            <div className="flex justify-between items-center mb-4 gap-2">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-black text-gray-900 text-sm sm:text-base tracking-tight">환자 현황 (보건실)</h3>
+                                        <span className="text-[11px] font-extrabold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                                            {filteredPatients.length}명
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 font-medium mt-0.5">18:00 ~ 익일 09:00 점호 기준</p>
                                 </div>
+
+                                {/* Monthly Stats Button */}
+                                <button
+                                    onClick={() => setIsPatientStatsOpen(true)}
+                                    className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                                >
+                                    <FaChartBar size={11} className="text-gray-500" />
+                                    <span>월간 통계</span>
+                                </button>
                             </div>
 
                             <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:items-start relative">
@@ -1303,17 +1276,35 @@ export default function DashboardMain() {
                 selectedDate={selectedDate}
             />
 
+            <FacilityStatsModal
+                isOpen={isFacilityStatsOpen}
+                onClose={() => {
+                    setIsFacilityStatsOpen(false);
+                    fetchFacilityData();
+                }}
+                selectedDate={selectedDate}
+            />
+
+            <PatientStatsModal
+                isOpen={isPatientStatsOpen}
+                onClose={() => {
+                    setIsPatientStatsOpen(false);
+                    fetchPatientData();
+                }}
+                selectedDate={selectedDate}
+            />
+
             {isWeeklyListModalOpen && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" onClick={() => {
                     setIsWeeklyListModalOpen(false);
                     setNextMonthSearchQuery('');
                 }}>
-                    <div className="bg-white w-full max-w-[340px] rounded-[1.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                        <div className="bg-blue-700 px-5 py-3 text-white">
-                            <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-bold text-base">귀가자 명단</h3>
+                    <div className="bg-white w-full max-w-md rounded-[1.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="bg-blue-700 px-5 py-3.5 text-white">
+                            <div className="flex justify-between items-center mb-2.5">
+                                <h3 className="font-black text-base sm:text-lg tracking-tight">귀가자 명단 / 관리</h3>
                                 <div className="flex items-center gap-2">
-                                    <span className="bg-white/20 px-2 py-0.5 rounded-lg text-[11px] font-bold">
+                                    <span className="bg-white/20 px-2.5 py-0.5 rounded-lg text-xs font-bold">
                                         {viewMonthMode === 'current' ? (
                                             `${weeklyReturnees.length}명`
                                         ) : (() => {
@@ -1330,26 +1321,57 @@ export default function DashboardMain() {
                                                 : `${activeCount}명`;
                                         })()}
                                     </span>
-                                     <button onClick={() => {
+                                    <button onClick={() => {
                                         setIsWeeklyListModalOpen(false);
                                         setNextMonthSearchQuery('');
                                         setCurrentMonthSearchQuery('');
-                                    }} className="opacity-80 hover:opacity-100 p-1">✕</button>
+                                    }} className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition cursor-pointer font-bold text-sm">✕</button>
                                 </div>
                             </div>
-                            <div className="flex bg-white/10 p-1 rounded-xl text-[11px] font-bold">
+                            <div className="flex bg-white/10 p-1 rounded-xl text-xs font-bold">
                                 <button
                                     onClick={() => setViewMonthMode('current')}
-                                    className={`flex-1 py-1.5 rounded-lg transition-all ${viewMonthMode === 'current' ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-100'}`}
+                                    className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${viewMonthMode === 'current' ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-100 hover:text-white'}`}
                                 >
                                     {new Date().getMonth() + 1}월 현재
                                 </button>
                                 <button
                                     onClick={() => setViewMonthMode('next')}
-                                    className={`flex-1 py-1.5 rounded-lg transition-all ${viewMonthMode === 'next' ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-100'}`}
+                                    className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${viewMonthMode === 'next' ? 'bg-white text-blue-700 shadow-sm' : 'text-blue-100 hover:text-white'}`}
                                 >
                                     {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).getMonth() + 1}월 예정
                                 </button>
+                            </div>
+                        </div>
+
+                        {/* 학년별 귀가 현황 요약 그리드 (모달 상단) */}
+                        <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 grid grid-cols-4 gap-1.5 shrink-0">
+                            {[1, 2, 3].map(grade => {
+                                const gradeInfo = stats.studentsByGrade.find(g => g.grade === grade);
+                                const gradeTotal = gradeInfo?.count || 0;
+                                const gradeWeekly = weeklyReturnees.filter(s => s.grade === grade).length;
+                                const gradeDorm = gradeTotal - gradeWeekly;
+
+                                return (
+                                    <div key={grade} className="bg-white p-2 rounded-xl border border-gray-200/80 flex flex-col items-center text-center shadow-2xs">
+                                        <span className="text-[11px] font-black text-gray-800">{grade}학년</span>
+                                        <div className="flex items-center gap-0.5 mt-1 text-[11px]">
+                                            <span className="text-orange-500 font-black">{gradeWeekly}</span>
+                                            <span className="text-gray-300">/</span>
+                                            <span className="text-gray-500 font-bold">{gradeTotal}</span>
+                                        </div>
+                                        <span className="text-[9px] text-blue-500 font-medium mt-0.5">기숙 {gradeDorm}</span>
+                                    </div>
+                                );
+                            })}
+                            <div className="bg-gray-900 text-white p-2 rounded-xl flex flex-col items-center text-center shadow-2xs">
+                                <span className="text-[11px] font-black text-white">전학년</span>
+                                <div className="flex items-center gap-0.5 mt-1 text-[11px]">
+                                    <span className="text-orange-400 font-black">{weeklyReturnees.length}</span>
+                                    <span className="text-gray-500">/</span>
+                                    <span className="text-gray-300 font-bold">{stats.totalStudents}</span>
+                                </div>
+                                <span className="text-[9px] text-blue-300 font-medium mt-0.5">기숙 {stats.totalStudents - weeklyReturnees.length}</span>
                             </div>
                         </div>
 
