@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 import { supabase } from '@/supabaseClient';
 import toast from 'react-hot-toast';
-import { FaChartBar, FaSearch, FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt, FaTrash } from 'react-icons/fa';
+import { FaChartBar, FaSearch, FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt, FaExchangeAlt, FaTrash } from 'react-icons/fa';
 import { Student } from '@/components/student/types';
 
 interface ViolationStatsModalProps {
@@ -28,7 +28,8 @@ const VIOLATION_ICONS: Record<string, React.ElementType> = {
     '청소불량': FaBroom,
     '음식물 섭취 위반': FaUtensils,
     '박스 방치': FaBoxOpen,
-    '퇴실수칙 불이행': FaSignOutAlt
+    '퇴실수칙 불이행': FaSignOutAlt,
+    '호실이동': FaExchangeAlt
 };
 
 export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen, onClose, initialFilter = 'today', selectedDate, readOnly = false }) => {
@@ -342,7 +343,8 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                                 '청소불량': 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
                                                 '음식물 섭취 위반': 'bg-amber-50 text-amber-800 border-amber-200/80',
                                                 '박스 방치': 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
-                                                '퇴실수칙 불이행': 'bg-purple-50 text-purple-700 border-purple-200/80'
+                                                '퇴실수칙 불이행': 'bg-purple-50 text-purple-700 border-purple-200/80',
+                                                '호실이동': 'bg-sky-50 text-sky-700 border-sky-200/80'
                                             };
                                             const badgeStyle = noteStyles[v.note] || 'bg-slate-100 text-slate-700 border-slate-200';
 

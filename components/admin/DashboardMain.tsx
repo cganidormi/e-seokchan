@@ -6,7 +6,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import {
     FaWrench,
     FaFirstAid, FaHome, FaPlus, FaTrash, FaBell, FaCheck, FaUsers,
-    FaDoorOpen, FaClock, FaBroom, FaUtensils, FaBoxOpen, FaSignOutAlt, FaChartBar, FaExclamationCircle,
+    FaClock, FaChartBar,
     FaShareAlt, FaPrint
 } from "react-icons/fa";
 import { HiHome } from 'react-icons/hi';
@@ -14,6 +14,7 @@ import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
 import { FacilityStatsModal } from '@/components/admin/FacilityStatsModal';
 import { PatientStatsModal } from '@/components/admin/PatientStatsModal';
+import { YanghyeonjaeStatsModal } from '@/components/admin/YanghyeonjaeStatsModal';
 import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
 import { LeaveRequest } from '@/components/teacher/types';
 import { isWeeklyHomeTime as isWeeklyReturnPeriod } from '@/lib/weeklyReturn';
@@ -123,6 +124,8 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
     const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
     const [isViolationStatsOpen, setIsViolationStatsOpen] = useState(false);
     const [violationStatsFilter, setViolationStatsFilter] = useState<'today' | 'month'>('month');
+    const [isYanghyeonjaeStatsOpen, setIsYanghyeonjaeStatsOpen] = useState(false);
+    const [yanghyeonjaeStatsFilter, setYanghyeonjaeStatsFilter] = useState<'today' | 'month'>('month');
     const [isFacilityStatsOpen, setIsFacilityStatsOpen] = useState(false);
     const [isPatientStatsOpen, setIsPatientStatsOpen] = useState(false);
     const [isWeeklyListModalOpen, setIsWeeklyListModalOpen] = useState(false);
@@ -870,7 +873,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                             className="text-red-400 hover:text-red-300 hover:bg-white/10 px-2 py-0.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 border border-red-500/40 group shrink-0"
                             title="클릭하여 외박자 명단 보기"
                         >
-                            <span className="underline underline-offset-4 decoration-red-500/60 group-hover:decoration-red-300">외박자 : {stats.currentLeaves.overnight}명</span>
+                            <span>외박자 : {stats.currentLeaves.overnight}명</span>
                             <span className="text-[9px] sm:text-[10px] bg-red-500/25 group-hover:bg-red-500/40 text-red-200 px-1.5 py-0.5 rounded-md font-semibold tracking-tighter">상세</span>
                         </button>
                         <button
@@ -881,7 +884,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                             className="text-emerald-400 hover:text-emerald-300 hover:bg-white/10 px-2 py-0.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 border border-emerald-500/40 group shrink-0"
                             title="클릭하여 외출자 명단 보기"
                         >
-                            <span className="underline underline-offset-4 decoration-emerald-500/60 group-hover:decoration-emerald-300">외출자 : {stats.currentLeaves.short}명</span>
+                            <span>외출자 : {stats.currentLeaves.short}명</span>
                             <span className="text-[9px] sm:text-[10px] bg-emerald-500/25 group-hover:bg-emerald-500/40 text-emerald-200 px-1.5 py-0.5 rounded-md font-semibold tracking-tighter">상세</span>
                         </button>
                         <span className="shrink-0 text-gray-300">현재원 : {stats.studentsByGrade.reduce((acc, curr) => acc + curr.current, 0)}명</span>
@@ -889,9 +892,9 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                 </div>
 
                 {/* Grade-level Headcount (Horizontal) */}
-                <div className="bg-white p-3 sm:p-3.5 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-1.5">
+                <div className="bg-white px-3 sm:px-3.5 pt-2 pb-2.5 sm:pb-3 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-1">
                     {/* Column Header */}
-                    <div className="grid grid-cols-5 text-center text-[11px] font-bold text-gray-400 px-2 pb-0.5">
+                    <div className="grid grid-cols-5 text-center text-[11px] font-bold text-gray-400 px-2 py-0 leading-tight">
                         <div className="text-left pl-1">학년</div>
                         <div className="text-gray-600">총원</div>
                         <div className="text-red-500">외박</div>
@@ -1026,6 +1029,246 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                         </button>
                     </div>
 
+                    {/* Violation Counter & Cards */}
+                    <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-3.5">
+                        {/* Header: Title, Counts, and Monthly Stats Button */}
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <div className="relative px-4 py-2 rounded-xl bg-gradient-to-b from-[#2a5d42] to-[#1f4933] border-2 border-[#8c5e39] shadow-[inset_0_2px_5px_rgba(0,0,0,0.4),0_2px_6px_rgba(0,0,0,0.15)] flex items-center gap-3 select-none">
+                                    <h3
+                                        style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
+                                        className="text-xl sm:text-2xl text-white/95 leading-none tracking-wider [text-shadow:_0_0_1px_rgba(255,255,255,0.95),_0_0_2px_rgba(255,255,255,0.5)]"
+                                    >
+                                        홍지관 일지
+                                    </h3>
+                                    <span
+                                        style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
+                                        className="text-base sm:text-lg text-[#fef08a] leading-none [text-shadow:_0_0_1px_rgba(253,224,71,0.9),_0_0_2px_rgba(253,224,71,0.5)] border border-dashed border-[#fde047]/60 px-2 py-0.5 rounded-full"
+                                    >
+                                        {stats.violationCount}명
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Monthly Stats Action Button */}
+                            <button
+                                onClick={() => {
+                                    setViolationStatsFilter('month');
+                                    setIsViolationStatsOpen(true);
+                                }}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                                title="월간 통계 보기"
+                            >
+                                <FaChartBar size={12} className="text-slate-500" />
+                                <span>월간 통계</span>
+                            </button>
+                        </div>
+
+                        {/* Cards List or Empty State */}
+                        <div className="pt-2 border-t border-gray-100">
+                            {stats.violationList.length === 0 ? (
+                                <div className="py-6 px-4 bg-gray-50/60 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
+                                    <p className="text-xs font-bold text-gray-700">금일 홍지관 위반 학생이 없습니다</p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-0.5">
+                                    {stats.violationList.map((v, vIdx) => {
+                                        const noteStyle: string = (
+                                            v.note === '스토퍼 미설치' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                            v.note === '일과시간 미준수' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                            v.note === '청소불량' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                            v.note === '음식물 섭취 위반' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                                            v.note === '박스 방치' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                            v.note === '퇴실수칙 불이행' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                            v.note === '호실이동' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+                                            'bg-slate-100 text-slate-700 border-slate-200'
+                                        );
+
+                                        // student_id가 '2308신성호'처럼 이름을 이미 포함하고 있는 경우 중복 출력 방지
+                                        const studentDisplayName = v.student_name && v.student_id?.includes(v.student_name)
+                                            ? v.student_id
+                                            : `${v.student_id || ''} ${v.student_name || ''}`.trim();
+
+                                        return (
+                                            <div
+                                                key={v.id || `today-violation-${vIdx}`}
+                                                className="group flex items-start justify-between bg-white hover:bg-slate-50/70 border border-gray-200/90 rounded-xl p-3 shadow-2xs transition-all gap-3"
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span className="font-extrabold text-gray-900 text-xs sm:text-sm">
+                                                            {studentDisplayName}
+                                                        </span>
+                                                        <span className={`px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold border ${noteStyle}`}>
+                                                            {v.note}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[10px] sm:text-[11px] text-gray-400">
+                                                        {v.checked_at && (
+                                                            <span className="flex items-center gap-1 font-medium">
+                                                                <FaClock size={9} />
+                                                                {new Date(v.checked_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })} 기록
+                                                            </span>
+                                                        )}
+                                                        {v.teacher_id && (
+                                                            <span className="text-slate-600 font-bold bg-slate-100 border border-slate-200/70 px-1.5 py-0.5 rounded text-[10px]">
+                                                                지도 : {v.teacher_id}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {!readOnly && (
+                                                    <button
+                                                        onClick={() => handleDeleteViolation(v)}
+                                                        title="위반 기록 삭제"
+                                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-600 border border-gray-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer active:scale-95 shadow-2xs mt-0.5"
+                                                    >
+                                                        <FaTrash size={10} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Yanghyeonjae Violation Cards */}
+                    <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-3.5">
+                        {/* Header: Title, Counts, and Monthly Stats Button */}
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <div className="relative px-4 py-2 rounded-xl bg-gradient-to-b from-[#1e293b] to-[#0f172a] border-2 border-[#8c5e39] shadow-[inset_0_2px_5px_rgba(0,0,0,0.4),0_2px_6px_rgba(0,0,0,0.15)] flex items-center gap-3 select-none">
+                                    <h3
+                                        style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
+                                        className="text-xl sm:text-2xl text-white/95 leading-none tracking-wider [text-shadow:_0_0_1px_rgba(255,255,255,0.95),_0_0_2px_rgba(255,255,255,0.5)]"
+                                    >
+                                        양현재 일지
+                                    </h3>
+                                    <span
+                                        style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
+                                        className="text-base sm:text-lg text-[#93c5fd] leading-none [text-shadow:_0_0_1px_rgba(147,197,253,0.9),_0_0_2px_rgba(147,197,253,0.5)] border border-dashed border-[#93c5fd]/60 px-2 py-0.5 rounded-full"
+                                    >
+                                        {stats.yanghyeonjaeCount}명
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Monthly Stats Action Button */}
+                            <button
+                                onClick={() => {
+                                    setYanghyeonjaeStatsFilter('month');
+                                    setIsYanghyeonjaeStatsOpen(true);
+                                }}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                                title="월간 통계 보기"
+                            >
+                                <FaChartBar size={12} className="text-slate-500" />
+                                <span>월간 통계</span>
+                            </button>
+                        </div>
+
+                        {/* Cards List or Empty State */}
+                        <div className="pt-2 border-t border-gray-100">
+                            {stats.yanghyeonjaeList.length === 0 ? (
+                                <div className="py-6 px-4 bg-gray-50/60 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
+                                    <p className="text-xs font-bold text-gray-700">금일 양현재 위반 학생이 없습니다</p>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-0.5">
+                                    {stats.yanghyeonjaeList.map((v, vIdx) => {
+                                        const rawNote = v.note || '';
+                                        let category = rawNote;
+                                        let detail = '';
+                                        if (rawNote.includes(': ')) {
+                                            const parts = rawNote.split(': ');
+                                            category = parts[0];
+                                            detail = parts.slice(1).join(': ');
+                                        } else if (rawNote.includes(':')) {
+                                            const parts = rawNote.split(':');
+                                            category = parts[0];
+                                            detail = parts.slice(1).join(':').trim();
+                                        }
+
+                                        const getCategoryStyle = (cat: string) => {
+                                            switch (cat.trim()) {
+                                                case '졸음':
+                                                    return 'bg-blue-50 text-blue-700 border-blue-200';
+                                                case '전자기기 위반':
+                                                    return 'bg-purple-50 text-purple-700 border-purple-200';
+                                                case '무단이석':
+                                                case '무단 이석':
+                                                    return 'bg-amber-50 text-amber-700 border-amber-200';
+                                                case '지각 입실':
+                                                case '지각입실':
+                                                    return 'bg-orange-50 text-orange-700 border-orange-200';
+                                                case '소란':
+                                                    return 'bg-rose-50 text-rose-700 border-rose-200';
+                                                case '기타':
+                                                default:
+                                                    return 'bg-slate-100 text-slate-700 border-slate-300';
+                                            }
+                                        };
+
+                                        // student_id가 '2308신성호'처럼 이름을 이미 포함하고 있는 경우 중복 출력 방지
+                                        const studentDisplayName = v.student_name && v.student_id?.includes(v.student_name)
+                                            ? v.student_id
+                                            : `${v.student_id || ''} ${v.student_name || ''}`.trim();
+
+                                        return (
+                                            <div
+                                                key={v.id || `yanghyeonjae-${vIdx}`}
+                                                className="group flex items-start justify-between bg-white hover:bg-slate-50/70 border border-gray-200/90 rounded-xl p-3 shadow-2xs transition-all gap-3"
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                        <span className="font-extrabold text-gray-900 text-xs sm:text-sm">
+                                                            {studentDisplayName}
+                                                        </span>
+                                                        <span className={`px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold border ${getCategoryStyle(category)}`}>
+                                                            {category}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[10px] sm:text-[11px] text-gray-400">
+                                                        {v.checked_at && (
+                                                            <span className="flex items-center gap-1 font-medium">
+                                                                <FaClock size={9} />
+                                                                {new Date(v.checked_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })} 기록
+                                                            </span>
+                                                        )}
+                                                        {v.teacher_id && (
+                                                            <span className="text-slate-600 font-bold bg-slate-100 border border-slate-200/70 px-1.5 py-0.5 rounded text-[10px]">
+                                                                지도 : {v.teacher_id}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {detail && (
+                                                        <div className="mt-1.5 text-xs text-slate-700 bg-slate-50 border border-slate-200/80 rounded-lg px-2.5 py-1.5 leading-relaxed break-words font-medium">
+                                                            {detail}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {!readOnly && (
+                                                    <button
+                                                        onClick={() => handleDeleteYanghyeonjaeViolation(v)}
+                                                        title="위반 기록 삭제"
+                                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-600 border border-gray-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer active:scale-95 shadow-2xs mt-0.5"
+                                                    >
+                                                        <FaTrash size={10} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Patient Card */}
                     <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-3">
                         {/* Title Header */}
@@ -1151,247 +1394,6 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                     )}
                                 </div>
                             ))}
-                        </div>
-                    </div>
-
-                    {/* Violation Counter & Cards */}
-                    <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-3.5">
-                        {/* Header: Title, Counts, and Monthly Stats Button */}
-                        <div className="flex items-center justify-between gap-2">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <div className="relative px-4 py-2 rounded-xl bg-gradient-to-b from-[#2a5d42] to-[#1f4933] border-2 border-[#8c5e39] shadow-[inset_0_2px_5px_rgba(0,0,0,0.4),0_2px_6px_rgba(0,0,0,0.15)] flex items-center gap-3 select-none">
-                                        <h3
-                                            style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
-                                            className="text-xl sm:text-2xl text-white/95 leading-none tracking-wider [text-shadow:_0_0_1px_rgba(255,255,255,0.95),_0_0_2px_rgba(255,255,255,0.5)]"
-                                        >
-                                            홍지관 일지
-                                        </h3>
-                                        <span
-                                            style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
-                                            className="text-base sm:text-lg text-[#fef08a] leading-none [text-shadow:_0_0_1px_rgba(253,224,71,0.9),_0_0_2px_rgba(253,224,71,0.5)] border border-dashed border-[#fde047]/60 px-2 py-0.5 rounded-full"
-                                        >
-                                            {stats.violationCount}명
-                                        </span>
-                                    </div>
-                                </div>
-                                <span className="text-[11px] text-gray-400 font-medium block mt-1.5">18:00 ~ 익일 09:00 점호 기준</span>
-                            </div>
-
-                            {/* Monthly Stats Action Button */}
-                            <button
-                                onClick={() => {
-                                    setViolationStatsFilter('month');
-                                    setIsViolationStatsOpen(true);
-                                }}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
-                                title="월간 통계 보기"
-                            >
-                                <FaChartBar size={12} className="text-slate-500" />
-                                <span>월간 통계</span>
-                            </button>
-                        </div>
-
-                        {/* Cards List or Empty State */}
-                        <div className="pt-2 border-t border-gray-100">
-                            {stats.violationList.length === 0 ? (
-                                <div className="py-6 px-4 bg-gray-50/60 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
-                                    <div className="w-7 h-7 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mb-1 text-sm font-bold shadow-2xs">
-                                        ✓
-                                    </div>
-                                    <p className="text-xs font-bold text-gray-700">금일 위반 학생이 없습니다</p>
-                                    <p className="text-[10px] text-gray-400 mt-0.5">모든 학생이 생활 수칙을 준수하고 있습니다</p>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-0.5">
-                                    {stats.violationList.map((v, vIdx) => {
-                                        const noteConfig: { icon: any; style: string } = (
-                                            v.note === '스토퍼 미설치' ? { icon: FaDoorOpen, style: 'bg-amber-50 text-amber-700 border-amber-200' } :
-                                            v.note === '일과시간 미준수' ? { icon: FaClock, style: 'bg-orange-50 text-orange-700 border-orange-200' } :
-                                            v.note === '청소불량' ? { icon: FaBroom, style: 'bg-emerald-50 text-emerald-700 border-emerald-200' } :
-                                            v.note === '음식물 섭취 위반' ? { icon: FaUtensils, style: 'bg-amber-50 text-amber-800 border-amber-200' } :
-                                            v.note === '박스 방치' ? { icon: FaBoxOpen, style: 'bg-indigo-50 text-indigo-700 border-indigo-200' } :
-                                            v.note === '퇴실수칙 불이행' ? { icon: FaSignOutAlt, style: 'bg-purple-50 text-purple-700 border-purple-200' } :
-                                            { icon: FaExclamationCircle, style: 'bg-slate-100 text-slate-700 border-slate-200' }
-                                        );
-                                        const IconComp = noteConfig.icon;
-
-                                        // student_id가 '2308신성호'처럼 이름을 이미 포함하고 있는 경우 중복 출력 방지
-                                        const studentDisplayName = v.student_name && v.student_id?.includes(v.student_name)
-                                            ? v.student_id
-                                            : `${v.student_id || ''} ${v.student_name || ''}`.trim();
-
-                                        return (
-                                            <div
-                                                key={v.id || `today-violation-${vIdx}`}
-                                                className="flex items-center justify-between bg-gray-50/80 hover:bg-gray-50 px-3.5 py-2.5 rounded-xl border border-gray-100 shadow-2xs hover:border-gray-200 transition-all"
-                                            >
-                                                <div className="flex items-center gap-2.5 min-w-0">
-                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${noteConfig.style}`}>
-                                                        <IconComp size={14} />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                                            <span className="text-xs font-bold text-gray-800">
-                                                                {studentDisplayName}
-                                                            </span>
-                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${noteConfig.style}`}>
-                                                                {v.note}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                                            {v.checked_at && (
-                                                                <span className="text-[10px] text-gray-400">
-                                                                    {new Date(v.checked_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 기록
-                                                                </span>
-                                                            )}
-                                                            {v.teacher_id && (
-                                                                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200/70 px-1.5 py-0.5 rounded">
-                                                                    지도 : {v.teacher_id}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                {!readOnly && (
-                                                    <button
-                                                        onClick={() => handleDeleteViolation(v)}
-                                                        title="위반 기록 삭제"
-                                                        className="w-7 h-7 rounded-full bg-white hover:bg-slate-100 text-gray-400 hover:text-rose-600 border border-gray-200 flex items-center justify-center transition-colors shrink-0 ml-2 cursor-pointer active:scale-95 shadow-2xs"
-                                                    >
-                                                        <FaTrash size={10} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Yanghyeonjae Violation Cards */}
-                    <div className="bg-white p-4 sm:p-5 rounded-[1.5rem] shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col gap-3.5">
-                        {/* Header: Title and Counts */}
-                        <div className="flex items-center justify-between gap-2">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <div className="relative px-4 py-2 rounded-xl bg-gradient-to-b from-[#1e293b] to-[#0f172a] border-2 border-[#8c5e39] shadow-[inset_0_2px_5px_rgba(0,0,0,0.4),0_2px_6px_rgba(0,0,0,0.15)] flex items-center gap-3 select-none">
-                                        <h3
-                                            style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
-                                            className="text-xl sm:text-2xl text-white/95 leading-none tracking-wider [text-shadow:_0_0_1px_rgba(255,255,255,0.95),_0_0_2px_rgba(255,255,255,0.5)]"
-                                        >
-                                            양현재 일지
-                                        </h3>
-                                        <span
-                                            style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
-                                            className="text-base sm:text-lg text-[#93c5fd] leading-none [text-shadow:_0_0_1px_rgba(147,197,253,0.9),_0_0_2px_rgba(147,197,253,0.5)] border border-dashed border-[#93c5fd]/60 px-2 py-0.5 rounded-full"
-                                        >
-                                            {stats.yanghyeonjaeCount}명
-                                        </span>
-                                    </div>
-                                </div>
-                                <span className="text-[11px] text-gray-400 font-medium block mt-1.5">면학실/자습실 좌석 위반 내역</span>
-                            </div>
-                        </div>
-
-                        {/* Cards List or Empty State */}
-                        <div className="pt-2 border-t border-gray-100">
-                            {stats.yanghyeonjaeList.length === 0 ? (
-                                <div className="py-6 px-4 bg-gray-50/60 rounded-xl border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
-                                    <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center mb-1 text-sm font-bold shadow-2xs">
-                                        ✓
-                                    </div>
-                                    <p className="text-xs font-bold text-gray-700">금일 양현재 위반 학생이 없습니다</p>
-                                    <p className="text-[10px] text-gray-400 mt-0.5">모든 학생이 면학실 수칙을 준수하고 있습니다</p>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-0.5">
-                                    {stats.yanghyeonjaeList.map((v, vIdx) => {
-                                        const rawNote = v.note || '';
-                                        let category = rawNote;
-                                        let detail = '';
-                                        if (rawNote.includes(': ')) {
-                                            const parts = rawNote.split(': ');
-                                            category = parts[0];
-                                            detail = parts.slice(1).join(': ');
-                                        } else if (rawNote.includes(':')) {
-                                            const parts = rawNote.split(':');
-                                            category = parts[0];
-                                            detail = parts.slice(1).join(':').trim();
-                                        }
-
-                                        const getCategoryStyle = (cat: string) => {
-                                            switch (cat.trim()) {
-                                                case '졸음':
-                                                    return 'bg-blue-50 text-blue-700 border-blue-200';
-                                                case '전자기기 위반':
-                                                    return 'bg-purple-50 text-purple-700 border-purple-200';
-                                                case '무단이석':
-                                                case '무단 이석':
-                                                    return 'bg-amber-50 text-amber-700 border-amber-200';
-                                                case '지각 입실':
-                                                case '지각입실':
-                                                    return 'bg-orange-50 text-orange-700 border-orange-200';
-                                                case '소란':
-                                                    return 'bg-rose-50 text-rose-700 border-rose-200';
-                                                case '기타':
-                                                default:
-                                                    return 'bg-slate-100 text-slate-700 border-slate-300';
-                                            }
-                                        };
-
-                                        return (
-                                            <div
-                                                key={v.id || `yanghyeonjae-${vIdx}`}
-                                                className="group flex items-start justify-between bg-white hover:bg-slate-50/70 border border-gray-200/90 rounded-xl p-3 shadow-2xs transition-all gap-3"
-                                            >
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                        <span className="font-extrabold text-gray-900 text-xs sm:text-sm">
-                                                            {v.student_name}
-                                                        </span>
-                                                        <span className="text-[11px] font-mono text-gray-400 font-medium">
-                                                            ({v.student_id})
-                                                        </span>
-                                                        <span className={`px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold border ${getCategoryStyle(category)}`}>
-                                                            {category}
-                                                        </span>
-                                                    </div>
-
-                                                    {detail && (
-                                                        <div className="mt-1.5 text-xs text-slate-700 bg-slate-50 border border-slate-200/80 rounded-lg px-2.5 py-1.5 leading-relaxed break-words font-medium">
-                                                            {detail}
-                                                        </div>
-                                                    )}
-
-                                                    <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[10px] sm:text-[11px] text-gray-400">
-                                                        <span className="flex items-center gap-1 font-medium">
-                                                            <FaClock size={9} />
-                                                            {v.checked_at ? new Date(v.checked_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
-                                                        </span>
-                                                        {v.teacher_id && (
-                                                            <span className="text-slate-600 font-bold bg-slate-100 border border-slate-200/70 px-1.5 py-0.5 rounded text-[10px]">
-                                                                지도 : {v.teacher_id}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {!readOnly && (
-                                                    <button
-                                                        onClick={() => handleDeleteYanghyeonjaeViolation(v)}
-                                                        title="위반 기록 삭제"
-                                                        className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-600 border border-gray-200 flex items-center justify-center transition-colors shrink-0 cursor-pointer active:scale-95 shadow-2xs mt-0.5"
-                                                    >
-                                                        <FaTrash size={10} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
                         </div>
                     </div>
                     {/* Facility Card */}
@@ -1534,6 +1536,16 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                     fetchPatientData();
                 }}
                 selectedDate={selectedDate}
+            />
+
+            <YanghyeonjaeStatsModal
+                key={`main-yanghyeonjae-stats-modal-${yanghyeonjaeStatsFilter}`}
+                isOpen={isYanghyeonjaeStatsOpen}
+                onClose={() => setIsYanghyeonjaeStatsOpen(false)}
+                initialFilter={yanghyeonjaeStatsFilter}
+                selectedDate={selectedDate}
+                readOnly={readOnly}
+                onUpdate={() => setRefreshKey(prev => prev + 1)}
             />
 
             {isWeeklyListModalOpen && (
@@ -1790,131 +1802,126 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
             )}
 
             {/* Overnight / Short Outing Student List Modal */}
-            {leaveListModal.isOpen && (
-                <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
-                    onClick={() => {
-                        setLeaveListModal(prev => ({ ...prev, isOpen: false }));
-                        setExpandedLeaveId(null);
-                    }}
-                >
+            {/* Overnight / Short Outing Student List Modal */}
+            {leaveListModal.isOpen && (() => {
+                const targetLeaveType = leaveListModal.type === 'overnight' ? '외박' : '외출';
+                const isTodayDate = isSameDay(new Date(), selectedDate);
+                const nowTime = new Date();
+                const startOfDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 0, 0, 0);
+                const endOfDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 23, 59, 59);
+
+                // 당일 활성화된 해당 종류(외박/외출)의 실제 신청 카드만 추출
+                const targetRequests = allLeaveRequests.filter((l: any) => {
+                    if (l.leave_type !== targetLeaveType) return false;
+                    if (l.status !== '승인') return false;
+
+                    if (isTodayDate) {
+                        return nowTime >= new Date(l.start_time) && nowTime <= new Date(l.end_time);
+                    }
+                    return new Date(l.start_time) <= endOfDay && new Date(l.end_time) >= startOfDay;
+                });
+
+                const studentMap = new Map();
+                allRawStudents.forEach(s => studentMap.set(s.student_id, s.name));
+
+                const filtered = targetRequests.filter(req => {
+                    const q = leaveModalSearchQuery.trim().toLowerCase();
+                    if (!q) return true;
+                    const mainId = (req.student_id || '').toLowerCase();
+                    const mainName = (studentMap.get(req.student_id) || '').toLowerCase();
+                    const subMatch = req.leave_request_students?.some((co: any) => {
+                        const subId = (co.student_id || '').toLowerCase();
+                        const subName = (studentMap.get(co.student_id) || '').toLowerCase();
+                        return subId.includes(q) || subName.includes(q);
+                    });
+                    return mainId.includes(q) || mainName.includes(q) || subMatch;
+                });
+
+                const uniqueStudents = new Set<string>();
+                targetRequests.forEach(req => {
+                    if (req.student_id) uniqueStudents.add(req.student_id);
+                    req.leave_request_students?.forEach((co: any) => {
+                        if (co.student_id) uniqueStudents.add(co.student_id);
+                    });
+                });
+
+                return (
                     <div
-                        className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden"
-                        onClick={e => e.stopPropagation()}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => {
+                            setLeaveListModal(prev => ({ ...prev, isOpen: false }));
+                            setExpandedLeaveId(null);
+                        }}
                     >
-                        <div className={`p-4 text-white flex justify-between items-center ${leaveListModal.type === 'overnight' ? 'bg-red-600' : 'bg-emerald-600'}`}>
-                            <div className="flex items-center gap-2">
-                                <h3 className="font-bold text-base">{leaveListModal.title}</h3>
-                                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">
-                                    {leaveListModal.studentIds.length}명
-                                </span>
+                        <div
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className={`p-4 text-white flex justify-between items-center ${leaveListModal.type === 'overnight' ? 'bg-red-600' : 'bg-emerald-600'}`}>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-bold text-base">{leaveListModal.title}</h3>
+                                    <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">
+                                        {uniqueStudents.size}명
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setLeaveListModal(prev => ({ ...prev, isOpen: false }));
+                                        setExpandedLeaveId(null);
+                                    }}
+                                    className="hover:bg-white/20 p-1.5 rounded-full transition-colors cursor-pointer"
+                                >
+                                    ✕
+                                </button>
                             </div>
-                            <button
-                                onClick={() => {
-                                    setLeaveListModal(prev => ({ ...prev, isOpen: false }));
-                                    setExpandedLeaveId(null);
-                                }}
-                                className="hover:bg-white/20 p-1.5 rounded-full transition-colors"
-                            >
-                                ✕
-                            </button>
-                        </div>
 
-                        <div className="p-3 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-                            <input
-                                type="text"
-                                placeholder="이름 또는 학번 검색..."
-                                value={leaveModalSearchQuery}
-                                onChange={(e) => setLeaveModalSearchQuery(e.target.value)}
-                                className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500 transition"
-                            />
-                        </div>
+                            <div className="p-3 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="이름 또는 학번 검색..."
+                                    value={leaveModalSearchQuery}
+                                    onChange={(e) => setLeaveModalSearchQuery(e.target.value)}
+                                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500 transition"
+                                />
+                            </div>
 
-                        <div className="p-4 max-h-[60vh] overflow-y-auto flex flex-col gap-3.5 bg-gray-100/60">
-                            {(() => {
-                                const targetLeaveType = leaveListModal.type === 'overnight' ? '외박' : '외출';
-                                
-                                const requestMap = new Map<string | number, any>();
-                                
-                                leaveListModal.studentIds.forEach((sid) => {
-                                    const matches = allLeaveRequests.filter((l: any) => {
-                                        if (l.leave_type !== targetLeaveType) return false;
-                                        if (l.student_id === sid) return true;
-                                        if (l.leave_request_students?.some((co: any) => co.student_id === sid)) return true;
-                                        return false;
-                                    });
+                            <div className="p-4 max-h-[60vh] overflow-y-auto flex flex-col gap-3.5 bg-gray-100/60">
+                                {filtered.length === 0 ? (
+                                    <p className="text-gray-400 text-center text-xs py-8">해당하는 당일 {targetLeaveType} 기록이 없습니다.</p>
+                                ) : (
+                                    filtered.map((req) => (
+                                        <LeaveProcessCard
+                                            key={req.id}
+                                            req={req as LeaveRequest}
+                                            isExpanded={expandedLeaveId === req.id}
+                                            onToggleExpand={() => setExpandedLeaveId(expandedLeaveId === req.id ? null : req.id)}
+                                            isMenuOpen={false}
+                                            onToggleMenu={(e) => e.stopPropagation()}
+                                            onUpdateStatus={() => {}}
+                                            onCancel={() => {}}
+                                            viewMode="active"
+                                            currentTeacherId=""
+                                            hideActionButtons={true}
+                                        />
+                                    ))
+                                )}
+                            </div>
 
-                                    if (matches.length > 0) {
-                                        matches.forEach(m => requestMap.set(m.id, m));
-                                    } else {
-                                        const syntheticId = `weekly-${sid}`;
-                                        if (!requestMap.has(syntheticId)) {
-                                            requestMap.set(syntheticId, {
-                                                id: syntheticId,
-                                                student_id: sid,
-                                                leave_type: '외박',
-                                                status: '승인',
-                                                start_time: selectedDate.toISOString(),
-                                                end_time: selectedDate.toISOString(),
-                                                reason: '정기 매주귀가',
-                                                leave_request_students: []
-                                            });
-                                        }
-                                    }
-                                });
-
-                                const studentMap = new Map();
-                                allRawStudents.forEach(s => studentMap.set(s.student_id, s.name));
-
-                                const filtered = Array.from(requestMap.values()).filter(req => {
-                                    const q = leaveModalSearchQuery.trim().toLowerCase();
-                                    if (!q) return true;
-                                    const mainId = (req.student_id || '').toLowerCase();
-                                    const mainName = (studentMap.get(req.student_id) || '').toLowerCase();
-                                    const subMatch = req.leave_request_students?.some((co: any) => {
-                                        const subId = (co.student_id || '').toLowerCase();
-                                        const subName = (studentMap.get(co.student_id) || '').toLowerCase();
-                                        return subId.includes(q) || subName.includes(q);
-                                    });
-                                    return mainId.includes(q) || mainName.includes(q) || subMatch;
-                                });
-
-                                if (filtered.length === 0) {
-                                    return <p className="text-gray-400 text-center text-xs py-8">해당하는 이석 기록이 없습니다.</p>;
-                                }
-
-                                return filtered.map((req) => (
-                                    <LeaveProcessCard
-                                        key={req.id}
-                                        req={req as LeaveRequest}
-                                        isExpanded={expandedLeaveId === req.id}
-                                        onToggleExpand={() => setExpandedLeaveId(expandedLeaveId === req.id ? null : req.id)}
-                                        isMenuOpen={false}
-                                        onToggleMenu={(e) => e.stopPropagation()}
-                                        onUpdateStatus={() => {}}
-                                        onCancel={() => {}}
-                                        viewMode="active"
-                                        currentTeacherId=""
-                                        hideActionButtons={true}
-                                    />
-                                ));
-                            })()}
-                        </div>
-
-                        <div className="p-3 bg-gray-50 border-t border-gray-100">
-                            <button
-                                onClick={() => {
-                                    setLeaveListModal(prev => ({ ...prev, isOpen: false }));
-                                    setExpandedLeaveId(null);
-                                }}
-                                className="w-full py-2 bg-gray-200 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-300 transition-colors"
-                            >
-                                닫기
-                            </button>
+                            <div className="p-3 bg-gray-50 border-t border-gray-100">
+                                <button
+                                    onClick={() => {
+                                        setLeaveListModal(prev => ({ ...prev, isOpen: false }));
+                                        setExpandedLeaveId(null);
+                                    }}
+                                    className="w-full py-2 bg-gray-200 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-300 transition-colors cursor-pointer"
+                                >
+                                    닫기
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 }
