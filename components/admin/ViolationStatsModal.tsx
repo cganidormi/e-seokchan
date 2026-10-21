@@ -14,6 +14,7 @@ interface ViolationStatsModalProps {
     onClose: () => void;
     initialFilter?: 'today' | 'month';
     selectedDate?: Date;
+    readOnly?: boolean;
 }
 
 interface StudentViolationCount extends Student {
@@ -30,7 +31,7 @@ const VIOLATION_ICONS: Record<string, React.ElementType> = {
     '퇴실수칙 불이행': FaSignOutAlt
 };
 
-export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen, onClose, initialFilter = 'today', selectedDate }) => {
+export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen, onClose, initialFilter = 'today', selectedDate, readOnly = false }) => {
     const [students, setStudents] = useState<StudentViolationCount[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -222,48 +223,48 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                         className="bg-white w-full max-w-[95vw] lg:max-w-6xl rounded-3xl shadow-2xl flex flex-col h-[85vh] sm:h-[80vh] min-h-[480px] max-h-[92vh] overflow-hidden border border-gray-100"
                     >
                         {/* Compact Header */}
-                        <div className="px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 bg-gray-50/50 border-b border-gray-100 shrink-0">
+                        <div className="px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 bg-gray-50/70 border-b border-gray-100 shrink-0">
                             <div className="flex items-center gap-3">
-                                <div className="p-1.5 bg-rose-500 rounded-lg shadow-sm shadow-rose-100 shrink-0">
+                                <div className="p-1.5 bg-slate-800 rounded-xl shadow-xs shrink-0">
                                     <FaChartBar className="text-white text-sm" />
                                 </div>
                                 <div>
-                                    <h2 className="text-base font-black text-gray-900 leading-none">위반 통계 요약</h2>
+                                    <h2 className="text-base font-black text-gray-900 leading-none">생활지도 통계</h2>
                                     <p className="text-[10px] text-gray-400 font-bold mt-0.5">
-                                        {filterType === 'today' ? '오늘의 위반자 명단 (19:00 ~ 익일 09:00)' : `${selectedMonth.replace('-', '년 ')}월 위반자 명단`}
+                                        {filterType === 'today' ? '오늘의 위반자 명단 (18:00 ~ 익일 09:00)' : `${selectedMonth.replace('-', '년 ')}월 위반자 명단`}
                                     </p>
                                 </div>
 
                                 {/* Filter Toggle Tabs */}
-                                <div className="flex bg-gray-200/80 p-0.5 rounded-xl border border-gray-200 ml-2">
+                                <div className="flex bg-gray-200/70 p-0.5 rounded-xl border border-gray-200 ml-2">
                                     <button
                                         onClick={() => { setFilterType('today'); setSelectedStudent(null); }}
                                         className={clsx(
-                                            "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                                            filterType === 'today' ? "bg-rose-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900"
+                                            "px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                                            filterType === 'today' ? "bg-gray-900 text-white shadow-xs" : "text-gray-600 hover:text-gray-900"
                                         )}
                                     >
-                                        🚨 금일 위반
+                                        금일 위반
                                     </button>
                                     <button
                                         onClick={() => { setFilterType('month'); setSelectedStudent(null); }}
                                         className={clsx(
-                                            "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
-                                            filterType === 'month' ? "bg-rose-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900"
+                                            "px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                                            filterType === 'month' ? "bg-gray-900 text-white shadow-xs" : "text-gray-600 hover:text-gray-900"
                                         )}
                                     >
-                                        📊 월간 통계
+                                        월간 통계
                                     </button>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-2 flex-grow sm:flex-grow-0 min-w-0">
                                 <div className="relative flex-grow sm:w-48">
-                                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-[10px]" />
+                                    <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]" />
                                     <input
                                         type="text"
                                         placeholder="이름/학번/호실..."
-                                        className="w-full bg-white border border-gray-200 rounded-xl pl-8 pr-3 py-1.5 text-xs font-bold focus:ring-1 focus:ring-rose-200 outline-none transition-all placeholder:text-gray-300"
+                                        className="w-full bg-white border border-gray-200 rounded-xl pl-8 pr-3 py-1.5 text-xs font-bold focus:ring-1 focus:ring-slate-300 focus:border-slate-400 outline-none transition-all placeholder:text-gray-300 text-gray-800"
                                         value={searchTerm}
                                         onChange={e => setSearchTerm(e.target.value)}
                                     />
@@ -271,7 +272,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                 {filterType === 'month' && (
                                     <input
                                         type="month"
-                                        className="bg-white border border-gray-200 rounded-xl px-2 py-1.5 text-xs font-black text-gray-700 focus:ring-1 focus:ring-rose-200 outline-none"
+                                        className="bg-white border border-gray-200 rounded-xl px-2 py-1.5 text-xs font-black text-gray-700 focus:ring-1 focus:ring-slate-300 focus:border-slate-400 outline-none"
                                         value={selectedMonth}
                                         onChange={e => { setSelectedMonth(e.target.value); setSelectedStudent(null); }}
                                     />
@@ -292,7 +293,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                 <div className="flex-1 min-h-0 flex flex-col p-4 sm:p-5 overflow-hidden bg-white">
                                     <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100 shrink-0 gap-2">
                                         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                                            <div className="w-10 h-10 bg-gray-900 rounded-2xl flex items-center justify-center text-white font-black text-sm shrink-0 shadow-xs">
+                                            <div className="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-sm shrink-0 shadow-xs">
                                                 {selectedStudent.name[0]}
                                             </div>
                                             <div className="min-w-0">
@@ -300,13 +301,24 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                                     {selectedStudent.name} 상세 내역
                                                 </h3>
                                                 <p className="text-xs text-gray-500 font-bold mt-0.5 flex items-center gap-1.5 flex-wrap">
-                                                    <span>{selectedStudent.student_id}</span>
+                                                    <span>
+                                                        {selectedStudent.name && selectedStudent.student_id.includes(selectedStudent.name)
+                                                            ? selectedStudent.student_id.replace(selectedStudent.name, '').trim() || selectedStudent.student_id
+                                                            : selectedStudent.student_id}
+                                                    </span>
                                                     {(selectedStudent.room_number || (selectedStudent as any).room) && (
                                                         <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-extrabold text-[10px] border border-blue-100/80 leading-none">
                                                             {(selectedStudent.room_number || (selectedStudent as any).room)}호
                                                         </span>
                                                     )}
-                                                    <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded font-extrabold text-[10px] border border-rose-100/80 leading-none">
+                                                    <span className={clsx(
+                                                        "px-1.5 py-0.5 rounded font-bold text-[10px] leading-none border",
+                                                        selectedStudent.count >= 3
+                                                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                                                            : selectedStudent.count === 2
+                                                            ? "bg-amber-50 text-amber-800 border-amber-200"
+                                                            : "bg-slate-100 text-slate-700 border-slate-200"
+                                                    )}>
                                                         총 {selectedStudent.count}건
                                                     </span>
                                                 </p>
@@ -324,6 +336,16 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                         {selectedStudent.details.map((v, vIdx) => {
                                             const Icon = VIOLATION_ICONS[v.note] || FaChartBar;
                                             const date = new Date(v.checked_at);
+                                            const noteStyles: Record<string, string> = {
+                                                '스토퍼 미설치': 'bg-amber-50 text-amber-700 border-amber-200/80',
+                                                '일과시간 미준수': 'bg-orange-50 text-orange-700 border-orange-200/80',
+                                                '청소불량': 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
+                                                '음식물 섭취 위반': 'bg-amber-50 text-amber-800 border-amber-200/80',
+                                                '박스 방치': 'bg-indigo-50 text-indigo-700 border-indigo-200/80',
+                                                '퇴실수칙 불이행': 'bg-purple-50 text-purple-700 border-purple-200/80'
+                                            };
+                                            const badgeStyle = noteStyles[v.note] || 'bg-slate-100 text-slate-700 border-slate-200';
+
                                             return (
                                                 <motion.div 
                                                     initial={{ opacity: 0, x: -6 }}
@@ -333,25 +355,34 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                                     className="flex items-center justify-between bg-white border border-gray-100 hover:border-gray-200 p-3 sm:p-4 rounded-2xl shadow-xs transition-all"
                                                 >
                                                     <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                                                        <div className="w-9 h-9 bg-rose-50 border border-rose-100/80 rounded-xl flex items-center justify-center text-rose-500 shrink-0">
+                                                        <div className={clsx("w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border", badgeStyle)}>
                                                             <Icon size={16} />
                                                         </div>
                                                         <div className="min-w-0">
                                                             <span className="text-xs sm:text-sm font-black text-gray-800 block truncate leading-snug">{v.note}</span>
-                                                            <span className="text-[10px] sm:text-[11px] text-gray-400 font-semibold">
-                                                                {date.getFullYear()}. {date.getMonth() + 1}. {date.getDate()} ({['일','월','화','수','목','금','토'][date.getDay()]}) {String(date.getHours()).padStart(2, '0')}:{String(date.getMinutes()).padStart(2, '0')}
-                                                            </span>
+                                                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                                <span className="text-[10px] sm:text-[11px] text-gray-400 font-semibold">
+                                                                    {date.getFullYear()}. {date.getMonth() + 1}. {date.getDate()} ({['일','월','화','수','목','금','토'][date.getDay()]}) {String(date.getHours()).padStart(2, '0')}:{String(date.getMinutes()).padStart(2, '0')}
+                                                                </span>
+                                                                {v.teacher_id && (
+                                                                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 border border-slate-200/70 px-1.5 py-0.5 rounded">
+                                                                        지도 : {v.teacher_id}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
-                                                        <button
-                                                            onClick={() => handleDeleteViolation(v.id)}
-                                                            className="px-2.5 py-1.5 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all flex items-center gap-1 text-xs font-bold cursor-pointer"
-                                                            title="위반 내역 삭제"
-                                                        >
-                                                            <FaTrash size={12} />
-                                                            <span>삭제</span>
-                                                        </button>
+                                                        {!readOnly && (
+                                                            <button
+                                                                onClick={() => handleDeleteViolation(v.id)}
+                                                                className="px-2.5 py-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all flex items-center gap-1 text-xs font-bold cursor-pointer"
+                                                                title="위반 내역 삭제"
+                                                            >
+                                                                <FaTrash size={12} />
+                                                                <span>삭제</span>
+                                                            </button>
+                                                        )}
                                                         <div className="text-[10px] font-black text-gray-300 w-5 text-right">
                                                             #{vIdx + 1}
                                                         </div>
@@ -366,7 +397,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                 <div className="flex-1 overflow-y-auto p-3 sm:p-5 min-h-0 overscroll-contain">
                                     {isLoading ? (
                                         <div className="flex flex-col items-center justify-center py-20 gap-3">
-                                            <div className="w-8 h-8 border-3 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <div className="w-8 h-8 border-3 border-slate-800 border-t-transparent rounded-full animate-spin"></div>
                                             <p className="text-[11px] font-bold text-gray-400">데이터 로딩 중...</p>
                                         </div>
                                     ) : filtered.length === 0 ? (
@@ -377,23 +408,36 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                     ) : (
                                         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1.5 sm:gap-2">
                                             {filtered.map((student, idx) => {
+                                                const isRepeat = student.count >= 3;
+                                                const isDouble = student.count === 2;
+
                                                 return (
                                                     <div 
                                                         key={student.student_id || `student-idx-${idx}`} 
                                                         onClick={() => setSelectedStudent(student)}
                                                         className={clsx(
                                                             "relative p-2 rounded-2xl border transition-all group overflow-hidden cursor-pointer active:scale-95 flex flex-col justify-between",
-                                                            student.count >= 3 
-                                                                ? "bg-rose-50 border-rose-100 shadow-sm" 
-                                                                : "bg-gray-50 border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-sm"
+                                                            isRepeat 
+                                                                ? "bg-rose-50/40 border-rose-200 hover:bg-rose-50/70 hover:border-rose-300 shadow-2xs" 
+                                                                : isDouble
+                                                                ? "bg-amber-50/30 border-amber-200/70 hover:bg-white hover:border-amber-300 hover:shadow-2xs"
+                                                                : "bg-gray-50/70 border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-2xs"
                                                         )}
                                                     >
                                                         {/* Top Row: Student ID & Count Badge */}
                                                         <div className="flex items-center justify-between gap-1 mb-1">
-                                                            <span className="text-[9px] font-black text-gray-400 leading-none">{student.student_id}</span>
+                                                            <span className="text-[9px] font-black text-gray-400 leading-none">
+                                                                {student.name && student.student_id.includes(student.name)
+                                                                    ? student.student_id.replace(student.name, '').trim() || student.student_id
+                                                                    : student.student_id}
+                                                            </span>
                                                             <span className={clsx(
                                                                 "px-1.5 py-0.5 rounded-md text-[9px] font-black leading-none shrink-0",
-                                                                student.count >= 3 ? "bg-rose-500 text-white" : "bg-rose-100 text-rose-700 border border-rose-200/60"
+                                                                isRepeat
+                                                                    ? "bg-rose-600 text-white"
+                                                                    : isDouble
+                                                                    ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                                                    : "bg-slate-100 text-slate-700 border border-slate-200"
                                                             )}>
                                                                 {student.count}회
                                                             </span>
@@ -422,7 +466,7 @@ export const ViolationStatsModal: React.FC<ViolationStatsModalProps> = ({ isOpen
                                                                         <div 
                                                                             key={nIdx} 
                                                                             title={`${note}: ${count}회`}
-                                                                            className="relative w-5 h-5 bg-white/60 rounded-lg flex items-center justify-center text-gray-400 group-hover:text-rose-400 transition-colors border border-gray-100/50"
+                                                                            className="relative w-5 h-5 bg-white rounded-lg flex items-center justify-center text-gray-400 group-hover:text-slate-700 transition-colors border border-gray-100 shadow-2xs"
                                                                         >
                                                                             <Icon size={11} />
                                                                             {(count as number) > 1 && (

@@ -7,7 +7,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import clsx from 'clsx';
 import Select from 'react-select';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
-import { FaBell } from "react-icons/fa";
+import { FaBell, FaEdit } from "react-icons/fa";
 import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
 import { LeaveRequest } from '@/components/teacher/types';
 import SwipeWrapper from '@/components/teacher/SwipeWrapper';
@@ -90,6 +90,13 @@ export default function SeatManagementPage() {
     const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
     const [historyRecords, setHistoryRecords] = useState<any[]>([]);
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+    const [studentYanghyeonjaeViolations, setStudentYanghyeonjaeViolations] = useState<any[]>([]);
+    const [isSubmittingViolation, setIsSubmittingViolation] = useState(false);
+    const [selectedViolationCategory, setSelectedViolationCategory] = useState<string | null>(null);
+    const [violationDetail, setViolationDetail] = useState('');
+    const [editingViolationId, setEditingViolationId] = useState<string | number | null>(null);
+    const [editingViolationNote, setEditingViolationNote] = useState('');
+    const [isSavingViolationEdit, setIsSavingViolationEdit] = useState(false);
     const teacherMapCacheRef = React.useRef<Map<string, string> | null>(null);
     const lastClickTimeRef = React.useRef<{ [seatNum: number]: number }>({});
 
@@ -134,6 +141,9 @@ export default function SeatManagementPage() {
             setHistoryStudent(s || { student_id: studentId, name: 'Unknown', grade: 0, class: 0 });
             setIsHistoryLoading(true);
             setIsHistoryModalOpen(true);
+            setStudentYanghyeonjaeViolations([]);
+            setSelectedViolationCategory(null);
+            setViolationDetail('');
         }
 
         try {
@@ -215,6 +225,22 @@ export default function SeatManagementPage() {
             }));
 
             setHistoryRecords(recordsWithTeachers);
+
+            // Fetch today's yanghyeonjae violations for this student
+            try {
+                const startOfToday = new Date();
+                startOfToday.setHours(0, 0, 0, 0);
+                const { data: yanghyeonjaeData } = await supabase
+                    .from('morning_checks')
+                    .select('id, student_id, checked_at, note, teacher_id')
+                    .eq('student_id', studentId)
+                    .eq('type', 'yanghyeonjae')
+                    .gte('checked_at', startOfToday.toISOString())
+                    .order('checked_at', { ascending: false });
+                setStudentYanghyeonjaeViolations(yanghyeonjaeData || []);
+            } catch (err) {
+                console.error('Failed to load student yanghyeonjae violations:', err);
+            }
         } catch (e) {
             console.error(e);
             toast.error('기록을 불러오지 못했습니다.');
@@ -222,6 +248,104 @@ export default function SeatManagementPage() {
             if (!isSilent) {
                 setIsHistoryLoading(false);
             }
+        }
+    };
+
+    const handleCreateYanghyeonjaeViolation = async (studentId: string) => {
+        if (!selectedViolationCategory) return;
+        const category = selectedViolationCategory;
+        const detail = violationDetail.trim();
+        if (category === '기타' && !detail) {
+            toast.error('기타 선택 시 상세 내용을 입력해주세요.');
+            return;
+        }
+
+        const violationNote = detail ? `${category}: ${detail}` : category;
+
+        if (!confirm(`${studentId} 학생의 [${violationNote}] 위반 카드를 양현재 일지에 등록하시겠습니까?`)) {
+            return;
+        }
+        setIsSubmittingViolation(true);
+        try {
+            const currentTeacher = (teacherName && teacherName !== '담당 교사' ? teacherName : '') 
+                || localStorage.getItem('dormichan_login_id') 
+                || sessionStorage.getItem('dormichan_login_id') 
+                || '지도교사';
+
+            const payload = {
+                student_id: studentId,
+                teacher_id: currentTeacher,
+                type: 'yanghyeonjae',
+                note: violationNote,
+                checked_at: new Date().toISOString()
+            };
+            const { data, error } = await supabase
+                .from('morning_checks')
+                .insert(payload)
+                .select();
+
+            if (error) {
+                console.error('Failed to create yanghyeonjae violation:', error);
+                toast.error('양현재 일지 등록에 실패했습니다.');
+            } else {
+                toast.success(`[${violationNote}] 양현재 일지에 등록되었습니다.`);
+                if (data && data[0]) {
+                    setStudentYanghyeonjaeViolations(prev => [data[0], ...prev]);
+                }
+                setSelectedViolationCategory(null);
+                setViolationDetail('');
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error('등록 중 오류가 발생했습니다.');
+        } finally {
+            setIsSubmittingViolation(false);
+        }
+    };
+
+    const handleDeleteYanghyeonjaeViolation = async (violationId: string | number, note: string) => {
+        if (!confirm(`[${note}] 위반 기록을 삭제(취소)하시겠습니까?`)) return;
+        try {
+            const { error } = await supabase.from('morning_checks').delete().eq('id', violationId);
+            if (error) throw error;
+            toast.success('위반 기록이 삭제되었습니다.');
+            setStudentYanghyeonjaeViolations(prev => prev.filter(v => v.id !== violationId));
+            if (editingViolationId === violationId) {
+                setEditingViolationId(null);
+                setEditingViolationNote('');
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error('삭제에 실패했습니다.');
+        }
+    };
+
+    const handleUpdateYanghyeonjaeViolation = async (violationId: string | number) => {
+        const trimmed = editingViolationNote.trim();
+        if (!trimmed) {
+            toast.error('수정할 내용을 입력해주세요.');
+            return;
+        }
+        setIsSavingViolationEdit(true);
+        try {
+            const { error } = await supabase
+                .from('morning_checks')
+                .update({ note: trimmed })
+                .eq('id', violationId);
+
+            if (error) throw error;
+
+            toast.success('위반 내용이 수정되었습니다.');
+            setStudentYanghyeonjaeViolations(prev =>
+                prev.map(v => v.id === violationId ? { ...v, note: trimmed } : v)
+            );
+            setEditingViolationId(null);
+            setEditingViolationNote('');
+        } catch (err) {
+            console.error(err);
+            toast.error('수정에 실패했습니다.');
+        } finally {
+            setIsSavingViolationEdit(false);
         }
     };
 
@@ -1555,8 +1679,8 @@ export default function SeatManagementPage() {
                             setHistoryMenuId(null);
                         }}
                     >
-                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[80vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-                            <div className="p-5 border-b border-gray-100 flex flex-col relative bg-white shrink-0">
+                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                            <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col relative bg-white shrink-0">
                                 {/* Close Button Top Right */}
                                 <button
                                     onClick={() => {
@@ -1564,18 +1688,18 @@ export default function SeatManagementPage() {
                                         setExpandedHistoryId(null);
                                         setHistoryMenuId(null);
                                     }}
-                                    className="absolute top-4 right-4 p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400"
+                                    className="absolute top-3.5 right-3.5 p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 cursor-pointer"
                                 >
                                     ✕
                                 </button>
 
                                 {/* Center Content - Horizontal Layout */}
-                                <div className="flex items-center justify-center gap-6 mt-4 mb-4">
+                                <div className="flex items-center justify-center gap-5 mt-1 mb-2">
                                     {/* Student Info - ID Only */}
-                                    <h3 className="text-3xl font-black text-gray-800 tracking-tight">{historyStudent.student_id}</h3>
+                                    <h3 className="text-2xl sm:text-3xl font-black text-gray-800 tracking-tight">{historyStudent.student_id}</h3>
 
                                     {/* Call Button Group */}
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1.5">
                                         <button
                                             onClick={async (e) => {
                                                 e.stopPropagation();
@@ -1594,7 +1718,6 @@ export default function SeatManagementPage() {
                                                     if (res.ok) {
                                                         toast.success('호출 알림을 보냈습니다.');
                                                     } else {
-                                                        // Display specific error message from server
                                                         toast.error(data.error || '호출 실패');
                                                     }
                                                 } catch (err) {
@@ -1602,27 +1725,217 @@ export default function SeatManagementPage() {
                                                     toast.error('호출 중 네트워크 오류가 발생했습니다.');
                                                 }
                                             }}
-                                            className="p-3 rounded-xl bg-red-500 border-b-4 border-red-700 text-white hover:bg-red-400 hover:border-red-600 transition-all active:border-b-0 active:translate-y-1 shadow-lg flex items-center justify-center group"
+                                            className="p-2.5 sm:p-3 rounded-xl bg-red-500 border-b-4 border-red-700 text-white hover:bg-red-400 hover:border-red-600 transition-all active:border-b-0 active:translate-y-1 shadow-md flex items-center justify-center group cursor-pointer"
                                             title="호출"
                                         >
-                                            <FaBell className="w-6 h-6 group-hover:animate-swing" />
+                                            <FaBell className="w-5 h-5 sm:w-6 sm:h-6 group-hover:animate-swing" />
                                         </button>
-                                        <span className="text-[10px] font-bold text-red-500">호출</span>
+                                        <span className="text-xs font-bold text-red-500">호출</span>
                                     </div>
                                 </div>
-                                <div className="w-full text-center pb-2">
-                                    <p className="text-xs text-gray-400 font-bold">최근 이석 기록 (30건)</p>
+
+                                {/* Yanghyeonjae Violation Registration Area */}
+                                <div className="mt-1 px-3.5 py-3 bg-slate-50 border border-slate-200/90 rounded-2xl flex flex-col gap-2.5">
+                                    <div className="flex items-center justify-between px-0.5">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-slate-800" />
+                                            <span className="text-sm font-black text-slate-800 tracking-tight">양현재 일지 위반 등록</span>
+                                        </div>
+                                        <span className="text-xs text-slate-500 font-semibold">항목 선택 시 내용 입력</span>
+                                    </div>
+
+                                    {/* 6 Category Buttons with larger readable font */}
+                                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                                        {['졸음', '전자기기 위반', '무단이석', '지각 입실', '소란', '기타'].map((cat) => {
+                                            const isSelected = selectedViolationCategory === cat;
+                                            return (
+                                                <button
+                                                    key={cat}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            setSelectedViolationCategory(null);
+                                                            setViolationDetail('');
+                                                        } else {
+                                                            setSelectedViolationCategory(cat);
+                                                        }
+                                                    }}
+                                                    className={`py-2.5 px-1 rounded-xl border font-black text-xs sm:text-sm transition-all cursor-pointer shadow-2xs active:scale-95 text-center ${
+                                                        isSelected
+                                                            ? 'bg-slate-900 text-white border-slate-900 shadow-sm ring-2 ring-slate-900/20'
+                                                            : 'bg-white text-slate-800 hover:bg-slate-100 border-slate-200'
+                                                    }`}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Detail Input and Submit Area (Opens when an item is selected) */}
+                                    {selectedViolationCategory && (
+                                        <div className="flex flex-col sm:flex-row gap-2 items-center mt-0.5 animate-in fade-in duration-150 bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+                                            <div className="flex items-center gap-1.5 shrink-0 pl-0.5">
+                                                <span className="text-xs sm:text-sm font-black text-slate-800 bg-slate-100 border border-slate-300 px-2.5 py-1 rounded-lg">
+                                                    {selectedViolationCategory}
+                                                </span>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                className="flex-1 w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2 text-sm text-slate-900 font-medium outline-none focus:bg-white focus:border-blue-500 transition-all h-9 sm:h-10"
+                                                placeholder={
+                                                    selectedViolationCategory === '기타'
+                                                        ? '상세 사유를 입력하세요 (필수)'
+                                                        : '상세 내용을 입력하세요 (선택 사항)'
+                                                }
+                                                value={violationDetail}
+                                                onChange={e => setViolationDetail(e.target.value)}
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter') handleCreateYanghyeonjaeViolation(historyStudent.student_id);
+                                                }}
+                                                autoFocus
+                                            />
+                                            <div className="flex gap-1.5 w-full sm:w-auto shrink-0 justify-end">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleCreateYanghyeonjaeViolation(historyStudent.student_id)}
+                                                    disabled={isSubmittingViolation || (selectedViolationCategory === '기타' && !violationDetail.trim())}
+                                                    className="flex-1 sm:flex-none px-4 h-9 sm:h-10 bg-slate-900 hover:bg-black text-white rounded-lg text-xs sm:text-sm font-extrabold transition-all shrink-0 cursor-pointer disabled:opacity-50 active:scale-95 shadow-xs"
+                                                >
+                                                    등록
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setSelectedViolationCategory(null); setViolationDetail(''); }}
+                                                    className="px-3 h-9 sm:h-10 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-xs sm:text-sm font-bold transition-all shrink-0 cursor-pointer"
+                                                >
+                                                    취소
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Today's Registered Violations with EDIT & DELETE */}
+                                    {studentYanghyeonjaeViolations.length > 0 && (
+                                        <div className="pt-2 border-t border-slate-200/90 flex flex-col gap-2">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs sm:text-sm font-extrabold text-slate-700">
+                                                    오늘 등록된 위반 ({studentYanghyeonjaeViolations.length}건)
+                                                </span>
+                                                <span className="text-[11px] text-slate-400 font-medium">수정 버튼으로 내용 변경 가능</span>
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-0.5">
+                                                {studentYanghyeonjaeViolations.map((item) => {
+                                                    const isEditing = editingViolationId === item.id;
+
+                                                    if (isEditing) {
+                                                        return (
+                                                            <div
+                                                                key={item.id}
+                                                                className="flex flex-col sm:flex-row gap-2 items-center bg-blue-50/90 p-2.5 rounded-xl border border-blue-300 animate-in fade-in duration-150"
+                                                            >
+                                                                <input
+                                                                    type="text"
+                                                                    value={editingViolationNote}
+                                                                    onChange={e => setEditingViolationNote(e.target.value)}
+                                                                    onKeyDown={e => {
+                                                                        if (e.key === 'Enter') handleUpdateYanghyeonjaeViolation(item.id);
+                                                                    }}
+                                                                    className="flex-1 w-full bg-white border border-blue-300 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-blue-400 h-9"
+                                                                    placeholder="위반 내용 수정..."
+                                                                    autoFocus
+                                                                />
+                                                                <div className="flex gap-1.5 shrink-0 w-full sm:w-auto justify-end">
+                                                                    <button
+                                                                        type="button"
+                                                                        disabled={isSavingViolationEdit}
+                                                                        onClick={() => handleUpdateYanghyeonjaeViolation(item.id)}
+                                                                        className="px-3.5 h-9 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-extrabold transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+                                                                    >
+                                                                        저장
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => { setEditingViolationId(null); setEditingViolationNote(''); }}
+                                                                        className="px-3 h-9 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer"
+                                                                    >
+                                                                        취소
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    return (
+                                                        <div
+                                                            key={item.id}
+                                                            className="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:border-slate-300 transition-all"
+                                                        >
+                                                            <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+                                                                <span className="text-xs sm:text-sm font-extrabold text-slate-800 break-words">
+                                                                    {item.note}
+                                                                </span>
+                                                                {item.teacher_id && (
+                                                                    <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60">
+                                                                        지도: {item.teacher_id}
+                                                                    </span>
+                                                                )}
+                                                                <span className="text-[11px] text-slate-400 font-medium">
+                                                                    {item.checked_at ? new Date(item.checked_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setEditingViolationId(item.id);
+                                                                        setEditingViolationNote(item.note);
+                                                                    }}
+                                                                    title="내용 수정"
+                                                                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                                                                >
+                                                                    <FaEdit size={11} />
+                                                                    <span>수정</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDeleteYanghyeonjaeViolation(item.id, item.note);
+                                                                    }}
+                                                                    title="삭제"
+                                                                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                                                                >
+                                                                    <span>삭제</span>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="overflow-y-auto p-4 flex flex-col gap-3.5 bg-gray-100/60 flex-1">
+                            {/* Divider for Leave History - Compact and Clean */}
+                            <div className="px-4 py-1.5 bg-gray-50 border-b border-gray-200/70 flex items-center justify-between shrink-0">
+                                <span className="text-xs font-bold text-gray-500">최근 이석 기록 (최대 30건)</span>
+                                <span className="text-[11px] font-semibold text-gray-400">{historyRecords.length}건</span>
+                            </div>
+
+                            {/* Leave History List - Compact Padding & Gaps */}
+                            <div className="overflow-y-auto p-2.5 sm:p-3 flex flex-col gap-2 bg-gray-100/50 flex-1 max-h-[35vh]">
                                 {isHistoryLoading ? (
-                                    <div className="py-14 flex flex-col items-center justify-center gap-3">
-                                        <div className="w-8 h-8 border-3 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="py-6 flex flex-col items-center justify-center gap-2">
+                                        <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
                                         <span className="text-xs text-gray-400 font-bold">이석 기록 불러오는 중...</span>
                                     </div>
                                 ) : historyRecords.length === 0 ? (
-                                    <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
+                                    <div className="py-6 text-center text-gray-400 text-xs font-medium">최근 이석 기록이 없습니다.</div>
                                 ) : (
                                     historyRecords.map((rec) => {
                                         const isPast = rec.status === '복귀' || rec.status === '취소' || rec.status === '반려' || new Date(rec.end_time) < currentTime;
