@@ -9,9 +9,16 @@ interface SwipeWrapperProps {
   prevPath?: string;
   nextPath?: string;
   topBottomOnly?: boolean;
+  topThresholdHeight?: number;
 }
 
-export default function SwipeWrapper({ children, prevPath, nextPath, topBottomOnly = false }: SwipeWrapperProps) {
+export default function SwipeWrapper({
+  children,
+  prevPath,
+  nextPath,
+  topBottomOnly = false,
+  topThresholdHeight = 240,
+}: SwipeWrapperProps) {
   const router = useRouter();
   const dragControls = useDragControls();
 
@@ -31,8 +38,8 @@ export default function SwipeWrapper({ children, prevPath, nextPath, topBottomOn
     const y = e.clientY;
     const windowHeight = window.innerHeight;
 
-    // 상단 (약 150px 또는 높이의 20% 이내) 또는 하단 (약 130px 또는 높이의 18% 이내) 영역인지 체크
-    const topThreshold = Math.max(150, windowHeight * 0.20);
+    // 상단 (확장된 헤더 높이 반영: 기본 240px 또는 화면 높이의 28%) 또는 하단 (약 130px 또는 높이의 18%)
+    const topThreshold = Math.max(topThresholdHeight, windowHeight * 0.28);
     const bottomThreshold = windowHeight - Math.max(130, windowHeight * 0.18);
 
     if (y <= topThreshold || y >= bottomThreshold) {

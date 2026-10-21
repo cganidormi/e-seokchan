@@ -679,7 +679,7 @@ export default function HeadcountPage() {
     };
 
     return (
-        <SwipeWrapper prevPath="/teacher/seats" topBottomOnly={true}>
+        <SwipeWrapper prevPath="/teacher/seats" topBottomOnly={true} topThresholdHeight={250}>
             <div className="h-screen flex flex-col bg-black text-white font-sans selection:bg-orange-500 selection:text-white overflow-hidden overscroll-y-none">
                 <Toaster toastOptions={{
                 className: 'bg-gray-800 text-white border border-white/10',
