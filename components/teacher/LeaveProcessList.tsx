@@ -165,13 +165,18 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Today Dashboard Button */}
             <button
                 onClick={() => router.push('/today')}
-                className="w-full mb-6 py-3 rounded-xl text-sm font-medium transition-all text-emerald-100 shadow-lg text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
+                className="w-full mb-6 h-11 rounded-xl text-sm font-medium transition-all text-emerald-100 shadow-lg pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99] flex items-center justify-end gap-2"
                 style={{
                     backgroundImage: `linear-gradient(to right, rgba(5, 150, 105, 0) 30%, rgba(5, 150, 105, 1) 100%), url('/dorm.jpg')`,
                     backgroundPosition: 'center 68%'
                 }}
             >
-                오늘의 홍지관 →
+                <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0 shadow-xs">
+                    <div className="p-[1px] bg-white rounded-full">
+                        <img src="/dorm.jpg" alt="Icon" className="w-6 h-6 rounded-full object-cover" />
+                    </div>
+                </div>
+                <span>오늘의 홍지관 →</span>
             </button>
 
             {/* 탭 전환 UI */}
