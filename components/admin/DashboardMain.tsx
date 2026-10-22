@@ -145,6 +145,17 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
     const [leaveListModal, setLeaveListModal] = useState<{ isOpen: boolean; title: string; type: 'overnight' | 'short'; studentIds: string[] }>({ isOpen: false, title: '', type: 'overnight', studentIds: [] });
     const [leaveModalSearchQuery, setLeaveModalSearchQuery] = useState('');
 
+    // Lock body scroll when leaveListModal is open to prevent background scrolling
+    useEffect(() => {
+        if (leaveListModal.isOpen) {
+            const originalOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = originalOverflow || 'unset';
+            };
+        }
+    }, [leaveListModal.isOpen]);
+
     const handleToggleNextMonthApp = async (studentId: string, currentIsWeekly: boolean) => {
         const now = new Date();
         const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -1851,20 +1862,28 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
 
                 return (
                     <div
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
                         onClick={() => {
                             setLeaveListModal(prev => ({ ...prev, isOpen: false }));
                             setExpandedLeaveId(null);
                         }}
                     >
                         <div
-                            className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden"
+                            className="w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden rounded-[24px] overscroll-contain"
+                            style={{
+                                background: "rgba(18, 18, 22, 0.78)",
+                                backdropFilter: "blur(24px)",
+                                WebkitBackdropFilter: "blur(24px)",
+                                border: "1.5px solid rgba(255, 255, 255, 0.16)",
+                                boxShadow: "0 25px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08)",
+                            }}
                             onClick={e => e.stopPropagation()}
                         >
-                            <div className={`p-4 text-white flex justify-between items-center ${leaveListModal.type === 'overnight' ? 'bg-red-600' : 'bg-emerald-600'}`}>
-                                <div className="flex items-center gap-2">
-                                    <h3 className="font-bold text-base">{leaveListModal.title}</h3>
-                                    <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">
+                            {/* Glass Header */}
+                            <div className="p-4 px-5 border-b border-white/10 flex justify-between items-center bg-white/[0.03]">
+                                <div className="flex items-center gap-2.5">
+                                    <h3 className="font-extrabold text-base sm:text-lg text-white tracking-tight">{leaveListModal.title}</h3>
+                                    <span className="bg-white/15 text-white/90 border border-white/20 px-2.5 py-0.5 rounded-full text-xs font-black shadow-sm">
                                         {uniqueStudents.size}명
                                     </span>
                                 </div>
@@ -1873,25 +1892,28 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                         setLeaveListModal(prev => ({ ...prev, isOpen: false }));
                                         setExpandedLeaveId(null);
                                     }}
-                                    className="hover:bg-white/20 p-1.5 rounded-full transition-colors cursor-pointer"
+                                    className="text-white/60 hover:text-white hover:bg-white/10 w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer text-sm font-bold"
+                                    title="닫기"
                                 >
                                     ✕
                                 </button>
                             </div>
 
-                            <div className="p-3 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
+                            {/* Search Filter */}
+                            <div className="p-3 px-5 border-b border-white/10 bg-white/[0.02] flex items-center gap-2">
                                 <input
                                     type="text"
                                     placeholder="이름 또는 학번 검색..."
                                     value={leaveModalSearchQuery}
                                     onChange={(e) => setLeaveModalSearchQuery(e.target.value)}
-                                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500 transition"
+                                    className="w-full bg-white/10 text-white placeholder-white/40 border border-white/15 rounded-xl px-3.5 py-2 text-xs outline-none focus:border-white/35 focus:bg-white/15 transition-all shadow-inner"
                                 />
                             </div>
 
-                            <div className="p-4 max-h-[60vh] overflow-y-auto flex flex-col gap-3.5 bg-gray-100/60">
+                            {/* Cards List */}
+                            <div className="p-4 px-5 max-h-[60vh] overflow-y-auto overscroll-contain flex flex-col gap-3.5">
                                 {filtered.length === 0 ? (
-                                    <p className="text-gray-400 text-center text-xs py-8">해당하는 당일 {targetLeaveType} 기록이 없습니다.</p>
+                                    <p className="text-white/50 text-center text-xs py-10 font-medium">해당하는 당일 {targetLeaveType} 기록이 없습니다.</p>
                                 ) : (
                                     filtered.map((req) => (
                                         <LeaveProcessCard
@@ -1911,13 +1933,14 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                 )}
                             </div>
 
-                            <div className="p-3 bg-gray-50 border-t border-gray-100">
+                            {/* Glass Footer */}
+                            <div className="p-3 px-5 border-t border-white/10 bg-white/[0.03] flex justify-end">
                                 <button
                                     onClick={() => {
                                         setLeaveListModal(prev => ({ ...prev, isOpen: false }));
                                         setExpandedLeaveId(null);
                                     }}
-                                    className="w-full py-2 bg-gray-200 text-gray-700 rounded-xl font-bold text-xs hover:bg-gray-300 transition-colors cursor-pointer"
+                                    className="w-full sm:w-auto px-6 py-2 bg-white/15 hover:bg-white/25 text-white font-bold text-xs rounded-xl transition-all cursor-pointer border border-white/20 active:scale-95 shadow-sm"
                                 >
                                     닫기
                                 </button>
