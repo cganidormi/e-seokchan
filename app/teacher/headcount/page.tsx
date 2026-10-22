@@ -285,18 +285,15 @@ export default function HeadcountPage() {
 
                 // Fetch Leave Requests for overnight status
                 const now = new Date();
-                const startOfDay = new Date(now);
-                startOfDay.setHours(0, 0, 0, 0);
-                const endOfDay = new Date(now);
-                endOfDay.setHours(23, 59, 59, 999);
+                const nowStr = now.toISOString();
 
                 const { data: leaveData, error: leaveError } = await supabase
                     .from('leave_requests')
                     .select('id, student_id, status, leave_type, start_time, end_time, reason, place, period, created_at, teacher_id, leave_request_students(student_id)')
                     .eq('status', '승인')
                     .in('leave_type', ['외박', '외출'])
-                    .lte('start_time', endOfDay.toISOString())
-                    .gte('end_time', startOfDay.toISOString());
+                    .lte('start_time', nowStr)
+                    .gte('end_time', nowStr);
 
                 if (leaveError) console.error('Error fetching leave requests:', leaveError);
 
@@ -306,20 +303,6 @@ export default function HeadcountPage() {
 
                 leaveData?.forEach(req => {
                     const type = req.leave_type as '외출' | '외박';
-                    const start = new Date(req.start_time);
-                    const end = new Date(req.end_time);
-
-                    let isActive = false;
-                    if (type === '외박') {
-                        // 외박은 당일(startOfDay ~ endOfDay) 점호 기간에 걸쳐 있는 경우 모두 활성화
-                        isActive = (start <= endOfDay && end >= startOfDay);
-                    } else {
-                        // 외출은 현재 시각 기준 외출 중인 경우
-                        isActive = (now >= start && now <= end);
-                    }
-
-                    if (!isActive) return;
-
                     const enrichedReq = {
                         ...req,
                         teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' }
@@ -678,21 +661,18 @@ export default function HeadcountPage() {
         return results;
     }, [searchQuery, roomStatus]);
 
-    // Absent students list for currently selected popover grade and floor
+    // Absent students list for currently selected popover grade and floor (메인의 실제 외박/외출 카드만 연동)
     const absentStudentsList = useMemo(() => {
         if (activePopoverGrade === null) return [];
         const layout = currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT));
-        const now = new Date();
-        const isWeekend = isWeeklyHomeTime(now, specialHolidays);
         const list: {
             student_id: string;
             name: string;
             grade: number;
             roomNum: number;
             position: 'left' | 'right';
-            type: '외박' | '외출' | '매주귀가' | '점호부재';
-            leaveRequest?: any;
-            isWeekend?: boolean;
+            type: '외박' | '외출';
+            leaveRequest: any;
         }[] = [];
 
         Object.keys(layout).forEach(key => {
@@ -715,32 +695,26 @@ export default function HeadcountPage() {
                 if (!grade) return;
                 if (activePopoverGrade !== 'all' && grade !== activePopoverGrade) return;
 
-                const isOut = slot.status === 'out' || (isWeekend && slot.isWeekend);
-                if (isOut) {
-                    let type: '외박' | '외출' | '매주귀가' | '점호부재' = '외박';
-                    if (slot.leaveType === '외박') type = '외박';
-                    else if (slot.leaveType === '외출') type = '외출';
-                    else if (isWeekend && slot.isWeekend) type = '매주귀가';
-                    else type = '점호부재';
-
+                // 오직 메인페이지에 실제로 존재하는 진짜 승인 외박/외출 카드만 연결 (가짜 synthetic 완전 제거)
+                if (slot.leaveType === '외박' || slot.leaveType === '외출') {
                     const leaveReq = slot.student_id ? activeLeavesMap.get(slot.student_id) : undefined;
-
-                    list.push({
-                        student_id: slot.student_id || '',
-                        name: slot.name,
-                        grade,
-                        roomNum,
-                        position: pos,
-                        type,
-                        leaveRequest: leaveReq,
-                        isWeekend: slot.isWeekend
-                    });
+                    if (leaveReq) {
+                        list.push({
+                            student_id: slot.student_id || '',
+                            name: slot.name,
+                            grade,
+                            roomNum,
+                            position: pos,
+                            type: slot.leaveType,
+                            leaveRequest: leaveReq
+                        });
+                    }
                 }
             });
         });
 
         return list.sort((a, b) => a.roomNum - b.roomNum || (a.position === 'left' ? -1 : 1));
-    }, [activePopoverGrade, currentFloor, roomStatus, gradeMap, specialHolidays, activeLeavesMap]);
+    }, [activePopoverGrade, currentFloor, roomStatus, gradeMap, activeLeavesMap]);
 
     // Handle badge click (toggle popover)
     const handleBadgeClick = (grade: 1 | 2 | 3 | 'all') => {
@@ -771,13 +745,11 @@ export default function HeadcountPage() {
     // LeaveProcessCard status update handler
     const handleUpdateStatus = async (requestId: string | number, newStatus: string) => {
         try {
-            if (typeof requestId === 'number' || (typeof requestId === 'string' && !requestId.startsWith('synthetic-'))) {
-                const { error } = await supabase.from('leave_requests').update({ status: newStatus }).eq('id', requestId);
-                if (error) throw error;
-            }
+            const { error } = await supabase.from('leave_requests').update({ status: newStatus }).eq('id', requestId);
+            if (error) throw error;
 
             if (newStatus === '복귀' || newStatus === '취소') {
-                const foundStudent = absentStudentsList.find(s => s.leaveRequest?.id === requestId || `synthetic-${s.roomNum}-${s.position}` === requestId);
+                const foundStudent = absentStudentsList.find(s => s.leaveRequest?.id === requestId);
                 if (foundStudent) {
                     setRoomStatus(prev => {
                         const room = prev[foundStudent.roomNum];
@@ -1147,23 +1119,7 @@ export default function HeadcountPage() {
                                     </div>
                                 ) : (
                                     absentStudentsList.map(student => {
-                                        const cardReq: LeaveRequest = student.leaveRequest ? {
-                                            ...student.leaveRequest,
-                                            student_id: `${student.roomNum}호 ${student.name}`,
-                                            reason: student.leaveRequest.reason || '외박'
-                                        } : {
-                                            id: `synthetic-${student.roomNum}-${student.position}`,
-                                            student_id: `${student.roomNum}호 ${student.name}`,
-                                            leave_type: student.type,
-                                            period: '',
-                                            place: `${student.roomNum}호 (${student.position === 'left' ? 'L' : 'R'})`,
-                                            reason: student.type === '매주귀가' ? '주말/공휴일 정기 귀가' : '점호 미확인',
-                                            status: student.type === '매주귀가' ? '귀가' : '승인',
-                                            start_time: new Date().toISOString(),
-                                            end_time: new Date().toISOString(),
-                                            teacher_id: '',
-                                            created_at: new Date().toISOString()
-                                        };
+                                        const cardReq: LeaveRequest = student.leaveRequest;
 
                                         const cardBorder = activePopoverGrade === 1
                                             ? "border-yellow-400"
