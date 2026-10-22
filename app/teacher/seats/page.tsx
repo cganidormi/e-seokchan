@@ -48,6 +48,7 @@ interface TimetableEntry {
     description: string;
     start_time: string;
     end_time: string;
+    period_number?: number;
 }
 
 
@@ -914,9 +915,40 @@ export default function SeatManagementPage() {
                         leaveDate.getDate() === currentTime.getDate();
 
                     if (isSameDay) {
-                        const leaveDigits = (leave.period || "").match(/\d+/g) || [];
-                        const entryDigits = (entry.description || "").match(/\d+/g) || [];
-                        if (leaveDigits.length > 0 && entryDigits.length > 0 && leaveDigits.some((d: string) => (entryDigits as string[]).includes(d))) {
+                        const leavePeriods = (leave.period || "").split(',').map((s: string) => s.trim()).filter(Boolean);
+                        const entryDesc = entry.description || "";
+                        const entryDt = (entry.day_type || "").toLowerCase();
+                        const entryNum = (entry.period_number !== undefined && entry.period_number !== null)
+                            ? String(entry.period_number)
+                            : (entryDesc.match(/\d+/)?.[0] || "");
+
+                        const isMatch = leavePeriods.some((p: string) => {
+                            const pNum = p.match(/\d+/)?.[0];
+                            if (!pNum || pNum !== entryNum) return false;
+
+                            const isNight = p.includes('야간');
+                            const isDaytime = p.includes('주간');
+                            const isMorning = p.includes('오전');
+                            const isAfternoon = p.includes('오후');
+
+                            if (isNight) {
+                                return entryDesc.includes('야간') || entryDt.includes('night');
+                            }
+                            if (isDaytime) {
+                                return entryDesc.includes('주간') || (entryDt.includes('day') && !entryDt.includes('night'));
+                            }
+                            if (isMorning) {
+                                return entryDesc.includes('오전') || entryDt.includes('morning');
+                            }
+                            if (isAfternoon) {
+                                return entryDesc.includes('오후') || (entryDt.includes('weekend day') && !entryDt.includes('morning') && !entryDt.includes('night'));
+                            }
+
+                            // Fallback if no prefix in period text
+                            return true;
+                        });
+
+                        if (isMatch) {
                             return { status: isPast ? 'past' : 'active', type: leave.leave_type };
                         }
                     }

@@ -318,11 +318,17 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         });
 
                         if (entry && entry.end_time) {
-                            const [hours, minutes] = entry.end_time.split(':').map(Number);
-                            const periodEndTime = new Date(now);
-                            periodEndTime.setHours(hours, minutes, 59, 999);
+                            const parts = entry.end_time.split(':');
+                            const eh = String(parts[0]).padStart(2, '0');
+                            const em = String(parts[1] || '00').padStart(2, '0');
+                            const nowKst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+                            const ny = nowKst.getUTCFullYear();
+                            const nm = String(nowKst.getUTCMonth() + 1).padStart(2, '0');
+                            const nd = String(nowKst.getUTCDate()).padStart(2, '0');
+                            const todayStr = `${ny}-${nm}-${nd}`;
+                            const periodEndTime = new Date(`${todayStr}T${eh}:${em}:59.999+09:00`);
 
-                            if (now > periodEndTime) {
+                            if (new Date() > periodEndTime) {
                                 toast.error(`이미 지난 시간(${p})은 신청할 수 없습니다. (${entry.end_time} 종료)`);
                                 return;
                             }
@@ -449,17 +455,18 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
             if (leaveType === '컴이석' || leaveType === '이석') {
                 const { data: timetable } = await supabase.from('timetable_entries').select('*');
 
-                // Default to whole day if no timetable match found (fallback)
-                let minStartTime = new Date(targetDate);
-                minStartTime.setHours(0, 0, 0, 0);
-                let maxEndTime = new Date(targetDate);
-                maxEndTime.setHours(23, 59, 59, 999);
+                const tYear = targetDate.getFullYear();
+                const tMonth = String(targetDate.getMonth() + 1).padStart(2, '0');
+                const tDay = String(targetDate.getDate()).padStart(2, '0');
+                const targetDateStr = `${tYear}-${tMonth}-${tDay}`;
+
+                // Default to whole day in KST (UTC+9) if no timetable match found (fallback)
+                let minStartTime = new Date(`${targetDateStr}T00:00:00+09:00`);
+                let maxEndTime = new Date(new Date(`${targetDateStr}T23:59:59+09:00`).getTime() + 999);
 
                 if (timetable && periods.length > 0) {
-                    let earliestDate = new Date(targetDate);
-                    earliestDate.setHours(23, 59, 59, 999); // start with late time
-                    let latestDate = new Date(targetDate);
-                    latestDate.setHours(0, 0, 0, 0); // start with early time
+                    let earliestDate = new Date(`${targetDateStr}T23:59:59+09:00`);
+                    let latestDate = new Date(`${targetDateStr}T00:00:00+09:00`);
 
                     let foundAny = false;
                     const isHoliday = isDateHoliday(targetDate);
@@ -487,15 +494,19 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                         if (entry) {
                             foundAny = true;
                             if (entry.start_time) {
-                                const [hours, minutes] = entry.start_time.split(':').map(Number);
-                                const d = new Date(targetDate);
-                                d.setHours(hours, minutes, 0, 0);
+                                const parts = entry.start_time.split(':');
+                                const sh = String(parts[0]).padStart(2, '0');
+                                const sm = String(parts[1] || '00').padStart(2, '0');
+                                const ss = String(parts[2] || '00').padStart(2, '0');
+                                const d = new Date(`${targetDateStr}T${sh}:${sm}:${ss}+09:00`);
                                 if (d < earliestDate) earliestDate = d;
                             }
                             if (entry.end_time) {
-                                const [hours, minutes] = entry.end_time.split(':').map(Number);
-                                const d = new Date(targetDate);
-                                d.setHours(hours, minutes, 59, 999);
+                                const parts = entry.end_time.split(':');
+                                const eh = String(parts[0]).padStart(2, '0');
+                                const em = String(parts[1] || '00').padStart(2, '0');
+                                const es = String(parts[2] || '00').padStart(2, '0');
+                                const d = new Date(new Date(`${targetDateStr}T${eh}:${em}:${es}+09:00`).getTime() + 59999);
                                 if (d > latestDate) latestDate = d;
                             }
                         } else {
@@ -510,12 +521,10 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                                 startH = 19; endH = 23;
                             }
 
-                            // Specific period adjustments could be added here if needed
-                            // For now, grouped by time of day to ensure separation
                             if (startH !== 0 || endH !== 23) {
                                 foundAny = true;
-                                const s = new Date(targetDate); s.setHours(startH, 0, 0, 0);
-                                const e = new Date(targetDate); e.setHours(endH, 59, 59, 999);
+                                const s = new Date(`${targetDateStr}T${String(startH).padStart(2, '0')}:00:00+09:00`);
+                                const e = new Date(new Date(`${targetDateStr}T${String(endH).padStart(2, '0')}:59:59+09:00`).getTime() + 999);
                                 if (s < earliestDate) earliestDate = s;
                                 if (e > latestDate) latestDate = e;
                             }
