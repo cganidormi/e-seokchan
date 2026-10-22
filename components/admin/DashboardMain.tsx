@@ -305,7 +305,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
             const targetYear = nextMonthDate.getFullYear();
             const targetMonth = nextMonthDate.getMonth() + 1;
 
-            // 점호 기준 시간대 (18:00 ~ 익일 09:00)
+            // 점호 기준 시간대 (18:00 ~ 익일 09:00) - 홍지관일지, 양현재일지, 환자, 시설물 모두 공통 통일 적용
             const { start: violationStart, end: violationEnd } = getRollcallRange(selectedDate);
 
             // Parallel Data Fetching
@@ -502,8 +502,12 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                 teacher_id: v.teacher_id
             }));
 
-            // 2) Yanghyeonjae violations (type === 'yanghyeonjae')
-            const yanghyeonjaeRaw = allChecks.filter((v: any) => v.type === 'yanghyeonjae');
+            // 2) Yanghyeonjae violations (type === 'yanghyeonjae' in rollcall window: 18:00~익일 09:00)
+            const yanghyeonjaeRaw = allChecks.filter((v: any) => 
+                v.type === 'yanghyeonjae' &&
+                new Date(v.checked_at) >= violationStart &&
+                new Date(v.checked_at) <= violationEnd
+            );
             const yanghyeonjaeList = yanghyeonjaeRaw.map((v: any) => ({
                 id: v.id,
                 student_id: v.student_id,
