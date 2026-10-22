@@ -10,8 +10,7 @@ import { Student } from '@/components/student/types';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
-import DashboardMain from '@/components/admin/DashboardMain';
-import { HiHome } from 'react-icons/hi';
+import { HiHome, HiChevronDoubleDown } from 'react-icons/hi';
 import SwipeWrapper from '@/components/teacher/SwipeWrapper';
 import SwipeNudgeDots from '@/components/teacher/SwipeNudgeDots';
 import { isWeeklyHomeTime } from '@/lib/weeklyReturn';
@@ -596,6 +595,17 @@ export default function HeadcountPage() {
         return counts;
     }, [roomStatus, currentFloor, gradeMap]);
 
+    // Floor absent student counts per grade for badges
+    const absentStats = useMemo(() => {
+        const a1 = Math.max(0, floorStats[1].total - floorStats[1].present);
+        const a2 = Math.max(0, floorStats[2].total - floorStats[2].present);
+        const a3 = Math.max(0, floorStats[3].total - floorStats[3].present);
+        const totalPresent = floorStats[1].present + floorStats[2].present + floorStats[3].present;
+        const totalCount = floorStats[1].total + floorStats[2].total + floorStats[3].total;
+        const aAll = Math.max(0, totalCount - totalPresent);
+        return { 1: a1, 2: a2, 3: a3, all: aAll, totalPresent, totalCount };
+    }, [floorStats]);
+
     // Student room search computation (이름 및 학번 검색)
     const searchResults = useMemo(() => {
         if (!searchQuery.trim()) return [];
@@ -918,72 +928,138 @@ export default function HeadcountPage() {
                 {/* Middle Row: Floor Grade Badges (말풍선 팝업 연동) */}
                 <div ref={badgesContainerRef} className="relative w-full">
                     <div className="flex items-center justify-between w-full gap-1 sm:gap-1.5 whitespace-nowrap">
+                        {/* 1학년 */}
                         <button
                             type="button"
                             onClick={() => handleBadgeClick(1)}
                             className={clsx(
-                                "flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
                                 activePopoverGrade === 1
                                     ? "bg-yellow-500/20 border-yellow-400 ring-2 ring-yellow-400/40"
                                     : "bg-gray-800/90 hover:bg-gray-700/90 border-yellow-500/30"
                             )}
                             title="1학년 외박자 확인"
                         >
-                            <span className="text-xs sm:text-sm font-extrabold text-yellow-400 leading-tight">1학년</span>
-                            <span className="text-sm sm:text-base md:text-lg font-black text-yellow-200 tabular-nums leading-tight mt-0.5">
-                                {floorStats[1].present}/{floorStats[1].total}명
-                            </span>
+                            <div className="relative flex items-center justify-center w-full">
+                                <span className="text-[11px] sm:text-xs font-extrabold text-yellow-400 leading-tight">1학년</span>
+                                {absentStats[1] > 0 && (
+                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/50 shadow-[0_0_8px_rgba(250,204,21,0.35)] leading-none">
+                                        외박 {absentStats[1]}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="relative flex items-center justify-center w-full mt-0.5">
+                                <div className="relative inline-flex items-center justify-center">
+                                    <span className="text-xs sm:text-base font-black text-yellow-200 tabular-nums leading-tight">
+                                        {floorStats[1].present}/{floorStats[1].total}명
+                                    </span>
+                                    <HiChevronDoubleDown className={clsx(
+                                        "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-yellow-400/80 transition-transform duration-200 shrink-0",
+                                        activePopoverGrade === 1 ? "rotate-180 text-yellow-400" : "group-hover:text-yellow-400"
+                                    )} />
+                                </div>
+                            </div>
                         </button>
 
+                        {/* 2학년 */}
                         <button
                             type="button"
                             onClick={() => handleBadgeClick(2)}
                             className={clsx(
-                                "flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
                                 activePopoverGrade === 2
                                     ? "bg-sky-500/20 border-sky-400 ring-2 ring-sky-400/40"
                                     : "bg-gray-800/90 hover:bg-gray-700/90 border-sky-500/30"
                             )}
                             title="2학년 외박자 확인"
                         >
-                            <span className="text-xs sm:text-sm font-extrabold text-sky-400 leading-tight">2학년</span>
-                            <span className="text-sm sm:text-base md:text-lg font-black text-sky-200 tabular-nums leading-tight mt-0.5">
-                                {floorStats[2].present}/{floorStats[2].total}명
-                            </span>
+                            <div className="relative flex items-center justify-center w-full">
+                                <span className="text-[11px] sm:text-xs font-extrabold text-sky-400 leading-tight">2학년</span>
+                                {absentStats[2] > 0 && (
+                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-sky-400/20 text-sky-300 border border-sky-400/50 shadow-[0_0_8px_rgba(56,189,248,0.35)] leading-none">
+                                        외박 {absentStats[2]}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="relative flex items-center justify-center w-full mt-0.5">
+                                <div className="relative inline-flex items-center justify-center">
+                                    <span className="text-xs sm:text-base font-black text-sky-200 tabular-nums leading-tight">
+                                        {floorStats[2].present}/{floorStats[2].total}명
+                                    </span>
+                                    <HiChevronDoubleDown className={clsx(
+                                        "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-sky-400/80 transition-transform duration-200 shrink-0",
+                                        activePopoverGrade === 2 ? "rotate-180 text-sky-400" : "group-hover:text-sky-400"
+                                    )} />
+                                </div>
+                            </div>
                         </button>
 
+                        {/* 3학년 */}
                         <button
                             type="button"
                             onClick={() => handleBadgeClick(3)}
                             className={clsx(
-                                "flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
                                 activePopoverGrade === 3
                                     ? "bg-red-500/20 border-red-400 ring-2 ring-red-400/40"
                                     : "bg-gray-800/90 hover:bg-gray-700/90 border-red-500/30"
                             )}
                             title="3학년 외박자 확인"
                         >
-                            <span className="text-xs sm:text-sm font-extrabold text-red-400 leading-tight">3학년</span>
-                            <span className="text-sm sm:text-base md:text-lg font-black text-red-200 tabular-nums leading-tight mt-0.5">
-                                {floorStats[3].present}/{floorStats[3].total}명
-                            </span>
+                            <div className="relative flex items-center justify-center w-full">
+                                <span className="text-[11px] sm:text-xs font-extrabold text-red-400 leading-tight">3학년</span>
+                                {absentStats[3] > 0 && (
+                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-400/20 text-red-300 border border-red-400/50 shadow-[0_0_8px_rgba(248,113,113,0.35)] leading-none">
+                                        외박 {absentStats[3]}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="relative flex items-center justify-center w-full mt-0.5">
+                                <div className="relative inline-flex items-center justify-center">
+                                    <span className="text-xs sm:text-base font-black text-red-200 tabular-nums leading-tight">
+                                        {floorStats[3].present}/{floorStats[3].total}명
+                                    </span>
+                                    <HiChevronDoubleDown className={clsx(
+                                        "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-red-400/80 transition-transform duration-200 shrink-0",
+                                        activePopoverGrade === 3 ? "rotate-180 text-red-400" : "group-hover:text-red-400"
+                                    )} />
+                                </div>
+                            </div>
                         </button>
 
+                        {/* 층 합계 */}
                         <button
                             type="button"
                             onClick={() => handleBadgeClick('all')}
                             className={clsx(
-                                "flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
                                 activePopoverGrade === 'all'
                                     ? "bg-white/20 border-white ring-2 ring-white/40"
                                     : "bg-gray-800/90 hover:bg-gray-700/90 border-gray-600"
                             )}
                             title={`${currentFloor}층 전체 외박자 확인`}
                         >
-                            <span className="text-xs sm:text-sm font-extrabold text-gray-300 leading-tight">{currentFloor}층 합계</span>
-                            <span className="text-sm sm:text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
-                                {floorStats[1].present + floorStats[2].present + floorStats[3].present}/{floorStats[1].total + floorStats[2].total + floorStats[3].total}명
-                            </span>
+                            <div className="relative flex items-center justify-center w-full">
+                                <span className="text-[11px] sm:text-xs font-extrabold text-gray-300 leading-tight">
+                                    <span className="hidden xs:inline">{currentFloor}층 </span>합계
+                                </span>
+                                {absentStats.all > 0 && (
+                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white border border-white/50 shadow-[0_0_8px_rgba(255,255,255,0.35)] leading-none">
+                                        외박 {absentStats.all}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="relative flex items-center justify-center w-full mt-0.5">
+                                <div className="relative inline-flex items-center justify-center">
+                                    <span className="text-xs sm:text-base font-black text-white tabular-nums leading-tight">
+                                        {absentStats.totalPresent}/{absentStats.totalCount}명
+                                    </span>
+                                    <HiChevronDoubleDown className={clsx(
+                                        "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-gray-300 transition-transform duration-200 shrink-0",
+                                        activePopoverGrade === 'all' ? "rotate-180 text-white" : "group-hover:text-white"
+                                    )} />
+                                </div>
+                            </div>
                         </button>
                     </div>
 
