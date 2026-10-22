@@ -62,12 +62,12 @@ export default function SwipeWrapper({
     // 왼쪽으로 밀기 (스와이프 래프트 -> 다음 페이지)
     if ((swipeDistance < -SWIPE_THRESHOLD || velocity < -500) && nextPath) {
       x.set(0); // 즉시 원래 위치로 복귀시켜 전환 애니메이션과 충돌(화면 벌어짐) 방지
-      router.push(nextPath);
+      router.push(nextPath, { scroll: false });
     }
     // 오른쪽으로 밀기 (스와이프 라이트 -> 이전 페이지)
     else if ((swipeDistance > SWIPE_THRESHOLD || velocity > 500) && prevPath) {
       x.set(0);
-      router.push(prevPath);
+      router.push(prevPath, { scroll: false });
     } else {
       x.set(0);
     }

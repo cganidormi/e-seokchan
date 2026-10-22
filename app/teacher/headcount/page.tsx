@@ -250,17 +250,25 @@ export default function HeadcountPage() {
         // Fetch Data
         const fetchData = async () => {
             try {
-                // Fetch Students
-                const { data: studentsData, error } = await supabase
-                    .from('students')
-                    .select('*')
-                    .order('name');
+                // Fetch Students & Holidays & Teachers
+                const [
+                    { data: studentsData, error: studentsError },
+                    { data: holidayData },
+                    { data: teachersData }
+                ] = await Promise.all([
+                    supabase.from('students').select('*').order('name'),
+                    supabase.from('special_holidays').select('date'),
+                    supabase.from('teachers').select('id, name')
+                ]);
 
-                if (error) throw error;
+                if (studentsError) throw studentsError;
                 if (studentsData) setStudents(studentsData);
-
-                const { data: holidayData } = await supabase.from('special_holidays').select('date');
                 if (holidayData) setSpecialHolidays(holidayData.map((h: any) => h.date));
+
+                const teacherMap = new Map<string, string>();
+                teachersData?.forEach((t: any) => {
+                    if (t.id && t.name) teacherMap.set(t.id, t.name.trim());
+                });
 
                 // Initialize Status based on Rooms and Students
                 const initialStatus: any = {};
@@ -277,32 +285,55 @@ export default function HeadcountPage() {
 
                 // Fetch Leave Requests for overnight status
                 const now = new Date();
-                const nowStr = now.toISOString();
+                const startOfDay = new Date(now);
+                startOfDay.setHours(0, 0, 0, 0);
+                const endOfDay = new Date(now);
+                endOfDay.setHours(23, 59, 59, 999);
 
-                const { data: leaveData } = await supabase
+                const { data: leaveData, error: leaveError } = await supabase
                     .from('leave_requests')
-                    .select('id, student_id, status, leave_type, start_time, end_time, reason, place, period, created_at, teachers(name), leave_request_students(student_id)')
+                    .select('id, student_id, status, leave_type, start_time, end_time, reason, place, period, created_at, teacher_id, leave_request_students(student_id)')
                     .eq('status', '승인')
                     .in('leave_type', ['외박', '외출'])
-                    .lte('start_time', nowStr)
-                    .gte('end_time', nowStr);
+                    .lte('start_time', endOfDay.toISOString())
+                    .gte('end_time', startOfDay.toISOString());
+
+                if (leaveError) console.error('Error fetching leave requests:', leaveError);
 
                 // Leave Type Map: student_id -> '외출' | '외박'
                 const outStatus = new Map<string, '외출' | '외박'>();
                 const leavesMap = new Map<string, any>();
 
                 leaveData?.forEach(req => {
-                    // Normalize type (just in case)
                     const type = req.leave_type as '외출' | '외박';
+                    const start = new Date(req.start_time);
+                    const end = new Date(req.end_time);
+
+                    let isActive = false;
+                    if (type === '외박') {
+                        // 외박은 당일(startOfDay ~ endOfDay) 점호 기간에 걸쳐 있는 경우 모두 활성화
+                        isActive = (start <= endOfDay && end >= startOfDay);
+                    } else {
+                        // 외출은 현재 시각 기준 외출 중인 경우
+                        isActive = (now >= start && now <= end);
+                    }
+
+                    if (!isActive) return;
+
+                    const enrichedReq = {
+                        ...req,
+                        teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' }
+                    };
+
                     // Add main applicant
                     if (req.student_id) {
                         outStatus.set(req.student_id, type);
-                        leavesMap.set(req.student_id, req);
+                        leavesMap.set(req.student_id, enrichedReq);
                     }
                     // Add co-applicants
                     req.leave_request_students?.forEach((s: any) => {
                         outStatus.set(s.student_id, type);
-                        leavesMap.set(s.student_id, req);
+                        leavesMap.set(s.student_id, enrichedReq);
                     });
                 });
                 setActiveLeavesMap(leavesMap);
@@ -836,93 +867,97 @@ export default function HeadcountPage() {
 
     return (
         <SwipeWrapper prevPath="/teacher/seats" topBottomOnly={true} topThresholdHeight={250}>
-            <div className="h-screen flex flex-col bg-black text-white font-sans selection:bg-orange-500 selection:text-white overflow-hidden overscroll-y-none">
+            <div className="h-screen flex flex-col bg-black text-white selection:bg-orange-500 selection:text-white overflow-hidden overscroll-y-none">
                 <Toaster toastOptions={{
                 className: 'bg-gray-800 text-white border border-white/10',
                 style: { background: '#1f2937', color: '#fff' }
             }} />
 
             {/* Header - Fixed & Fully Responsive */}
-            <header className="flex-none p-3 sm:p-4 pb-2 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 flex flex-col gap-2 shadow-xl">
+            <header className="flex-none p-3.5 sm:p-4 pb-3 sm:pb-3.5 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 flex flex-col gap-2.5 sm:gap-3 shadow-xl">
                 {/* Top Row: Navigation & Mode Toggle */}
-                <div className="flex justify-between items-center w-full gap-1 sm:gap-2">
-                    <div className="flex items-center gap-1 sm:gap-2 shrink-0 min-w-0">
-                        <button
-                            onClick={() => setIsTodayModalOpen(true)}
-                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1 px-1.5 sm:px-3 rounded-xl shadow-sm transition-all flex items-center gap-1 sm:gap-2 text-xs sm:text-sm whitespace-nowrap cursor-pointer shrink-0"
-                        >
-                            <div className="p-[1px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0">
-                                <div className="p-[1px] bg-white rounded-full">
-                                    <img src="/dorm.jpg" alt="Icon" className="w-3.5 h-3.5 sm:w-5 sm:h-5 rounded-full object-cover" />
-                                </div>
-                            </div>
-                            <div className="flex flex-col items-start leading-tight">
-                                <span>오늘의 홍지관</span>
-                                <span className="text-[8px] sm:text-[10px] font-normal text-gray-500 hidden xs:inline">(매주귀가자 명단)</span>
-                            </div>
-                        </button>
-                        <button
-                            onClick={() => setIsViolationModalOpen(true)}
-                            className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-1 px-2 sm:px-3 rounded-xl text-xs sm:text-sm whitespace-nowrap cursor-pointer border border-rose-500 shrink-0 shadow-sm"
-                        >
-                            위반
-                        </button>
+                <div className="relative flex justify-between items-center w-full gap-1 sm:gap-2 min-h-[36px]">
+                    {/* Left: Title */}
+                    <div className="flex items-center gap-1.5 shrink-0 min-w-0 z-10">
+                        <div className="w-[3px] h-5 bg-orange-500 rounded-full shrink-0"></div>
+                        <h1 className="text-base sm:text-xl font-black text-white whitespace-nowrap">
+                            호실배치도
+                        </h1>
                     </div>
 
-                    {/* Center: Home Button */}
-                    <div className="flex items-center justify-center">
+                    {/* Center: Navigation Cluster (Left: 오늘의 홍지관 | Center: 홈 | Right: 좌석배치도) */}
+                    <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-1 sm:gap-1.5 z-10 pointer-events-auto">
+                        {/* Left: 오늘의 홍지관 이동 버튼 */}
                         <button
-                            onClick={() => router.push('/teacher')}
-                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold px-4 sm:px-6 py-1.5 sm:py-2 rounded-xl shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
+                            onClick={() => router.push('/today')}
+                            className="h-9 sm:h-10 px-2 sm:px-2.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
+                            title="오늘의 홍지관으로 이동"
+                        >
+                            <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 shrink-0 shadow-xs">
+                                <div className="p-[1px] bg-white rounded-full">
+                                    <img src="/dorm.jpg" alt="오늘의 홍지관" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover" />
+                                </div>
+                            </div>
+                            <span className="hidden sm:inline text-xs sm:text-sm font-extrabold whitespace-nowrap">오늘의 홍지관</span>
+                        </button>
+
+                        {/* Center: 홈 버튼 */}
+                        <button
+                            onClick={() => router.push('/teacher', { scroll: false })}
+                            className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
                             title="교사 홈으로 이동"
                         >
                             <HiHome className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                         </button>
+
+                        {/* Right: 좌석배치도로 이동 버튼 */}
+                        <button
+                            onClick={() => router.push('/teacher/seats', { scroll: false })}
+                            className="h-9 sm:h-10 px-2 sm:px-2.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
+                            title="좌석배치도로 이동"
+                        >
+                            <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-teal-400 via-cyan-500 to-emerald-500 shrink-0 shadow-xs">
+                                <div className="p-[1px] bg-white rounded-full">
+                                    <img src="/study_room.png" alt="좌석배치도" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover" />
+                                </div>
+                            </div>
+                            <span className="hidden sm:inline text-xs sm:text-sm font-extrabold whitespace-nowrap">좌석배치도</span>
+                        </button>
                     </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        {/* Authentic iOS Segmented Control */}
-                        <div className="flex items-center bg-black/50 backdrop-blur-2xl rounded-full p-1 border border-white/20 shadow-[inset_0_1px_3px_rgba(0,0,0,0.6)]">
-                            <button
-                                onClick={() => setMode('check')}
-                                className={clsx(
-                                    "px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap flex items-center gap-1 cursor-pointer",
-                                    mode === 'check'
-                                        ? "bg-white text-gray-950 shadow-[0_2px_8px_rgba(0,0,0,0.4)] font-black scale-[1.02]"
-                                        : "text-gray-400 hover:text-white hover:bg-white/5"
-                                )}
-                            >
-                                📋 점호
-                            </button>
-                            {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자' || !teacherPosition) && (
+                    {/* Right: Room Management Toggle & Sub-Action (Reset on Left) */}
+                    {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자' || !teacherPosition) && (
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 z-10">
+                            {/* Reset Button Positioned to the Left (왼쪽으로 위치) */}
+                            {mode === 'assign' && (
                                 <button
-                                    onClick={() => setMode('assign')}
-                                    className={clsx(
-                                        "px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap flex items-center gap-1 cursor-pointer",
-                                        mode === 'assign'
-                                            ? "bg-white text-gray-950 shadow-[0_2px_8px_rgba(0,0,0,0.4)] font-black scale-[1.02]"
-                                            : "text-gray-400 hover:text-white hover:bg-white/5"
-                                    )}
+                                    onClick={handleResetAssignments}
+                                    className="px-2.5 py-1 text-red-300 hover:text-red-200 font-bold text-xs bg-red-950/80 backdrop-blur-xl rounded-lg border border-red-500/40 hover:bg-red-900/80 shadow-sm transition-all whitespace-nowrap cursor-pointer active:scale-95 flex items-center gap-1"
+                                    title="전체 호실 배정 초기화"
                                 >
-                                    ⚙️ 배정
+                                    <span>⚠️ 초기화</span>
                                 </button>
                             )}
-                        </div>
 
-                        {/* Action Buttons */}
-                        {mode === 'assign' && (
-                            <button
-                                onClick={handleResetAssignments}
-                                className="px-2.5 sm:px-3 py-1 sm:py-1.5 text-red-300 font-bold text-xs bg-red-950/50 backdrop-blur-xl rounded-full border border-red-500/40 hover:bg-red-900/50 shadow-sm transition-all whitespace-nowrap cursor-pointer active:scale-95"
-                            >
-                                ⚠️ 초기화
-                            </button>
-                        )}
-                    </div>
+                            <div className="flex items-center bg-gray-900/90 p-1 rounded-xl border border-gray-700/80 shadow-inner shrink-0">
+                                <button
+                                    onClick={() => setMode(mode === 'assign' ? 'check' : 'assign')}
+                                    className={clsx(
+                                        "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center gap-1.5",
+                                        mode === 'assign'
+                                            ? "bg-white text-gray-950 shadow-md font-black"
+                                            : "bg-gray-700 hover:bg-gray-600 text-white shadow-sm border border-gray-600/70"
+                                    )}
+                                >
+                                    <span>{mode === 'assign' ? '저장 & BACK' : '⚙️ 호실 관리'}</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Pagination Dots (스와이프 넛지) - 3번 화면용 */}
-                <div className="flex items-center justify-center w-full py-0.5">
+                <div className="flex items-center justify-center w-full">
                     <SwipeNudgeDots currentIndex={2} theme="dark" className="bg-white/10 py-1.5 px-4 rounded-full shadow-inner backdrop-blur-sm" />
                 </div>
 
@@ -1256,15 +1291,7 @@ export default function HeadcountPage() {
                 onDoubleClick={handleCanvasDoubleClick}
                 className="flex-1 relative overflow-hidden bg-[#121212] w-full h-full overscroll-y-none"
             >
-                {/* 호실배치도 상단 안내 문구 */}
-                <div className="absolute top-2.5 left-0 right-0 z-20 pointer-events-none flex flex-wrap items-center justify-center gap-1.5 px-3">
-                    <span className="bg-black/60 backdrop-blur-md border border-white/10 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs text-gray-300 shadow-md">
-                        호실 번호를 누르면 <span className="text-white font-bold">생활규정 위반 체크</span>
-                    </span>
-                    <span className="bg-black/60 backdrop-blur-md border border-white/10 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs text-gray-300 shadow-md">
-                        화면 빈 곳을 두 번 터치하면 <span className="text-white font-bold">줌인/줌아웃</span> 됩니다
-                    </span>
-                </div>
+
                 <TransformWrapper
                     ref={transformRef}
                     initialScale={0.3}
