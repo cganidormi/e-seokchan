@@ -18,6 +18,8 @@ interface LeaveProcessCardProps {
     teacherPosition?: string;
     showOpacityForPast?: boolean;
     hideActionButtons?: boolean;
+    className?: string;
+    borderColor?: string;
 }
 
 export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
@@ -32,7 +34,9 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
     currentTeacherId,
     teacherPosition,
     showOpacityForPast = true,
-    hideActionButtons = false
+    hideActionButtons = false,
+    className,
+    borderColor
 }) => {
     const statusConfig = ({
         '신청': { dot: 'bg-blue-500', text: 'text-blue-500', label: '대기' },
@@ -71,10 +75,12 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
 <div
     onClick={onToggleExpand}
     className={clsx(
-        "bg-[#1a1a1a] border border-white/5 shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
+        "bg-[#1a1a1a] border shadow-2xl transition-all cursor-pointer hover:bg-[#222] overflow-visible relative flex flex-col justify-center",
+        borderColor || "border-white/5",
         // 👇 기존 h-[80px] 또는 h-[96px]를 지우고 딱 이 줄로 바꾸세요!
         isExpanded ? "rounded-[2rem] p-5" : "rounded-[2rem] px-4 py-3 !h-[60px]",
-        viewMode === 'past' && showOpacityForPast && "opacity-60 grayscale-[40%] saturate-50 contrast-90 backdrop-blur-sm bg-[#121212]/90"
+        viewMode === 'past' && showOpacityForPast && "opacity-60 grayscale-[40%] saturate-50 contrast-90 backdrop-blur-sm bg-[#121212]/90",
+        className
     )}
 >
             <div className="flex items-center w-full gap-2">

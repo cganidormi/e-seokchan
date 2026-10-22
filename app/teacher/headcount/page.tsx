@@ -15,6 +15,8 @@ import { HiHome } from 'react-icons/hi';
 import SwipeWrapper from '@/components/teacher/SwipeWrapper';
 import SwipeNudgeDots from '@/components/teacher/SwipeNudgeDots';
 import { isWeeklyHomeTime } from '@/lib/weeklyReturn';
+import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
+import { LeaveRequest } from '@/components/teacher/types';
 
 // Room Layout Configuration (Row, Col) based on floor plan
 // Abstracted using last 2 digits (01-25)
@@ -134,6 +136,14 @@ export default function HeadcountPage() {
     const [isDisciplineModalOpen, setIsDisciplineModalOpen] = useState(false);
     const [disciplineRoomStudentIds, setDisciplineRoomStudentIds] = useState<string[]>([]);
     const [disciplineRoomNum, setDisciplineRoomNum] = useState<number | undefined>(undefined);
+
+    // Headcount Badges Speech Bubble Popover State
+    const [activePopoverGrade, setActivePopoverGrade] = useState<1 | 2 | 3 | 'all' | null>(null);
+    const [activeLeavesMap, setActiveLeavesMap] = useState<Map<string, any>>(new Map());
+    const [expandedCardId, setExpandedCardId] = useState<string | number | null>(null);
+    const [menuCardId, setMenuCardId] = useState<string | number | null>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
+    const badgesContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const rawLoginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id') || '';
@@ -271,7 +281,7 @@ export default function HeadcountPage() {
 
                 const { data: leaveData } = await supabase
                     .from('leave_requests')
-                    .select('student_id, status, leave_type, start_time, end_time, leave_request_students(student_id)')
+                    .select('id, student_id, status, leave_type, start_time, end_time, reason, place, period, created_at, teachers(name), leave_request_students(student_id)')
                     .eq('status', '승인')
                     .in('leave_type', ['외박', '외출'])
                     .lte('start_time', nowStr)
@@ -279,17 +289,23 @@ export default function HeadcountPage() {
 
                 // Leave Type Map: student_id -> '외출' | '외박'
                 const outStatus = new Map<string, '외출' | '외박'>();
+                const leavesMap = new Map<string, any>();
 
                 leaveData?.forEach(req => {
                     // Normalize type (just in case)
                     const type = req.leave_type as '외출' | '외박';
                     // Add main applicant
-                    if (req.student_id) outStatus.set(req.student_id, type);
+                    if (req.student_id) {
+                        outStatus.set(req.student_id, type);
+                        leavesMap.set(req.student_id, req);
+                    }
                     // Add co-applicants
                     req.leave_request_students?.forEach((s: any) => {
                         outStatus.set(s.student_id, type);
+                        leavesMap.set(s.student_id, req);
                     });
                 });
+                setActiveLeavesMap(leavesMap);
 
                 ALL_ROOMS.forEach((roomNum) => {
                     const roomStudents = studentsByRoom[roomNum] || [];
@@ -620,6 +636,135 @@ export default function HeadcountPage() {
         return results;
     }, [searchQuery, roomStatus]);
 
+    // Absent students list for currently selected popover grade and floor
+    const absentStudentsList = useMemo(() => {
+        if (activePopoverGrade === null) return [];
+        const layout = currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT));
+        const now = new Date();
+        const isWeekend = isWeeklyHomeTime(now, specialHolidays);
+        const list: {
+            student_id: string;
+            name: string;
+            grade: number;
+            roomNum: number;
+            position: 'left' | 'right';
+            type: '외박' | '외출' | '매주귀가' | '점호부재';
+            leaveRequest?: any;
+            isWeekend?: boolean;
+        }[] = [];
+
+        Object.keys(layout).forEach(key => {
+            const roomNum = currentFloor * 100 + Number(key);
+            const roomData = roomStatus[roomNum];
+            if (!roomData) return;
+
+            (['left', 'right'] as const).forEach(pos => {
+                const slot = roomData[pos];
+                if (!slot.name) return;
+
+                let grade = slot.student_id ? gradeMap.get(slot.student_id) : undefined;
+                if (!grade && slot.student_id && /^[1-3]/.test(slot.student_id)) {
+                    grade = parseInt(slot.student_id[0], 10);
+                }
+                if (!grade && /^[1-3]/.test(slot.name)) {
+                    grade = parseInt(slot.name[0], 10);
+                }
+
+                if (!grade) return;
+                if (activePopoverGrade !== 'all' && grade !== activePopoverGrade) return;
+
+                const isOut = slot.status === 'out' || (isWeekend && slot.isWeekend);
+                if (isOut) {
+                    let type: '외박' | '외출' | '매주귀가' | '점호부재' = '외박';
+                    if (slot.leaveType === '외박') type = '외박';
+                    else if (slot.leaveType === '외출') type = '외출';
+                    else if (isWeekend && slot.isWeekend) type = '매주귀가';
+                    else type = '점호부재';
+
+                    const leaveReq = slot.student_id ? activeLeavesMap.get(slot.student_id) : undefined;
+
+                    list.push({
+                        student_id: slot.student_id || '',
+                        name: slot.name,
+                        grade,
+                        roomNum,
+                        position: pos,
+                        type,
+                        leaveRequest: leaveReq,
+                        isWeekend: slot.isWeekend
+                    });
+                }
+            });
+        });
+
+        return list.sort((a, b) => a.roomNum - b.roomNum || (a.position === 'left' ? -1 : 1));
+    }, [activePopoverGrade, currentFloor, roomStatus, gradeMap, specialHolidays, activeLeavesMap]);
+
+    // Handle badge click (toggle popover)
+    const handleBadgeClick = (grade: 1 | 2 | 3 | 'all') => {
+        if (activePopoverGrade === grade) {
+            setActivePopoverGrade(null);
+        } else {
+            setActivePopoverGrade(grade);
+        }
+    };
+
+    // Close popover on outside click
+    useEffect(() => {
+        if (activePopoverGrade === null) return;
+        const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+            const target = e.target as Node;
+            if (popoverRef.current && popoverRef.current.contains(target)) return;
+            if (badgesContainerRef.current && badgesContainerRef.current.contains(target)) return;
+            setActivePopoverGrade(null);
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        document.addEventListener('touchstart', handleOutsideClick);
+        return () => {
+            document.removeEventListener('mousedown', handleOutsideClick);
+            document.removeEventListener('touchstart', handleOutsideClick);
+        };
+    }, [activePopoverGrade]);
+
+    // LeaveProcessCard status update handler
+    const handleUpdateStatus = async (requestId: string | number, newStatus: string) => {
+        try {
+            if (typeof requestId === 'number' || (typeof requestId === 'string' && !requestId.startsWith('synthetic-'))) {
+                const { error } = await supabase.from('leave_requests').update({ status: newStatus }).eq('id', requestId);
+                if (error) throw error;
+            }
+
+            if (newStatus === '복귀' || newStatus === '취소') {
+                const foundStudent = absentStudentsList.find(s => s.leaveRequest?.id === requestId || `synthetic-${s.roomNum}-${s.position}` === requestId);
+                if (foundStudent) {
+                    setRoomStatus(prev => {
+                        const room = prev[foundStudent.roomNum];
+                        if (!room) return prev;
+                        return {
+                            ...prev,
+                            [foundStudent.roomNum]: {
+                                ...room,
+                                [foundStudent.position]: {
+                                    ...room[foundStudent.position],
+                                    status: 'in',
+                                    leaveType: undefined
+                                }
+                            }
+                        };
+                    });
+                }
+            }
+            toast.success(`상태가 ${newStatus}(으)로 변경되었습니다.`);
+        } catch (e) {
+            console.error(e);
+            toast.error('상태 변경 실패');
+        }
+    };
+
+    const handleCancelLeave = async (requestId: string | number) => {
+        await handleUpdateStatus(requestId, '취소');
+    };
+
     // 빈 공간 더블 터치 / 더블 클릭 시 해당 위치 확대/축소 토글 기능
     const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
 
@@ -765,45 +910,188 @@ export default function HeadcountPage() {
                     </div>
                 </div>
 
-                {/* Middle Row: Floor Grade Badges (2-line layout) */}
-                <div className="flex items-center justify-between w-full gap-1 sm:gap-1.5 whitespace-nowrap">
-                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border border-yellow-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
-                        <span className="text-xs sm:text-sm font-extrabold text-yellow-400 leading-tight">1학년</span>
-                        <span className="text-sm sm:text-base md:text-lg font-black text-yellow-200 tabular-nums leading-tight mt-0.5">
-                            {floorStats[1].present}/{floorStats[1].total}명
-                        </span>
-                    </div>
-                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border border-sky-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
-                        <span className="text-xs sm:text-sm font-extrabold text-sky-400 leading-tight">2학년</span>
-                        <span className="text-sm sm:text-base md:text-lg font-black text-sky-200 tabular-nums leading-tight mt-0.5">
-                            {floorStats[2].present}/{floorStats[2].total}명
-                        </span>
-                    </div>
-                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border border-red-500/30 flex-1 min-w-0 whitespace-nowrap shadow-sm">
-                        <span className="text-xs sm:text-sm font-extrabold text-red-400 leading-tight">3학년</span>
-                        <span className="text-sm sm:text-base md:text-lg font-black text-red-200 tabular-nums leading-tight mt-0.5">
-                            {floorStats[3].present}/{floorStats[3].total}명
-                        </span>
-                    </div>
-                    <div className="flex flex-col items-center justify-center bg-gray-800/90 rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border border-gray-600 flex-1 min-w-0 whitespace-nowrap shadow-sm">
-                        <span className="text-xs sm:text-sm font-extrabold text-gray-300 leading-tight">{currentFloor}층 합계</span>
-                        <span className="text-sm sm:text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
-                            {floorStats[1].present + floorStats[2].present + floorStats[3].present}/{floorStats[1].total + floorStats[2].total + floorStats[3].total}명
-                        </span>
-                    </div>
+                {/* Pagination Dots (스와이프 넛지) - 3번 화면용 */}
+                <div className="flex items-center justify-center w-full py-0.5">
+                    <SwipeNudgeDots currentIndex={2} theme="dark" className="bg-white/10 py-1.5 px-4 rounded-full shadow-inner backdrop-blur-sm" />
                 </div>
 
-                {/* Pagination Dots (스와이프 넛지) & 기능 안내 뱃지 - 3번 화면용 */}
-                <div className="flex flex-col items-center justify-center w-full pt-1 pb-0.5 gap-1.5">
-                    <SwipeNudgeDots currentIndex={2} theme="dark" className="bg-white/10 py-1.5 px-4 rounded-full shadow-inner backdrop-blur-sm" />
-                    <div className="flex flex-col items-center justify-center gap-1 text-[11px] sm:text-xs tracking-tight text-gray-300 w-full">
-                        <span className="bg-white/5 border border-white/10 px-3 py-0.5 rounded-full shadow-xs text-center">
-                            호실 번호를 누르면 <span className="text-white font-bold">생활규정 위반 체크</span>
-                        </span>
-                        <span className="bg-white/5 border border-white/10 px-3 py-0.5 rounded-full shadow-xs text-center">
-                            화면 빈 곳을 두 번 터치하면 <span className="text-white font-bold">줌인/줌아웃</span> 됩니다
-                        </span>
+                {/* Middle Row: Floor Grade Badges (말풍선 팝업 연동) */}
+                <div ref={badgesContainerRef} className="relative w-full">
+                    <div className="flex items-center justify-between w-full gap-1 sm:gap-1.5 whitespace-nowrap">
+                        <button
+                            type="button"
+                            onClick={() => handleBadgeClick(1)}
+                            className={clsx(
+                                "flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                activePopoverGrade === 1
+                                    ? "bg-yellow-500/20 border-yellow-400 ring-2 ring-yellow-400/40"
+                                    : "bg-gray-800/90 hover:bg-gray-700/90 border-yellow-500/30"
+                            )}
+                            title="1학년 외박자 확인"
+                        >
+                            <span className="text-xs sm:text-sm font-extrabold text-yellow-400 leading-tight">1학년</span>
+                            <span className="text-sm sm:text-base md:text-lg font-black text-yellow-200 tabular-nums leading-tight mt-0.5">
+                                {floorStats[1].present}/{floorStats[1].total}명
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleBadgeClick(2)}
+                            className={clsx(
+                                "flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                activePopoverGrade === 2
+                                    ? "bg-sky-500/20 border-sky-400 ring-2 ring-sky-400/40"
+                                    : "bg-gray-800/90 hover:bg-gray-700/90 border-sky-500/30"
+                            )}
+                            title="2학년 외박자 확인"
+                        >
+                            <span className="text-xs sm:text-sm font-extrabold text-sky-400 leading-tight">2학년</span>
+                            <span className="text-sm sm:text-base md:text-lg font-black text-sky-200 tabular-nums leading-tight mt-0.5">
+                                {floorStats[2].present}/{floorStats[2].total}명
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleBadgeClick(3)}
+                            className={clsx(
+                                "flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                activePopoverGrade === 3
+                                    ? "bg-red-500/20 border-red-400 ring-2 ring-red-400/40"
+                                    : "bg-gray-800/90 hover:bg-gray-700/90 border-red-500/30"
+                            )}
+                            title="3학년 외박자 확인"
+                        >
+                            <span className="text-xs sm:text-sm font-extrabold text-red-400 leading-tight">3학년</span>
+                            <span className="text-sm sm:text-base md:text-lg font-black text-red-200 tabular-nums leading-tight mt-0.5">
+                                {floorStats[3].present}/{floorStats[3].total}명
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleBadgeClick('all')}
+                            className={clsx(
+                                "flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                activePopoverGrade === 'all'
+                                    ? "bg-white/20 border-white ring-2 ring-white/40"
+                                    : "bg-gray-800/90 hover:bg-gray-700/90 border-gray-600"
+                            )}
+                            title={`${currentFloor}층 전체 외박자 확인`}
+                        >
+                            <span className="text-xs sm:text-sm font-extrabold text-gray-300 leading-tight">{currentFloor}층 합계</span>
+                            <span className="text-sm sm:text-base md:text-lg font-black text-white tabular-nums leading-tight mt-0.5">
+                                {floorStats[1].present + floorStats[2].present + floorStats[3].present}/{floorStats[1].total + floorStats[2].total + floorStats[3].total}명
+                            </span>
+                        </button>
                     </div>
+
+                    {/* Speech Bubble Popover (말풍선 꼬리가 달린 순수 타원형 외박자 카드) */}
+                    {activePopoverGrade !== null && (
+                        <div
+                            ref={popoverRef}
+                            className="absolute top-[calc(100%+10px)] left-0 right-0 z-50 animate-in fade-in slide-in-from-top-1 duration-150 filter drop-shadow-[0_20px_35px_rgba(0,0,0,0.85)]"
+                        >
+                            {/* Speech Bubble Arrow Tail (해당 블럭을 가리키는 말풍선 꼬리 - 1px 블럭 라인과 일치) */}
+                            <div
+                                className="absolute -top-[8px] -translate-x-1/2 pointer-events-none z-30 transition-all duration-200"
+                                style={{
+                                    left: activePopoverGrade === 1 ? '12.5%' :
+                                          activePopoverGrade === 2 ? '37.5%' :
+                                          activePopoverGrade === 3 ? '62.5%' : '87.5%'
+                                }}
+                            >
+                                <svg width="20" height="9" viewBox="0 0 20 9" fill="none" xmlns="http://www.w3.org/2000/svg" className="overflow-visible">
+                                    <polygon points="1,9 10,1 19,9" fill="#1a1a1a" />
+                                    <path
+                                        d="M1 9L10 1L19 9"
+                                        fill="none"
+                                        stroke={
+                                            activePopoverGrade === 1 ? "#facc15" :
+                                            activePopoverGrade === 2 ? "#38bdf8" :
+                                            activePopoverGrade === 3 ? "#f87171" : "#ffffff"
+                                        }
+                                        strokeWidth="1"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </div>
+
+                            {/* 타원형 카드 스크롤 목록 */}
+                            <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+                                {absentStudentsList.length === 0 ? (
+                                    <div
+                                        className={clsx(
+                                            "bg-[#1a1a1a] border shadow-2xl rounded-[2rem] px-5 py-3 !h-[60px] flex items-center justify-center text-xs font-bold",
+                                            activePopoverGrade === 1 ? "border-yellow-400 text-yellow-200" :
+                                            activePopoverGrade === 2 ? "border-sky-400 text-sky-200" :
+                                            activePopoverGrade === 3 ? "border-red-400 text-red-200" :
+                                            "border-white text-gray-300"
+                                        )}
+                                    >
+                                        외박자가 없습니다.
+                                    </div>
+                                ) : (
+                                    absentStudentsList.map(student => {
+                                        const cardReq: LeaveRequest = student.leaveRequest ? {
+                                            ...student.leaveRequest,
+                                            student_id: `${student.roomNum}호 ${student.name}`,
+                                            reason: student.leaveRequest.reason || '외박'
+                                        } : {
+                                            id: `synthetic-${student.roomNum}-${student.position}`,
+                                            student_id: `${student.roomNum}호 ${student.name}`,
+                                            leave_type: student.type,
+                                            period: '',
+                                            place: `${student.roomNum}호 (${student.position === 'left' ? 'L' : 'R'})`,
+                                            reason: student.type === '매주귀가' ? '주말/공휴일 정기 귀가' : '점호 미확인',
+                                            status: student.type === '매주귀가' ? '귀가' : '승인',
+                                            start_time: new Date().toISOString(),
+                                            end_time: new Date().toISOString(),
+                                            teacher_id: '',
+                                            created_at: new Date().toISOString()
+                                        };
+
+                                        const cardBorder = activePopoverGrade === 1
+                                            ? "border-yellow-400"
+                                            : activePopoverGrade === 2
+                                            ? "border-sky-400"
+                                            : activePopoverGrade === 3
+                                            ? "border-red-400"
+                                            : student.grade === 1
+                                            ? "border-yellow-400"
+                                            : student.grade === 2
+                                            ? "border-sky-400"
+                                            : student.grade === 3
+                                            ? "border-red-400"
+                                            : "border-white";
+
+                                        return (
+                                            <LeaveProcessCard
+                                                key={cardReq.id}
+                                                req={cardReq}
+                                                isExpanded={expandedCardId === cardReq.id}
+                                                onToggleExpand={() => setExpandedCardId(expandedCardId === cardReq.id ? null : cardReq.id)}
+                                                isMenuOpen={menuCardId === cardReq.id}
+                                                onToggleMenu={(e) => {
+                                                    e.stopPropagation();
+                                                    setMenuCardId(menuCardId === cardReq.id ? null : cardReq.id);
+                                                }}
+                                                onUpdateStatus={handleUpdateStatus}
+                                                onCancel={handleCancelLeave}
+                                                viewMode="active"
+                                                currentTeacherId={typeof window !== 'undefined' ? (localStorage.getItem('dormichan_login_id') || '') : ''}
+                                                teacherPosition={teacherPosition}
+                                                hideActionButtons={!student.leaveRequest}
+                                                borderColor={cardBorder}
+                                            />
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Bottom Row: Student Search (Left) & Floor Selector Tabs (Right) */}
@@ -891,6 +1179,15 @@ export default function HeadcountPage() {
                 onDoubleClick={handleCanvasDoubleClick}
                 className="flex-1 relative overflow-hidden bg-[#121212] w-full h-full overscroll-y-none"
             >
+                {/* 호실배치도 상단 안내 문구 */}
+                <div className="absolute top-2.5 left-0 right-0 z-20 pointer-events-none flex flex-wrap items-center justify-center gap-1.5 px-3">
+                    <span className="bg-black/60 backdrop-blur-md border border-white/10 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs text-gray-300 shadow-md">
+                        호실 번호를 누르면 <span className="text-white font-bold">생활규정 위반 체크</span>
+                    </span>
+                    <span className="bg-black/60 backdrop-blur-md border border-white/10 px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs text-gray-300 shadow-md">
+                        화면 빈 곳을 두 번 터치하면 <span className="text-white font-bold">줌인/줌아웃</span> 됩니다
+                    </span>
+                </div>
                 <TransformWrapper
                     ref={transformRef}
                     initialScale={0.3}
