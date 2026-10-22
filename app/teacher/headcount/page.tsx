@@ -16,6 +16,7 @@ import SwipeNudgeDots from '@/components/teacher/SwipeNudgeDots';
 import { isWeeklyHomeTime } from '@/lib/weeklyReturn';
 import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
 import { LeaveRequest } from '@/components/teacher/types';
+import DashboardMain from '@/components/admin/DashboardMain';
 
 // Room Layout Configuration (Row, Col) based on floor plan
 // Abstracted using last 2 digits (01-25)
