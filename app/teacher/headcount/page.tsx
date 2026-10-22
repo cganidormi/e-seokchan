@@ -941,17 +941,17 @@ export default function HeadcountPage() {
                             type="button"
                             onClick={() => handleBadgeClick(1)}
                             className={clsx(
-                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95 h-[52px] sm:h-[58px]",
+                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
                                 activePopoverGrade === 1
                                     ? "bg-yellow-500/20 border-yellow-400 ring-2 ring-yellow-400/40"
                                     : "bg-gray-800/90 hover:bg-gray-700/90 border-yellow-500/30"
                             )}
                             title="1학년 외박자 확인"
                         >
-                            <div className="relative flex items-center justify-center gap-1 w-full h-4 sm:h-4.5">
+                            <div className="relative flex items-center justify-center w-full">
                                 <span className="text-[11px] sm:text-xs font-extrabold text-yellow-400 leading-tight">1학년</span>
                                 {absentStats[1] > 0 && (
-                                    <span className="min-w-[14px] h-[14px] sm:min-w-[16px] sm:h-[16px] px-0.5 rounded-full bg-red-500 text-white text-[9px] sm:text-[10px] font-black flex items-center justify-center leading-none shrink-0 pointer-events-none shadow-xs">
+                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/50 shadow-[0_0_8px_rgba(250,204,21,0.35)] leading-none">
                                         {absentStats[1]}
                                     </span>
                                 )}
@@ -974,17 +974,17 @@ export default function HeadcountPage() {
                             type="button"
                             onClick={() => handleBadgeClick(2)}
                             className={clsx(
-                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95 h-[52px] sm:h-[58px]",
+                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
                                 activePopoverGrade === 2
                                     ? "bg-sky-500/20 border-sky-400 ring-2 ring-sky-400/40"
                                     : "bg-gray-800/90 hover:bg-gray-700/90 border-sky-500/30"
                             )}
                             title="2학년 외박자 확인"
                         >
-                            <div className="relative flex items-center justify-center gap-1 w-full h-4 sm:h-4.5">
+                            <div className="relative flex items-center justify-center w-full">
                                 <span className="text-[11px] sm:text-xs font-extrabold text-sky-400 leading-tight">2학년</span>
                                 {absentStats[2] > 0 && (
-                                    <span className="min-w-[14px] h-[14px] sm:min-w-[16px] sm:h-[16px] px-0.5 rounded-full bg-red-500 text-white text-[9px] sm:text-[10px] font-black flex items-center justify-center leading-none shrink-0 pointer-events-none shadow-xs">
+                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-sky-400/20 text-sky-300 border border-sky-400/50 shadow-[0_0_8px_rgba(56,189,248,0.35)] leading-none">
                                         {absentStats[2]}
                                     </span>
                                 )}
@@ -1007,17 +1007,17 @@ export default function HeadcountPage() {
                             type="button"
                             onClick={() => handleBadgeClick(3)}
                             className={clsx(
-                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95 h-[52px] sm:h-[58px]",
+                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
                                 activePopoverGrade === 3
                                     ? "bg-red-500/20 border-red-400 ring-2 ring-red-400/40"
                                     : "bg-gray-800/90 hover:bg-gray-700/90 border-red-500/30"
                             )}
                             title="3학년 외박자 확인"
                         >
-                            <div className="relative flex items-center justify-center gap-1 w-full h-4 sm:h-4.5">
+                            <div className="relative flex items-center justify-center w-full">
                                 <span className="text-[11px] sm:text-xs font-extrabold text-red-400 leading-tight">3학년</span>
                                 {absentStats[3] > 0 && (
-                                    <span className="min-w-[14px] h-[14px] sm:min-w-[16px] sm:h-[16px] px-0.5 rounded-full bg-red-500 text-white text-[9px] sm:text-[10px] font-black flex items-center justify-center leading-none shrink-0 pointer-events-none shadow-xs">
+                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-400/20 text-red-300 border border-red-400/50 shadow-[0_0_8px_rgba(248,113,113,0.35)] leading-none">
                                         {absentStats[3]}
                                     </span>
                                 )}
@@ -1040,19 +1040,19 @@ export default function HeadcountPage() {
                             type="button"
                             onClick={() => handleBadgeClick('all')}
                             className={clsx(
-                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95 h-[52px] sm:h-[58px]",
+                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
                                 activePopoverGrade === 'all'
                                     ? "bg-white/20 border-white ring-2 ring-white/40"
                                     : "bg-gray-800/90 hover:bg-gray-700/90 border-gray-600"
                             )}
                             title={`${currentFloor}층 전체 외박자 확인`}
                         >
-                            <div className="relative flex items-center justify-center gap-1 w-full h-4 sm:h-4.5">
+                            <div className="relative flex items-center justify-center w-full">
                                 <span className="text-[11px] sm:text-xs font-extrabold text-gray-300 leading-tight">
                                     <span className="hidden xs:inline">{currentFloor}층 </span>합계
                                 </span>
                                 {absentStats.all > 0 && (
-                                    <span className="min-w-[14px] h-[14px] sm:min-w-[16px] sm:h-[16px] px-0.5 rounded-full bg-red-500 text-white text-[9px] sm:text-[10px] font-black flex items-center justify-center leading-none shrink-0 pointer-events-none shadow-xs">
+                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white border border-white/50 shadow-[0_0_8px_rgba(255,255,255,0.35)] leading-none">
                                         {absentStats.all}
                                     </span>
                                 )}
