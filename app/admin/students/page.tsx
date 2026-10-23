@@ -73,11 +73,12 @@ export default function StudentsPage() {
 
     const { data: monthlyData } = await supabase
       .from('monthly_return_applications')
-      .select('student_id')
+      .select('student_id, is_weekly')
       .eq('target_year', currentYear)
       .eq('target_month', currentMonth);
 
-    const monthlySet = new Set(monthlyData?.map((d: any) => d.student_id));
+    const monthlyMap = new Map<string, boolean>();
+    monthlyData?.forEach((d: any) => monthlyMap.set(d.student_id, d.is_weekly));
 
     if (error) {
       toast.error("학생 데이터 로드 실패");
@@ -93,12 +94,16 @@ export default function StudentsPage() {
             const found = data.find(
               (s) => s.grade === g && s.class === c && s.number === n
             );
+            const isWeekly = (found?.student_id && monthlyMap.has(found.student_id))
+              ? !!monthlyMap.get(found.student_id)
+              : (found?.weekend || false);
+
             fullList.push({
               grade: g,
               class: c,
               number: n,
               name: found?.name || "",
-              weekend: found?.weekend || (found?.student_id && monthlySet.has(found.student_id)) || false,
+              weekend: isWeekly,
               student_id: found?.student_id || null,
               parent_token: found?.parent_token || null,
             });
@@ -344,7 +349,8 @@ export default function StudentsPage() {
     const toAdd = studentsToUpsert.filter(s => s.weekend && s.student_id).map(s => ({
       student_id: s.student_id,
       target_year: currentYear,
-      target_month: currentMonth
+      target_month: currentMonth,
+      is_weekly: true
     }));
 
     // For deletion, we need student_ids of those unchecked

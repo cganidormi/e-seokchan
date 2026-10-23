@@ -245,25 +245,50 @@ export default function HeadcountPage() {
 
     const [students, setStudents] = useState<Student[]>([]);
     const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
+    const [weeklyReturnMap, setWeeklyReturnMap] = useState<Map<string, boolean>>(new Map());
+
+    const getEffectiveWeekend = (s?: Student | null, returnMapOverride?: Map<string, boolean>) => {
+        if (!s) return false;
+        const map = returnMapOverride || weeklyReturnMap;
+        if (map.has(s.student_id)) {
+            return !!map.get(s.student_id);
+        }
+        return !!s.weekend;
+    };
 
     useEffect(() => {
         // Fetch Data
         const fetchData = async () => {
             try {
-                // Fetch Students & Holidays & Teachers
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth() + 1;
+
+                // Fetch Students & Holidays & Teachers & Monthly Return Applications
                 const [
                     { data: studentsData, error: studentsError },
                     { data: holidayData },
-                    { data: teachersData }
+                    { data: teachersData },
+                    { data: monthlyReturnData }
                 ] = await Promise.all([
                     supabase.from('students').select('*').order('name'),
                     supabase.from('special_holidays').select('date'),
-                    supabase.from('teachers').select('id, name')
+                    supabase.from('teachers').select('id, name'),
+                    supabase.from('monthly_return_applications')
+                        .select('student_id, is_weekly')
+                        .eq('target_year', currentYear)
+                        .eq('target_month', currentMonth)
                 ]);
 
                 if (studentsError) throw studentsError;
                 if (studentsData) setStudents(studentsData);
                 if (holidayData) setSpecialHolidays(holidayData.map((h: any) => h.date));
+
+                const returnMap = new Map<string, boolean>();
+                monthlyReturnData?.forEach((m: any) => {
+                    returnMap.set(m.student_id, m.is_weekly);
+                });
+                setWeeklyReturnMap(returnMap);
 
                 const teacherMap = new Map<string, string>();
                 teachersData?.forEach((t: any) => {
@@ -284,7 +309,6 @@ export default function HeadcountPage() {
                 });
 
                 // Fetch Leave Requests for overnight status
-                const now = new Date();
                 const nowStr = now.toISOString();
 
                 const { data: leaveData, error: leaveError } = await supabase
@@ -345,14 +369,14 @@ export default function HeadcountPage() {
                             leaveType: leftStudent ? outStatus.get(leftStudent.student_id) : undefined,
                             name: leftStudent?.name || '',
                             student_id: leftStudent?.student_id || '',
-                            isWeekend: leftStudent?.weekend || false
+                            isWeekend: getEffectiveWeekend(leftStudent, returnMap)
                         },
                         right: {
                             status: rightStudent && outStatus.has(rightStudent.student_id) ? 'out' : 'in',
                             leaveType: rightStudent ? outStatus.get(rightStudent.student_id) : undefined,
                             name: rightStudent?.name || '',
                             student_id: rightStudent?.student_id || '',
-                            isWeekend: rightStudent?.weekend || false
+                            isWeekend: getEffectiveWeekend(rightStudent, returnMap)
                         }
                     };
                 });
@@ -476,7 +500,7 @@ export default function HeadcountPage() {
                             name: student?.name || '',
                             student_id: student?.student_id || '',
                             status: 'in',
-                            isWeekend: student?.weekend || false
+                            isWeekend: getEffectiveWeekend(student)
                         }
                     };
                 } else {

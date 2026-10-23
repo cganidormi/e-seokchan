@@ -59,6 +59,7 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
     const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
     const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
     const [weeklyReturnStudents, setWeeklyReturnStudents] = useState<Set<string>>(new Set());
+    const [weeklyReturnMap, setWeeklyReturnMap] = useState<Map<string, boolean>>(new Map());
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
@@ -105,13 +106,16 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
 
         const { data: returnData } = await supabase
             .from('monthly_return_applications')
-            .select('student_id')
+            .select('student_id, is_weekly')
             .eq('target_year', currentYear)
             .eq('target_month', currentMonth);
 
         if (returnData) {
-            const ids = new Set(returnData.map(r => r.student_id));
+            const ids = new Set(returnData.filter(r => r.is_weekly).map(r => r.student_id));
             setWeeklyReturnStudents(ids);
+            const map = new Map<string, boolean>();
+            returnData.forEach(r => map.set(r.student_id, r.is_weekly));
+            setWeeklyReturnMap(map);
         }
     }
 
@@ -382,7 +386,11 @@ export function StudyRoomMonitor({ roomId }: StudyRoomMonitorProps) {
                                             let currentActiveLeave: any = null;
                                             let hasAwayConflict = false;
 
-                                            const isWeeklyHome = (assignment?.student?.weekend || weeklyReturnStudents.has(assignment?.student_id || '')) && isWeeklyHomeTime(currentTime, specialHolidays);
+                                            const studentId = assignment?.student_id || '';
+                                            const isWeeklyApplicant = weeklyReturnMap.has(studentId)
+                                                ? !!weeklyReturnMap.get(studentId)
+                                                : (assignment?.student?.weekend || weeklyReturnStudents.has(studentId));
+                                            const isWeeklyHome = isWeeklyApplicant && isWeeklyHomeTime(currentTime, specialHolidays);
 
                                             if (assignment && activeLeaves.length > 0) {
                                                 const awayReq = activeLeaves.find(req =>

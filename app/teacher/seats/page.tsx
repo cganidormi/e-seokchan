@@ -72,6 +72,7 @@ export default function SeatManagementPage() {
     const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
     const [specialHolidays, setSpecialHolidays] = useState<string[]>([]);
     const [weeklyReturnStudents, setWeeklyReturnStudents] = useState<Set<string>>(new Set());
+    const [weeklyReturnMap, setWeeklyReturnMap] = useState<Map<string, boolean>>(new Map());
     const [currentTime, setCurrentTime] = useState(new Date());
     const [teacherName, setTeacherName] = useState<string>(() => (typeof window !== 'undefined' ? (localStorage.getItem('dormichan_teacher_name') || '담당 교사') : '담당 교사'));
     const [teacherPosition, setTeacherPosition] = useState<string>(() => (typeof window !== 'undefined' ? (localStorage.getItem('dormichan_teacher_position') || '') : ''));
@@ -588,10 +589,9 @@ export default function SeatManagementPage() {
             supabase.from('timetable_entries').select('*'),
             supabase.from('special_holidays').select('date'),
             supabase.from('monthly_return_applications')
-                .select('student_id')
+                .select('student_id, is_weekly')
                 .eq('target_year', currentYear)
                 .eq('target_month', currentMonth)
-                .eq('is_weekly', true)
         ]);
 
         if (studentsData) setStudents(studentsData);
@@ -600,8 +600,11 @@ export default function SeatManagementPage() {
         if (timetableData) setTimetable(timetableData);
         if (holidayData) setSpecialHolidays(holidayData.map(h => h.date));
         if (returnData) {
-            const ids = new Set(returnData.map(r => r.student_id));
+            const ids = new Set(returnData.filter(r => r.is_weekly).map(r => r.student_id));
             setWeeklyReturnStudents(ids);
+            const map = new Map<string, boolean>();
+            returnData.forEach(r => map.set(r.student_id, r.is_weekly));
+            setWeeklyReturnMap(map);
         }
     }
 
@@ -1324,7 +1327,11 @@ export default function SeatManagementPage() {
                                     let hasAwayConflict = false;
 
                                     // --- Weekly Home Goer Check ---
-                                    const isWeeklyHome = (assignment?.student?.weekend || weeklyReturnStudents.has(assignment?.student_id || '')) && isWeeklyHomeTime(currentTime, specialHolidays);
+                                    const studentId = assignment?.student_id || '';
+                                    const isWeeklyApplicant = weeklyReturnMap.has(studentId)
+                                        ? !!weeklyReturnMap.get(studentId)
+                                        : (assignment?.student?.weekend || weeklyReturnStudents.has(studentId));
+                                    const isWeeklyHome = isWeeklyApplicant && isWeeklyHomeTime(currentTime, specialHolidays);
 
                                     // Monitor Logic
                                     if (assignment && mode === 'monitor' && activeLeaves.length > 0) {

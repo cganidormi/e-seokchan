@@ -100,6 +100,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
     });
 
     const [weeklyReturnees, setWeeklyReturnees] = useState<WeeklyReturnee[]>([]);
+    const [currentMonthApps, setCurrentMonthApps] = useState<MonthlyApplication[]>([]);
     const [nextMonthApps, setNextMonthApps] = useState<MonthlyApplication[]>([]);
     const [viewMonthMode, setViewMonthMode] = useState<'current' | 'next'>('current');
     const [facilityRequests, setFacilityRequests] = useState<FacilityRequest[]>([]);
@@ -224,14 +225,36 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
         }
 
         try {
-            const { error } = await supabase
+            const now = new Date();
+            const curYear = now.getFullYear();
+            const curMonth = now.getMonth() + 1;
+
+            // 1. Update students table (baseline)
+            const { error: studentError } = await supabase
                 .from('students')
                 .update({ weekend: nextStatus })
                 .eq('student_id', studentId);
 
-            if (error) throw error;
+            if (studentError) throw studentError;
+
+            // 2. Sync monthly_return_applications for current month
+            const { error: monthlyError } = await supabase
+                .from('monthly_return_applications')
+                .upsert({
+                    student_id: studentId,
+                    target_year: curYear,
+                    target_month: curMonth,
+                    is_weekly: nextStatus
+                }, { onConflict: 'student_id, target_year, target_month' });
+
+            if (monthlyError) throw monthlyError;
 
             toast.success(`${student.name} 학생의 현재월 귀가 상태가 ${nextStatus ? '매주귀가' : '격주귀가'}로 변경되었습니다.`);
+
+            setCurrentMonthApps(prev => {
+                const filtered = prev.filter(a => a.student_id !== studentId);
+                return [...filtered, { student_id: studentId, target_year: curYear, target_month: curMonth, is_weekly: nextStatus }];
+            });
 
             setAllRawStudents(prev => prev.map(s => s.student_id === studentId ? { ...s, weekend: nextStatus } : s));
             setWeeklyReturnees(prev => {
@@ -319,6 +342,9 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
             // 점호 기준 시간대 (18:00 ~ 익일 09:00) - 홍지관일지, 양현재일지, 환자, 시설물 모두 공통 통일 적용
             const { start: violationStart, end: violationEnd } = getRollcallRange(selectedDate);
 
+            const curYear = now.getFullYear();
+            const curMonth = now.getMonth() + 1;
+
             // Parallel Data Fetching
             const [
                 studentsRes,
@@ -327,6 +353,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                 violationsRes,
                 roomsRes,
                 seatsRes,
+                currentMonthAppsRes,
                 nextMonthAppsRes,
                 holidaysRes
             ] = await Promise.all([
@@ -346,6 +373,10 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                 supabase.from("seat_assignments").select("room_number, student_id"),
                 supabase.from("monthly_return_applications")
                     .select("*")
+                    .eq("target_year", curYear)
+                    .eq("target_month", curMonth),
+                supabase.from("monthly_return_applications")
+                    .select("*")
                     .eq("target_year", targetYear)
                     .eq("target_month", targetMonth),
                 supabase.from("special_holidays").select("date")
@@ -363,7 +394,20 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
             ));
             const totalStudents = students.length;
 
-            const weekly = students.filter((s: any) => s.weekend).sort((a: any, b: any) => {
+            const curApps = currentMonthAppsRes.data || [];
+            setCurrentMonthApps(curApps);
+
+            const curAppsMap = new Map<string, boolean>();
+            curApps.forEach((a: any) => curAppsMap.set(a.student_id, a.is_weekly));
+
+            const isStudentWeeklyNow = (s: any) => {
+                if (curAppsMap.has(s.student_id)) {
+                    return !!curAppsMap.get(s.student_id);
+                }
+                return !!s.weekend;
+            };
+
+            const weekly = students.filter((s: any) => isStudentWeeklyNow(s)).sort((a: any, b: any) => {
                 if (a.grade !== b.grade) return a.grade - b.grade;
                 if (a.class !== b.class) return a.class - b.class;
                 return a.number - b.number;
@@ -1678,7 +1722,9 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                         <div className="p-4 max-h-[50vh] overflow-y-auto overflow-x-hidden">
                             {viewMonthMode === 'current' ? (() => {
                                 const currentList = allRawStudents.filter(s => {
-                                    if (showOnlyWeeklyCurrent && !s.weekend) return false;
+                                    const app = currentMonthApps.find(a => a.student_id === s.student_id);
+                                    const isWeekly = app !== undefined ? app.is_weekly : !!s.weekend;
+                                    if (showOnlyWeeklyCurrent && !isWeekly) return false;
                                     const query = currentMonthSearchQuery.trim().toLowerCase();
                                     if (query) {
                                         return s.name.toLowerCase().includes(query) || s.student_id.toLowerCase().includes(query);
@@ -1693,7 +1739,8 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                 return (
                                     <div className="flex flex-col gap-1.5">
                                         {currentList.map((s) => {
-                                            const isWeekly = !!s.weekend;
+                                            const app = currentMonthApps.find(a => a.student_id === s.student_id);
+                                            const isWeekly = app !== undefined ? app.is_weekly : !!s.weekend;
                                             return (
                                                 <div key={s.student_id} className={`flex items-center justify-between px-3 py-2 rounded-xl border transition ${
                                                     isWeekly ? 'bg-blue-50/50 border-blue-100' : 'bg-gray-50 border-gray-100'
