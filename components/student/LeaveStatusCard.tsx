@@ -146,11 +146,11 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         </div>
                     </div>
 
-                    {/* 2. 학생 정보 (컬럼 2: 좌측 정렬 & 밀착 65px) */}
+                    {/* 2. 학생 정보 (컬럼 2: 좌측 정렬 75px) */}
                     <div
                         className={clsx(
-                            "flex flex-col gap-0.5 shrink-0 justify-center items-start w-[65px]",
-                            canEdit && "cursor-pointer p-1 -m-1 rounded hover:bg-white/5 group relative"
+                            "flex flex-col gap-0.5 shrink-0 justify-center items-start w-[75px]",
+                            canEdit && "cursor-pointer rounded hover:bg-white/5 group relative"
                         )}
                         onClick={canEdit ? openManageModal : undefined}
                         title={canEdit ? "클릭하여 인원 수정" : ""}

@@ -151,8 +151,8 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                     </div>
                 </div>
 
-                {/* 2. 학생 정보 (컬럼 2: 좌측 정렬 & 밀착 65px) */}
-                <div className="flex flex-col gap-0.5 shrink-0 justify-center items-start w-[65px]">
+                {/* 2. 학생 정보 (컬럼 2: 좌측 정렬 75px) */}
+                <div className="flex flex-col gap-0.5 shrink-0 justify-center items-start w-[75px]">
                     <span className="text-gray-200 text-xs leading-tight whitespace-nowrap font-bold truncate max-w-full">
                         {req.student_id}
                     </span>
