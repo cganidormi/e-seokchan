@@ -578,20 +578,6 @@ export default function TeacherPage() {
           <MdLockReset className="w-6 h-6 text-gray-700" />
         </button>
 
-        <button
-          onClick={() => router.push('/today')}
-          className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1 px-3.5 rounded-xl shadow-sm transition-all flex items-center gap-2 text-sm cursor-pointer"
-        >
-          <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0">
-            <div className="p-[1.5px] bg-white rounded-full">
-              <img src="/dorm.jpg" alt="Icon" className="w-5 h-5 rounded-full object-cover" />
-            </div>
-          </div>
-          <div className="flex flex-col items-start leading-tight">
-            <span>오늘의 홍지관</span>
-            <span className="text-[10px] font-normal text-gray-500">(매주귀가자 명단)</span>
-          </div>
-        </button>
 
 
 

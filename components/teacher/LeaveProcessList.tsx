@@ -141,10 +141,11 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Seat Map Button */}
             <button
                 onClick={() => router.push('/teacher/seats', { scroll: false })}
-                className="w-full mb-2 py-3 rounded-xl text-sm font-medium transition-all text-white shadow-sm text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
+                className="w-full mb-3.5 py-3 rounded-xl text-sm font-bold transition-all text-white shadow-sm text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
                 style={{
-                    backgroundImage: `linear-gradient(to right, rgba(14, 134, 148, 0) 30%, rgba(14, 134, 148, 1) 100%), url('/study_room.png')`,
-                    backgroundPosition: 'center 70%'
+                    backgroundImage: `linear-gradient(to right, rgba(250, 204, 21, 0) 30%, rgba(250, 204, 21, 1) 100%), url('/study_room.png')`,
+                    backgroundPosition: 'center 70%',
+                    textShadow: '0 1px 3px rgba(0, 0, 0, 0.4)'
                 }}
             >
                 학습감독 자리배치도 →
@@ -153,7 +154,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Headcount Mapping Button */}
             <button
                 onClick={() => router.push('/teacher/headcount', { scroll: false })}
-                className="w-full mb-2 py-3 rounded-xl text-sm font-medium transition-all text-indigo-100 shadow-lg text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
+                className="w-full mb-3.5 py-3 rounded-xl text-sm font-medium transition-all text-indigo-100 shadow-lg text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
                 style={{
                     backgroundImage: `linear-gradient(to right, rgba(79, 70, 229, 0) 30%, rgba(79, 70, 229, 1) 100%), url('/kshs_building.png')`,
                     backgroundPosition: 'center 15%'
