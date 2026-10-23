@@ -642,8 +642,23 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     .eq('teacher_id', teacherId);
 
                 if (teacherSubs && teacherSubs.length > 0) {
+                    // 동일 기기(동일 endpoint) 중복 발송 방지
+                    const seenEndpoints = new Set<string>();
+                    const uniqueTeacherSubs = teacherSubs.filter(sub => {
+                        let ep = '';
+                        try {
+                            const parsed = typeof sub.subscription_json === 'string'
+                                ? JSON.parse(sub.subscription_json)
+                                : sub.subscription_json;
+                            ep = parsed?.endpoint || '';
+                        } catch (e) {}
+                        if (!ep || seenEndpoints.has(ep)) return false;
+                        seenEndpoints.add(ep);
+                        return true;
+                    });
+
                     const studentName = (students.find(s => s.student_id === studentId)?.name) || studentId;
-                    Promise.all(teacherSubs.map(sub =>
+                    Promise.all(uniqueTeacherSubs.map(sub =>
                         fetch('/api/web-push', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },

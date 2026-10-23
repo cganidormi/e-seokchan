@@ -430,9 +430,21 @@ export default function TeacherPage() {
           const studentMessage = `[${targetRequest.leave_type}] 신청이 '${newStatus}' 되었습니다.`;
           const parentMessage = `${studentName} 학생의 ${message}`;
 
-          // 4. Send Student Notifications
+          // 4. Send Student Notifications (동일 기기 중복 발송 방지)
           if (studentSubs && studentSubs.length > 0) {
-            studentSubs.forEach(sub =>
+            const seenStudentEps = new Set<string>();
+            const uniqueStudentSubs = studentSubs.filter(sub => {
+              let ep = '';
+              try {
+                const parsed = typeof sub.subscription_json === 'string' ? JSON.parse(sub.subscription_json) : sub.subscription_json;
+                ep = parsed?.endpoint || '';
+              } catch (e) {}
+              if (!ep || seenStudentEps.has(ep)) return false;
+              seenStudentEps.add(ep);
+              return true;
+            });
+
+            uniqueStudentSubs.forEach(sub =>
               fetch('/api/web-push', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -445,12 +457,23 @@ export default function TeacherPage() {
             );
           }
 
-          // 5. Send Parent Notifications
+          // 5. Send Parent Notifications (동일 기기 중복 발송 방지)
           if (parentSubs && parentSubs.length > 0) {
-            // Only send parent notifications for '외출' (Outing) or '외박' (Overnight)
             const allowedParentNotificationTypes = ['외출', '외박'];
             if (allowedParentNotificationTypes.includes(targetRequest.leave_type)) {
-              parentSubs.forEach(sub =>
+              const seenParentEps = new Set<string>();
+              const uniqueParentSubs = parentSubs.filter(sub => {
+                let ep = '';
+                try {
+                  const parsed = typeof sub.subscription_json === 'string' ? JSON.parse(sub.subscription_json) : sub.subscription_json;
+                  ep = parsed?.endpoint || '';
+                } catch (e) {}
+                if (!ep || seenParentEps.has(ep)) return false;
+                seenParentEps.add(ep);
+                return true;
+              });
+
+              uniqueParentSubs.forEach(sub =>
                 fetch('/api/web-push', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
