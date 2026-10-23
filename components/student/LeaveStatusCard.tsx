@@ -165,57 +165,116 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                         )}
                     </div>
 
-                    {/* 3. 날짜 & 교시 / 시간 (컬럼 3: 고정 너비 125px) */}
-                    <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-[125px]">
+                    {/* 3. 날짜 & 교시 / 시간 (컬럼 3: 컴팩트한 너비 82px) */}
+                    <div className="flex flex-col gap-1 shrink-0 text-white text-xs justify-center w-[82px]">
                         {(() => {
                             const start = new Date(req.start_time);
+                            const now = new Date();
                             const day = start.getDay();
                             const isWeekend = day === 0 || day === 6;
 
                             if (req.period) {
-                                const groups = isWeekend
-                                    ? [
+                                const activePeriods = req.period.split(',').map(p => p.trim());
+                                const isNight = activePeriods.some(p => p.includes('야간'));
+                                const isDay = activePeriods.some(p => p.includes('주간'));
+
+                                let targetGroups: { label: string; periods: string[] }[] = [];
+
+                                if (isWeekend) {
+                                    const weekendGroups = [
                                         { label: '오전', periods: ['1', '2', '3'] },
                                         { label: '오후', periods: ['4', '5', '6'] },
                                         { label: '야간', periods: ['1', '2', '3'] }
-                                    ]
-                                    : [
-                                        { label: '주간', periods: ['6', '7', '8', '9'] },
-                                        { label: '야간', periods: ['1', '2', '3', '4'] }
                                     ];
-
-                                const activePeriods = req.period.split(',').map(p => p.trim());
+                                    const matched = weekendGroups.filter(g =>
+                                        g.periods.some(p => activePeriods.includes(`${g.label}${p}교시`))
+                                    );
+                                    if (matched.length > 1) {
+                                        const hour = now.getHours();
+                                        if (hour < 12) targetGroups = [matched.find(g => g.label === '오전') || matched[0]];
+                                        else if (hour < 18) targetGroups = [matched.find(g => g.label === '오후') || matched[0]];
+                                        else targetGroups = [matched.find(g => g.label === '야간') || matched[matched.length - 1]];
+                                    } else if (matched.length === 1) {
+                                        targetGroups = [matched[0]];
+                                    } else {
+                                        targetGroups = [weekendGroups[0]];
+                                    }
+                                } else {
+                                    if (isNight && !isDay) {
+                                        targetGroups = [{ label: '야간', periods: ['1', '2', '3', '4'] }];
+                                    } else if (isDay && !isNight) {
+                                        targetGroups = [{ label: '주간', periods: ['6', '7', '8', '9'] }];
+                                    } else if (isDay && isNight) {
+                                        const hour = now.getHours();
+                                        if (hour >= 18) {
+                                            targetGroups = [{ label: '야간', periods: ['1', '2', '3', '4'] }];
+                                        } else {
+                                            targetGroups = [{ label: '주간', periods: ['6', '7', '8', '9'] }];
+                                        }
+                                    } else {
+                                        const hour = now.getHours();
+                                        if (hour >= 18) {
+                                            targetGroups = [{ label: '야간', periods: ['1', '2', '3', '4'] }];
+                                        } else {
+                                            targetGroups = [{ label: '주간', periods: ['6', '7', '8', '9'] }];
+                                        }
+                                    }
+                                }
 
                                 return (
-                                    <div className="flex flex-col gap-1.5 justify-center">
+                                    <div className="flex items-center gap-1 justify-start w-full">
+                                        <span className="text-[11px] text-gray-400 font-medium w-[30px] shrink-0 text-left whitespace-nowrap">
+                                            {`${start.getMonth() + 1}.${start.getDate()}`}
+                                        </span>
                                         <div className="flex flex-col gap-1 justify-center">
-                                            {groups.map((group, gIdx) => (
-                                                <div key={gIdx} className="flex gap-1 items-center">
-                                                    <span className="text-[11px] text-gray-400 font-medium w-[32px] shrink-0 text-left whitespace-nowrap">
-                                                        {gIdx === 0 ? `${start.getMonth() + 1}.${start.getDate()}` : ""}
-                                                    </span>
-                                                    <div className="flex gap-1 items-center">
-                                                        {group.periods.map(p => {
-                                                            const periodLabel = `${group.label}${p}교시`;
-                                                            const isActive = activePeriods.includes(periodLabel);
-
-                                                            return (
-                                                                <div
-                                                                    key={p}
-                                                                    className={clsx(
-                                                                        "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all",
-                                                                        isActive
-                                                                            ? "bg-yellow-400 text-black shadow-[0_0_8px_rgba(250,204,21,0.6)]"
-                                                                            : "bg-white/5 text-white/20 border border-white/5"
-                                                                    )}
-                                                                >
-                                                                    {p}
-                                                                </div>
-                                                            );
-                                                        })}
+                                            {targetGroups.map((group, gIdx) => {
+                                                const row1 = group.periods.slice(0, 2);
+                                                const row2 = group.periods.slice(2);
+                                                return (
+                                                    <div key={gIdx} className="flex flex-col gap-1">
+                                                        <div className="flex gap-1 items-center">
+                                                            {row1.map(p => {
+                                                                const periodLabel = `${group.label}${p}교시`;
+                                                                const isActive = activePeriods.includes(periodLabel) || activePeriods.includes(`${p}교시`);
+                                                                return (
+                                                                    <div
+                                                                        key={p}
+                                                                        className={clsx(
+                                                                            "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all",
+                                                                            isActive
+                                                                                ? "bg-yellow-400 text-black shadow-[0_0_8px_rgba(250,204,21,0.6)]"
+                                                                                : "bg-white/5 text-white/20 border border-white/5"
+                                                                        )}
+                                                                    >
+                                                                        {p}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        {row2.length > 0 && (
+                                                            <div className="flex gap-1 items-center">
+                                                                {row2.map(p => {
+                                                                    const periodLabel = `${group.label}${p}교시`;
+                                                                    const isActive = activePeriods.includes(periodLabel) || activePeriods.includes(`${p}교시`);
+                                                                    return (
+                                                                        <div
+                                                                            key={p}
+                                                                            className={clsx(
+                                                                                "w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black transition-all",
+                                                                                isActive
+                                                                                    ? "bg-yellow-400 text-black shadow-[0_0_8px_rgba(250,204,21,0.6)]"
+                                                                                    : "bg-white/5 text-white/20 border border-white/5"
+                                                                            )}
+                                                                        >
+                                                                            {p}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 );
@@ -233,14 +292,14 @@ export const LeaveStatusCard: React.FC<LeaveStatusCardProps> = ({
                                 };
 
                                 return (
-                                    <div className="flex flex-col gap-0.5 leading-tight justify-center">
+                                    <div className="flex flex-col gap-0.5 leading-tight justify-center w-full">
                                         <div className="flex flex-col gap-0.5 justify-center">
                                             <div className="flex items-center gap-[3px]">
-                                                <span className="text-gray-400 text-[11px] w-[32px] shrink-0 text-left whitespace-nowrap">{formatDate(start)}</span>
+                                                <span className="text-gray-400 text-[11px] w-[30px] shrink-0 text-left whitespace-nowrap">{formatDate(start)}</span>
                                                 <span className="text-yellow-400 text-[11px] font-bold">{formatTime(start)}</span>
                                             </div>
                                             <div className="flex items-center gap-[3px]">
-                                                <span className="text-gray-400 text-[11px] w-[32px] shrink-0 text-left whitespace-nowrap">{formatDate(end)}</span>
+                                                <span className="text-gray-400 text-[11px] w-[30px] shrink-0 text-left whitespace-nowrap">{formatDate(end)}</span>
                                                 <span className="text-orange-400 text-[11px] font-bold">{formatTime(end)}</span>
                                             </div>
                                         </div>
