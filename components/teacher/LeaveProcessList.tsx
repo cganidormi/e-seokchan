@@ -111,25 +111,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <div className="w-[3px] h-5 bg-[#0E8694] rounded-full shrink-0"></div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <h1 className="text-xl font-extrabold text-gray-800">이석 처리 ({teacherName} 감독선생님)</h1>
-                        {isSangchanAdmin && onOpenDongheonChat && (
-                            <button
-                                type="button"
-                                onClick={onOpenDongheonChat}
-                                className="relative bg-gradient-to-r from-teal-500 via-cyan-500 to-[#0E8694] hover:from-teal-600 hover:to-[#08707c] text-white font-extrabold py-1 px-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1 text-xs cursor-pointer select-none active:scale-95"
-                                title="2101 강동헌 학생과의 1:1 실시간 톡"
-                            >
-                                <span className="text-sm">💌</span>
-                                <span>동헌톡</span>
-                                {unreadDongheonChatCount > 0 && (
-                                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black text-white bg-red-600 border border-white rounded-full shadow-sm animate-pulse">
-                                        {unreadDongheonChatCount}
-                                    </span>
-                                )}
-                            </button>
-                        )}
-                    </div>
+                    <h1 className="text-base sm:text-xl font-black text-gray-800">이석 처리 ({teacherName} 감독선생님)</h1>
                 </div>
             </div>
 
@@ -143,9 +125,8 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                 onClick={() => router.push('/teacher/seats', { scroll: false })}
                 className="w-full mb-3.5 py-3 rounded-xl text-sm font-bold transition-all text-white shadow-sm text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
                 style={{
-                    backgroundImage: `linear-gradient(to right, rgba(250, 204, 21, 0) 30%, rgba(250, 204, 21, 1) 100%), url('/study_room.png')`,
-                    backgroundPosition: 'center 70%',
-                    textShadow: '0 1px 3px rgba(0, 0, 0, 0.4)'
+                    backgroundImage: `linear-gradient(to right, rgba(250, 204, 21, 0) 55%, rgba(250, 204, 21, 0.6) 100%), url('/study_room.png')`,
+                    backgroundPosition: 'center 70%'
                 }}
             >
                 학습감독 자리배치도 →
@@ -154,9 +135,9 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Headcount Mapping Button */}
             <button
                 onClick={() => router.push('/teacher/headcount', { scroll: false })}
-                className="w-full mb-3.5 py-3 rounded-xl text-sm font-medium transition-all text-indigo-100 shadow-lg text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
+                className="w-full mb-3.5 py-3 rounded-xl text-sm font-bold transition-all text-white shadow-lg text-right pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99]"
                 style={{
-                    backgroundImage: `linear-gradient(to right, rgba(79, 70, 229, 0) 30%, rgba(79, 70, 229, 1) 100%), url('/kshs_building.png')`,
+                    backgroundImage: `linear-gradient(to right, rgba(79, 70, 229, 0) 55%, rgba(79, 70, 229, 0.6) 100%), url('/kshs_building.png')`,
                     backgroundPosition: 'center 15%'
                 }}
             >
@@ -166,9 +147,9 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Today Dashboard Button */}
             <button
                 onClick={() => router.push('/today')}
-                className="w-full mb-6 h-11 rounded-xl text-sm font-medium transition-all text-emerald-100 shadow-lg pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99] flex items-center justify-end gap-2"
+                className="w-full mb-6 h-11 rounded-xl text-sm font-bold transition-all text-white shadow-lg pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99] flex items-center justify-end gap-2"
                 style={{
-                    backgroundImage: `linear-gradient(to right, rgba(5, 150, 105, 0) 30%, rgba(5, 150, 105, 1) 100%), url('/dorm.jpg')`,
+                    backgroundImage: `linear-gradient(to right, rgba(5, 150, 105, 0) 55%, rgba(5, 150, 105, 0.6) 100%), url('/dorm.jpg')`,
                     backgroundPosition: 'center 68%'
                 }}
             >

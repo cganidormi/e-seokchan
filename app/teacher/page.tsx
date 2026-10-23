@@ -560,31 +560,49 @@ export default function TeacherPage() {
         <NotificationPermissionBanner userId={teacherId} userType="teacher" />
       )}
 
-      {/* Admin Buttons & Refresh */}
-      <div className="flex justify-end mb-4 gap-2">
+      {/* Admin Buttons & Actions */}
+      <div className="flex justify-end mb-4 gap-2 items-center flex-wrap">
+        {isSangchanAdmin && (
+          <button
+            type="button"
+            onClick={() => setIsDongheonChatOpen(true)}
+            className="relative h-9 px-3 bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 text-xs cursor-pointer active:scale-95 shrink-0"
+            title="2101 강동헌 학생과의 1:1 실시간 톡"
+          >
+            <span className="text-sm leading-none">💌</span>
+            <span>동헌톡</span>
+            {unreadDongheonChatCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black text-white bg-red-600 border border-white rounded-full shadow-sm animate-pulse">
+                {unreadDongheonChatCount}
+              </span>
+            )}
+          </button>
+        )}
+
         <button
+          type="button"
           onClick={() => setShowQR(true)}
-          className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1.5 px-3 rounded-xl shadow-sm transition-all flex items-center justify-center text-sm"
+          className="w-9 h-9 bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 rounded-xl shadow-sm transition-all flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
           title="학생용 QR코드"
         >
           <IoQrCode className="w-5 h-5 text-gray-700" />
         </button>
 
         <button
+          type="button"
           onClick={() => router.push(`/change-password?role=teacher&id=${teacherLoginId}`)}
-          className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold py-1 px-2.5 rounded-xl shadow-sm transition-all flex items-center justify-center text-sm"
+          className="w-9 h-9 bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 rounded-xl shadow-sm transition-all flex items-center justify-center cursor-pointer active:scale-95 shrink-0"
           title="비밀번호 변경"
         >
-          <MdLockReset className="w-6 h-6 text-gray-700" />
+          <MdLockReset className="w-5 h-5 text-gray-700" />
         </button>
-
-
-
 
         {teacherPosition === '관리자' && (
           <button
+            type="button"
             onClick={() => router.push('/admin')}
-            className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center text-sm"
+            className="h-9 px-3.5 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl shadow-sm transition-all flex items-center justify-center text-xs cursor-pointer active:scale-95 shrink-0"
+            title="관리자 페이지"
           >
             <span>관리자</span>
           </button>
