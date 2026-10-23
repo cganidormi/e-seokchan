@@ -1013,21 +1013,20 @@ export default function SeatManagementPage() {
                                 {/* Left: 오늘의 홍지관 이동 버튼 */}
                                 <button
                                     onClick={() => router.push('/today')}
-                                    className="h-9 sm:h-10 px-2 sm:px-2.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
+                                    className="h-9 sm:h-10 w-9 sm:w-10 rounded-xl overflow-hidden border border-gray-200/80 hover:border-gray-400 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95 p-0 bg-white group"
                                     title="오늘의 홍지관으로 이동"
                                 >
-                                    <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 shrink-0 shadow-xs">
-                                        <div className="p-[1px] bg-white rounded-full">
-                                            <img src="/dorm.jpg" alt="오늘의 홍지관" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover" />
-                                        </div>
-                                    </div>
-                                    <span className="hidden sm:inline text-xs sm:text-sm font-extrabold whitespace-nowrap">오늘의 홍지관</span>
+                                    <img
+                                        src="/dorm.jpg"
+                                        alt="오늘의 홍지관"
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                    />
                                 </button>
 
                                 {/* Center: 홈 버튼 */}
                                 <button
                                     onClick={() => router.push('/teacher', { scroll: false })}
-                                    className="h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
+                                    className="h-9 sm:h-10 w-9 sm:w-10 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
                                     title="교사 홈으로 이동"
                                 >
                                     <HiHome className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
@@ -1036,15 +1035,14 @@ export default function SeatManagementPage() {
                                 {/* Right: 호실배치도로 이동 버튼 */}
                                 <button
                                     onClick={() => router.push('/teacher/headcount', { scroll: false })}
-                                    className="h-9 sm:h-10 px-2 sm:px-2.5 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
+                                    className="h-9 sm:h-10 w-9 sm:w-10 rounded-xl overflow-hidden border border-gray-200/80 hover:border-gray-400 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95 p-0 bg-white group"
                                     title="호실배치도로 이동"
                                 >
-                                    <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 shrink-0 shadow-xs">
-                                        <div className="p-[1px] bg-white rounded-full">
-                                            <img src="/kshs_building.png" alt="호실배치도" className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover" />
-                                        </div>
-                                    </div>
-                                    <span className="hidden sm:inline text-xs sm:text-sm font-extrabold whitespace-nowrap">호실배치도</span>
+                                    <img
+                                        src="/kshs_building.png"
+                                        alt="호실배치도"
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                    />
                                 </button>
                             </div>
 
