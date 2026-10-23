@@ -469,7 +469,7 @@ export default function TeacherPage() {
       }
 
       if (teacherId && teacherName) {
-        await fetchLeaveRequests(teacherId, teacherName);
+        await fetchLeaveRequests(teacherId, teacherName, unifiedViewMode);
       }
     } catch (err) {
       console.error('Update error:', err);
