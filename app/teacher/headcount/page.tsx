@@ -858,18 +858,20 @@ export default function HeadcountPage() {
                     </div>
 
                     {/* Center: Navigation Cluster (Left: 오늘의 홍지관 | Center: 홈 | Right: 좌석배치도) */}
-                    <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-1 sm:gap-1.5 z-10 pointer-events-auto">
-                        {/* Left: 오늘의 홍지관 이동 버튼 */}
+                    <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-2 sm:gap-3 z-10 pointer-events-auto">
+                        {/* Left: 오늘의 홍지관 이동 버튼 (인스타 감성 그라디언트 테두리) */}
                         <button
                             onClick={() => router.push('/today')}
-                            className="h-9 sm:h-10 w-9 sm:w-10 rounded-xl overflow-hidden border border-gray-200/80 hover:border-white/50 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95 p-0 bg-white group"
+                            className="h-9 sm:h-10 w-9 sm:w-10 p-[1.5px] sm:p-[2px] rounded-xl bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95 group"
                             title="오늘의 홍지관으로 이동"
                         >
-                            <img
-                                src="/dorm.jpg"
-                                alt="오늘의 홍지관"
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
-                            />
+                            <div className="w-full h-full rounded-[10px] overflow-hidden bg-white">
+                                <img
+                                    src="/dorm.jpg"
+                                    alt="오늘의 홍지관"
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                />
+                            </div>
                         </button>
 
                         {/* Center: 홈 버튼 */}
@@ -881,17 +883,22 @@ export default function HeadcountPage() {
                             <HiHome className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                         </button>
 
-                        {/* Right: 좌석배치도로 이동 버튼 */}
+                        {/* Right: 좌석배치도(학습)로 이동 버튼 */}
                         <button
                             onClick={() => router.push('/teacher/seats', { scroll: false })}
-                            className="h-9 sm:h-10 w-9 sm:w-10 rounded-xl overflow-hidden border border-gray-200/80 hover:border-white/50 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95 p-0 bg-white group"
-                            title="좌석배치도로 이동"
+                            className="h-9 sm:h-10 w-9 sm:w-10 rounded-xl overflow-hidden border border-gray-200/80 hover:border-white/50 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95 p-0 bg-white group relative"
+                            title="학습실 좌석배치도로 이동"
                         >
                             <img
                                 src="/study_room.png"
-                                alt="좌석배치도"
+                                alt="학습"
                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
                             />
+                            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors flex items-center justify-center pointer-events-none">
+                                <span className="text-white font-black text-[11px] sm:text-xs tracking-tight leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                                    학습
+                                </span>
+                            </div>
                         </button>
                     </div>
 
