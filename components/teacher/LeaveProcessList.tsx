@@ -147,11 +147,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             {/* Today Dashboard Button */}
             <button
                 onClick={() => router.push('/today')}
-                className="w-full mb-6 h-11 rounded-xl text-sm font-bold transition-all text-white shadow-lg pr-6 bg-cover bg-no-repeat cursor-pointer active:scale-[0.99] flex items-center justify-end gap-2"
-                style={{
-                    backgroundImage: `linear-gradient(to right, rgba(5, 150, 105, 0) 55%, rgba(5, 150, 105, 0.6) 100%), url('/dorm.jpg')`,
-                    backgroundPosition: 'center 68%'
-                }}
+                className="w-full mb-6 h-11 rounded-xl text-sm font-bold transition-all bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 shadow-sm pr-6 cursor-pointer active:scale-[0.99] flex items-center justify-end gap-2"
             >
                 <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0 shadow-xs">
                     <div className="p-[1px] bg-white rounded-full">
