@@ -597,16 +597,7 @@ export default function TeacherPage() {
           <MdLockReset className="w-5 h-5 text-gray-700" />
         </button>
 
-        {teacherPosition === '관리자' && (
-          <button
-            type="button"
-            onClick={() => router.push('/admin')}
-            className="h-9 px-3.5 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl shadow-sm transition-all flex items-center justify-center text-xs cursor-pointer active:scale-95 shrink-0"
-            title="관리자 페이지"
-          >
-            <span>관리자</span>
-          </button>
-        )}
+
       </div>
 
       <AnniversaryBanner type="teacher" />

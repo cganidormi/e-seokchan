@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
-import { FaTimes } from "react-icons/fa";
+import Link from "next/link";
+import { HiHome } from "react-icons/hi";
+import { MdLockReset } from "react-icons/md";
 import { getAdminHeaders } from "@/lib/adminClientHeaders";
 
 // ... (imports done)
@@ -373,9 +375,18 @@ export default function TeachersPage() {
     <div className="p-4 space-y-6 overflow-x-auto bg-white min-h-screen text-gray-900">
       <Toaster position="top-right" />
 
-      {/* 상단 타이틀 및 버튼 */}
+      {/* 상단 타이틀 및 우측 홈버튼 */}
       <div className="mb-6 space-y-3">
-        <h2 className="font-bold text-xl text-gray-800">교사 관리</h2>
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <h2 className="font-bold text-2xl text-gray-800">교사 관리</h2>
+          <Link
+            href="/teacher"
+            className="h-10 w-10 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
+            title="교사 홈으로 이동"
+          >
+            <HiHome className="w-5 h-5 text-gray-700" />
+          </Link>
+        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -453,10 +464,47 @@ export default function TeachersPage() {
 
               <div className="flex-1"></div>
 
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
+                {/* 삭제 */}
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTeacher(t.id)}
+                  className="w-7 h-7 rounded-lg bg-gradient-to-b from-white via-slate-50 to-gray-200 hover:from-white hover:to-slate-300 border border-rose-300 hover:border-rose-500 shadow-[0_1px_2px_rgba(244,63,94,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] hover:shadow-md transition-all duration-150 flex items-center justify-center shrink-0 cursor-pointer active:scale-90 group"
+                  title="교사 삭제"
+                >
+                  <svg className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.25)]" viewBox="0 0 24 24" fill="none">
+                    <defs>
+                      <linearGradient id="silver-lid-grad-teacher" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#94A3B8" />
+                        <stop offset="35%" stopColor="#FFFFFF" />
+                        <stop offset="65%" stopColor="#E2E8F0" />
+                        <stop offset="100%" stopColor="#64748B" />
+                      </linearGradient>
+                      <linearGradient id="silver-body-grad-teacher" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#64748B" />
+                        <stop offset="25%" stopColor="#E2E8F0" />
+                        <stop offset="50%" stopColor="#FFFFFF" />
+                        <stop offset="75%" stopColor="#CBD5E1" />
+                        <stop offset="100%" stopColor="#475569" />
+                      </linearGradient>
+                    </defs>
+                    {/* 뚜껑 손잡이 */}
+                    <rect x="9.5" y="2.5" width="5" height="2" rx="0.75" fill="url(#silver-lid-grad-teacher)" stroke="#475569" strokeWidth="0.6" />
+                    {/* 뚜껑 메인 림 */}
+                    <rect x="4" y="4.5" width="16" height="2.2" rx="1" fill="url(#silver-lid-grad-teacher)" stroke="#475569" strokeWidth="0.6" />
+                    {/* 통 몸체 (메탈릭 실린더) */}
+                    <path d="M5.8 7L6.8 19.5C6.9 20.3 7.6 21 8.5 21h7c.9 0 1.6-.7 1.7-1.5L18.2 7H5.8z" fill="url(#silver-body-grad-teacher)" stroke="#475569" strokeWidth="0.6" />
+                    {/* 메탈릭 광택 세로선 */}
+                    <line x1="9.5" y1="9" x2="9.8" y2="18.5" stroke="#94A3B8" strokeWidth="0.8" strokeLinecap="round" />
+                    <line x1="12" y1="9" x2="12" y2="18.5" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" />
+                    <line x1="14.5" y1="9" x2="14.2" y2="18.5" stroke="#64748B" strokeWidth="0.8" strokeLinecap="round" />
+                  </svg>
+                </button>
+
                 {/* 비번 초기화 */}
                 {originalTeachers.find(ot => ot.id === t.id) && t.teacher_id && (
                   <button
+                    type="button"
                     onClick={async () => {
                       if (!confirm(`'${t.name}' 선생님의 비밀번호를 초기화하시겠습니까?`)) return;
                       const newPw = generateTempPassword();
@@ -483,22 +531,12 @@ export default function TeachersPage() {
                         toast.error(error.message || '초기화 중 오류가 발생했습니다.');
                       }
                     }}
-                    className="h-8 md:h-auto px-2 md:px-2.5 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 active:scale-95 transition flex items-center justify-center whitespace-nowrap"
+                    className="w-7 h-7 bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 rounded-lg shadow-2xs hover:shadow-xs transition-all flex items-center justify-center shrink-0 cursor-pointer active:scale-90 group"
                     title="비밀번호 초기화"
                   >
-                    <span className="text-[11px] md:text-xs font-bold">비번초기화</span>
+                    <MdLockReset className="w-4 h-4 text-gray-700 transition-transform duration-150 group-hover:scale-110" />
                   </button>
                 )}
-
-                {/* 삭제 */}
-                <button
-                  onClick={() => handleDeleteTeacher(t.id)}
-                  className="w-8 h-8 md:w-auto md:h-auto md:px-2.5 md:py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 border border-red-100 active:scale-95 transition flex items-center justify-center"
-                  title="삭제"
-                >
-                  <span className="hidden md:inline text-xs font-bold whitespace-nowrap">삭제</span>
-                  <FaTimes className="md:hidden text-sm" />
-                </button>
               </div>
             </div>
           ))

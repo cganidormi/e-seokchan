@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../../supabaseClient';
 import toast, { Toaster } from 'react-hot-toast';
 import clsx from 'clsx';
+import Link from 'next/link';
+import { HiHome } from 'react-icons/hi';
 
 interface TimetableEntry {
   id: number;
@@ -240,25 +242,42 @@ export default function TimetablePage() {
     <div className="p-4 max-w-5xl mx-auto pb-20">
       <Toaster position="top-right" />
 
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-3">
-            <div className="w-1.5 h-6 bg-yellow-400 rounded-full"></div>
-            <h1 className="text-2xl font-extrabold text-gray-800">일과시간 관리 (24시간제)</h1>
+      {/* 헤더 영역 (반응형 모바일 최적화) */}
+      <div className="flex flex-col gap-3 mb-6 sm:mb-8 pb-3 border-b border-gray-100">
+        {/* 상단 1행: 타이틀 + 우측 상단 홈 버튼 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-1.5 h-6 bg-yellow-400 rounded-full shrink-0"></div>
+            <h1 className="text-xl sm:text-2xl font-black text-gray-800 truncate">
+              일과시간 관리 <span className="text-xs sm:text-sm text-gray-400 font-normal hidden sm:inline">(24시간제)</span>
+            </h1>
           </div>
-          <p className="text-[10px] text-gray-500 mt-1 ml-4.5 font-medium tracking-tight">24시간 형식(00:00~23:59)으로 입력하세요.</p>
+          <Link
+            href="/teacher"
+            className="h-10 w-10 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
+            title="교사 홈으로 이동"
+          >
+            <HiHome className="w-5 h-5 text-gray-700" />
+          </Link>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className={clsx(
-            "px-6 py-2.5 rounded-2xl font-bold transition-all shadow-lg active:scale-95 flex items-center gap-2 text-sm",
-            isSaving ? "bg-gray-400 text-white" : "bg-yellow-400 text-white hover:bg-yellow-500"
-          )}
-        >
-          {isSaving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-          {isSaving ? '저장 중...' : '변경사항 저장'}
-        </button>
+
+        {/* 하단 2행: 안내 문구 + 저장 버튼 */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <p className="text-[11px] sm:text-xs text-gray-500 font-medium tracking-tight">
+            24시간 형식(00:00~23:59)으로 입력하세요.
+          </p>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className={clsx(
+              "px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-bold transition-all shadow-md active:scale-95 flex items-center gap-2 text-xs sm:text-sm shrink-0 ml-auto",
+              isSaving ? "bg-gray-400 text-white" : "bg-yellow-400 text-white hover:bg-yellow-500"
+            )}
+          >
+            {isSaving && <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+            {isSaving ? '저장 중...' : '변경사항 저장'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

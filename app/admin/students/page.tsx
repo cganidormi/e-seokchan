@@ -5,7 +5,10 @@ import { supabase } from "@/supabaseClient";
 import toast, { Toaster } from "react-hot-toast";
 import { getAdminHeaders } from "@/lib/adminClientHeaders";
 
-import { FaTrash } from "react-icons/fa";
+import Link from "next/link";
+import { HiHome } from "react-icons/hi";
+import { HiTrash } from "react-icons/hi2";
+import { MdLockReset } from "react-icons/md";
 
 interface Student {
   grade: number;
@@ -671,6 +674,18 @@ export default function StudentsPage() {
     <div className="p-4 space-y-8 overflow-x-auto bg-white min-h-screen text-gray-900">
       <Toaster position="top-right" />
 
+      {/* 상단 타이틀 및 우측 홈버튼 */}
+      <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <h1 className="text-2xl font-black text-gray-900">학생 관리</h1>
+        <Link
+          href="/teacher"
+          className="h-10 w-10 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
+          title="교사 홈으로 이동"
+        >
+          <HiHome className="w-5 h-5 text-gray-700" />
+        </Link>
+      </div>
+
       {grades.map((grade) => (
         <div key={grade}>
           <div className="flex items-center mb-4 gap-2">
@@ -739,21 +754,49 @@ export default function StudentsPage() {
 
                         {isSaved && s.name && (
                           <button
+                            type="button"
                             onClick={() => handleDeleteStudent(grade, cls, num, s.name, s.student_id)}
-                            className="w-7 h-7 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white border border-red-100 transition-colors flex items-center justify-center shrink-0"
+                            className="w-7 h-7 rounded-lg bg-gradient-to-b from-white via-slate-50 to-gray-200 hover:from-white hover:to-slate-300 border border-rose-300 hover:border-rose-500 shadow-[0_1px_2px_rgba(244,63,94,0.12),inset_0_1px_0_rgba(255,255,255,0.9)] hover:shadow-md transition-all duration-150 flex items-center justify-center shrink-0 cursor-pointer active:scale-90 group"
                             title="학생 삭제"
                           >
-                            <FaTrash size={10} />
+                            <svg className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 drop-shadow-[0_1px_1.5px_rgba(0,0,0,0.25)]" viewBox="0 0 24 24" fill="none">
+                              <defs>
+                                <linearGradient id="silver-lid-grad" x1="0" y1="0" x2="1" y2="0">
+                                  <stop offset="0%" stopColor="#94A3B8" />
+                                  <stop offset="35%" stopColor="#FFFFFF" />
+                                  <stop offset="65%" stopColor="#E2E8F0" />
+                                  <stop offset="100%" stopColor="#64748B" />
+                                </linearGradient>
+                                <linearGradient id="silver-body-grad" x1="0" y1="0" x2="1" y2="0">
+                                  <stop offset="0%" stopColor="#64748B" />
+                                  <stop offset="25%" stopColor="#E2E8F0" />
+                                  <stop offset="50%" stopColor="#FFFFFF" />
+                                  <stop offset="75%" stopColor="#CBD5E1" />
+                                  <stop offset="100%" stopColor="#475569" />
+                                </linearGradient>
+                              </defs>
+                              {/* 뚜껑 손잡이 */}
+                              <rect x="9.5" y="2.5" width="5" height="2" rx="0.75" fill="url(#silver-lid-grad)" stroke="#475569" strokeWidth="0.6" />
+                              {/* 뚜껑 메인 림 */}
+                              <rect x="4" y="4.5" width="16" height="2.2" rx="1" fill="url(#silver-lid-grad)" stroke="#475569" strokeWidth="0.6" />
+                              {/* 통 몸체 (메탈릭 실린더) */}
+                              <path d="M5.8 7L6.8 19.5C6.9 20.3 7.6 21 8.5 21h7c.9 0 1.6-.7 1.7-1.5L18.2 7H5.8z" fill="url(#silver-body-grad)" stroke="#475569" strokeWidth="0.6" />
+                              {/* 메탈릭 광택 세로선 */}
+                              <line x1="9.5" y1="9" x2="9.8" y2="18.5" stroke="#94A3B8" strokeWidth="0.8" strokeLinecap="round" />
+                              <line x1="12" y1="9" x2="12" y2="18.5" stroke="#FFFFFF" strokeWidth="1" strokeLinecap="round" />
+                              <line x1="14.5" y1="9" x2="14.2" y2="18.5" stroke="#64748B" strokeWidth="0.8" strokeLinecap="round" />
+                            </svg>
                           </button>
                         )}
 
                         {isSaved && s.name && (
                           <button
+                            type="button"
                             onClick={() => handlePasswordReset(s)}
-                            className="px-1.5 py-0.5 bg-yellow-50 text-yellow-700 rounded text-[10px] hover:bg-yellow-100 border border-yellow-200 whitespace-nowrap"
+                            className="w-7 h-7 bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 rounded-lg shadow-2xs hover:shadow-xs transition-all flex items-center justify-center shrink-0 cursor-pointer active:scale-90 group"
                             title="비밀번호 초기화"
                           >
-                            비번초기화
+                            <MdLockReset className="w-4 h-4 text-gray-700 transition-transform duration-150 group-hover:scale-110" />
                           </button>
                         )}
 
@@ -770,15 +813,16 @@ export default function StudentsPage() {
 
                         {s.parent_token && (
                           <button
+                            type="button"
                             onClick={() => {
                               const link = `${window.location.origin}/parent?token=${s.parent_token}`;
                               navigator.clipboard.writeText(link);
                               toast.success("학부모 링크 복사됨");
                             }}
-                            className="ml-2 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs hover:bg-blue-100 border border-blue-200"
+                            className="ml-1.5 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold shadow-2xs hover:shadow-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                             title="학부모 접속 링크 복사"
                           >
-                            🔗
+                            학부모토큰
                           </button>
                         )}
                       </div>

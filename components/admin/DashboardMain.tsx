@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/supabaseClient";
 import toast, { Toaster } from 'react-hot-toast';
 import {
@@ -87,6 +88,7 @@ interface DashboardMainProps {
 }
 
 export default function DashboardMain({ readOnly = false }: DashboardMainProps = {}) {
+    const router = useRouter();
     const [stats, setStats] = useState<DashboardStats>({
         totalStudents: 0,
         totalTeachers: 0,
@@ -882,7 +884,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                     <span className="sm:hidden">링크 복사</span>
                                 </button>
                                 <button
-                                    onClick={() => window.location.href = '/teacher'}
+                                    onClick={() => router.push('/teacher')}
                                     className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 font-bold p-2 sm:p-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center cursor-pointer active:scale-95"
                                     title="교사 홈으로 이동"
                                 >

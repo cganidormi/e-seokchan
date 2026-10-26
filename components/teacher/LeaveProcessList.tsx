@@ -144,18 +144,31 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                 취침지도 호실배치도 →
             </button>
 
-            {/* Today Dashboard Button */}
-            <button
-                onClick={() => router.push('/today')}
-                className="w-full mb-6 h-11 rounded-xl text-sm font-bold transition-all bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 shadow-sm pr-6 cursor-pointer active:scale-[0.99] flex items-center justify-end gap-2"
-            >
-                <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0 shadow-xs">
-                    <div className="p-[1px] bg-white rounded-full">
-                        <img src="/dorm.jpg" alt="Icon" className="w-6 h-6 rounded-full object-cover" />
+            {/* Quick Link Buttons (Admin & Today Hongjigwan) */}
+            <div className="flex justify-end items-center gap-2 mb-6">
+                {/* Admin Page Button (관리자 권한을 가진 교사에게만 노출) */}
+                {teacherPosition === '관리자' && (
+                    <button
+                        onClick={() => router.push('/admin/students')}
+                        className="h-11 px-5 rounded-full text-sm font-bold transition-all bg-[#111827] hover:bg-black text-white border border-gray-700/60 shadow-sm cursor-pointer active:scale-[0.98] flex items-center justify-center"
+                    >
+                        <span>관리자</span>
+                    </button>
+                )}
+
+                {/* Today Dashboard Button */}
+                <button
+                    onClick={() => router.push('/today')}
+                    className="h-11 px-4 rounded-full text-sm font-bold transition-all bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 shadow-sm cursor-pointer active:scale-[0.98] flex items-center gap-2"
+                >
+                    <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0 shadow-xs">
+                        <div className="p-[1px] bg-white rounded-full">
+                            <img src="/dorm.jpg" alt="Icon" className="w-7 h-7 rounded-full object-cover" />
+                        </div>
                     </div>
-                </div>
-                <span>오늘의 홍지관 →</span>
-            </button>
+                    <span>오늘의 홍지관 →</span>
+                </button>
+            </div>
 
             {/* 탭 전환 UI */}
             <div className="flex flex-col gap-3 mb-4">

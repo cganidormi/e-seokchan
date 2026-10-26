@@ -1,7 +1,14 @@
 "use client";
 
-import DashboardMain from "@/components/admin/DashboardMain";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function AdminMainPage() {
-  return <DashboardMain />;
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/admin/students");
+  }, [router]);
+
+  return null;
 }
