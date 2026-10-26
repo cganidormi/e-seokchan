@@ -9,11 +9,9 @@ import {
   HiChevronLeft,
   HiChevronRight,
   HiUpload,
-  HiCalendar,
   HiViewList,
   HiSearch,
   HiX,
-  HiInformationCircle,
   HiClock,
 } from "react-icons/hi";
 import {
@@ -33,8 +31,6 @@ export default function SupervisionPage() {
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedMonth, setSelectedMonth] = useState<number>(3);
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
-  const [selectedRoomFilter, setSelectedRoomFilter] = useState<"all" | "room1" | "room2" | "room3">("all");
-  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
   const [activeDayDetail, setActiveDayDetail] = useState<DaySupervision | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
 
@@ -231,60 +227,35 @@ export default function SupervisionPage() {
     return Array.from(names).sort();
   }, [scheduleData]);
 
-  // Check if a day has duty for selectedTeacher, respecting selectedRoomFilter
+  // Check if a day has duty for selectedTeacher across all rooms
   const dayMatchesTeacher = (d: DaySupervision): boolean => {
     if (!selectedTeacher) return false;
     const clean = selectedTeacher.trim();
-    const check = (n: string) => n && n.replace(/^#/, "").trim().includes(clean);
+    const check = (n: string) => Boolean(n && n.replace(/^#/, "").trim().includes(clean));
 
-    let match = false;
-    if (selectedRoomFilter === "all" || selectedRoomFilter === "room1") {
-      if (
-        check(d.weekday.room1.afterSchool) ||
-        check(d.weekday.room1.night1) ||
-        check(d.weekday.room1.night2) ||
-        check(d.weekend.room1.morning) ||
-        check(d.weekend.room1.afternoon) ||
-        check(d.weekend.room1.night) ||
-        check(d.weekend.room1.nightCare)
-      ) {
-        match = true;
-      }
-    }
-
-    if (selectedRoomFilter === "all" || selectedRoomFilter === "room2") {
-      if (
-        check(d.weekday.room2.afterSchool) ||
-        check(d.weekday.room2.night1) ||
-        check(d.weekday.room2.night2) ||
-        check(d.weekend.room2.dayCare) ||
-        check(d.weekend.room2.nightCare)
-      ) {
-        match = true;
-      }
-    }
-
-    if (selectedRoomFilter === "all" || selectedRoomFilter === "room3") {
-      if (
-        check(d.weekday.room3.afterSchool) ||
-        check(d.weekday.room3.night1) ||
-        check(d.weekday.room3.night2) ||
-        check(d.weekend.room3.dayCare) ||
-        check(d.weekend.room3.nightCare)
-      ) {
-        match = true;
-      }
-    }
-
-    // Sunday or return day guide
-    if (selectedRoomFilter === "all" && check(d.returnGuide)) {
-      match = true;
-    }
-
-    return match;
+    return Boolean(
+      check(d.weekday.room1.afterSchool) ||
+      check(d.weekday.room1.night1) ||
+      check(d.weekday.room1.night2) ||
+      check(d.weekend.room1.morning) ||
+      check(d.weekend.room1.afternoon) ||
+      check(d.weekend.room1.night) ||
+      check(d.weekend.room1.nightCare) ||
+      check(d.weekday.room2.afterSchool) ||
+      check(d.weekday.room2.night1) ||
+      check(d.weekday.room2.night2) ||
+      check(d.weekend.room2.dayCare) ||
+      check(d.weekend.room2.nightCare) ||
+      check(d.weekday.room3.afterSchool) ||
+      check(d.weekday.room3.night1) ||
+      check(d.weekday.room3.night2) ||
+      check(d.weekend.room3.dayCare) ||
+      check(d.weekend.room3.nightCare) ||
+      check(d.returnGuide)
+    );
   };
 
-  // Teacher monthly duty statistics, respecting selectedRoomFilter
+  // Teacher monthly duty statistics
   const teacherStats = useMemo(() => {
     if (!selectedTeacher) return null;
     let total = 0;
@@ -302,7 +273,7 @@ export default function SupervisionPage() {
     });
 
     return { total, weekdayCount, weekendCount, dutyDays };
-  }, [selectedTeacher, currentMonthData, selectedRoomFilter]);
+  }, [selectedTeacher, currentMonthData]);
 
   // Calendar Grid Preparation
   const calendarCells = useMemo(() => {
@@ -375,13 +346,6 @@ export default function SupervisionPage() {
     );
   };
 
-  const roomFilterDetails = {
-    all: { label: "전체 실", text: "1실·2실·3실 전체 감독 일정을 종합하여 표시 중입니다." },
-    room1: { label: "1실", text: "🟢 1실(1·2·3학년 공용 학습실) 배정 일정만 집중 표시 중입니다." },
-    room2: { label: "2실", text: "🔵 2실 학습실 배정 일정만 집중 표시 중입니다." },
-    room3: { label: "3실", text: "🟣 3실 학습실 배정 일정만 집중 표시 중입니다." },
-  };
-
   return (
     <div className="p-3 md:p-6 bg-[#f8fafc] min-h-screen text-gray-900">
       <Toaster position="top-right" />
@@ -390,9 +354,6 @@ export default function SupervisionPage() {
       <div className="max-w-7xl mx-auto space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#0E8694] to-cyan-600 flex items-center justify-center text-white shadow-md">
-              <HiCalendar className="w-6 h-6" />
-            </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl md:text-2xl font-black text-gray-900">양현재 감독표</h1>
@@ -514,32 +475,10 @@ export default function SupervisionPage() {
                 )}
               </div>
 
-              {/* View Mode Toggle */}
-              <div className="flex items-center p-0.5 bg-gray-100 rounded-xl border border-gray-200 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setViewMode("calendar")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                    viewMode === "calendar"
-                      ? "bg-white text-gray-900 shadow-xs"
-                      : "text-gray-500 hover:text-gray-800"
-                  }`}
-                >
-                  <HiCalendar className="w-3.5 h-3.5" />
-                  <span>달력</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("list")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
-                    viewMode === "list"
-                      ? "bg-white text-gray-900 shadow-xs"
-                      : "text-gray-500 hover:text-gray-800"
-                  }`}
-                >
-                  <HiViewList className="w-3.5 h-3.5" />
-                  <span>목록</span>
-                </button>
+              {/* View Mode: 목록만 유지 */}
+              <div className="flex items-center px-3 py-1.5 bg-gray-100 rounded-xl border border-gray-200 text-xs font-bold text-gray-800 gap-1.5 shrink-0 shadow-2xs">
+                <HiViewList className="w-3.5 h-3.5 text-[#0E8694]" />
+                <span>목록</span>
               </div>
             </div>
           </div>
@@ -557,11 +496,6 @@ export default function SupervisionPage() {
                     <h3 className="text-base font-black text-slate-900 tracking-tight">
                       {selectedTeacher} 선생님
                     </h3>
-                    {selectedRoomFilter !== "all" && (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
-                        {roomFilterDetails[selectedRoomFilter].label}
-                      </span>
-                    )}
                   </div>
 
                   <div className="text-xs text-slate-500 font-medium">
@@ -666,455 +600,30 @@ export default function SupervisionPage() {
                 </div>
               ) : (
                 <div className="text-center text-xs text-slate-400 font-medium pt-1">
-                  {selectedRoomFilter !== "all"
-                    ? `${roomFilterDetails[selectedRoomFilter].label} 배정된 근무가 없습니다.`
-                    : "이번 달 배정된 근무가 없습니다."}
+                  이번 달 배정된 근무가 없습니다.
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Room Filter Pills with distinct active colors */}
-        <div className="bg-white rounded-2xl border border-gray-200/80 shadow-xs p-3 space-y-2">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black text-gray-700 mr-1">실별 보기:</span>
 
-              {/* All rooms */}
-              <button
-                type="button"
-                onClick={() => setSelectedRoomFilter("all")}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                  selectedRoomFilter === "all"
-                    ? "bg-gray-900 text-white shadow-md ring-2 ring-gray-400"
-                    : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200"
-                }`}
-              >
-                전체 실
-              </button>
 
-              {/* Room 1 */}
-              <button
-                type="button"
-                onClick={() => setSelectedRoomFilter("room1")}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                  selectedRoomFilter === "room1"
-                    ? "bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300"
-                    : "bg-emerald-50/70 hover:bg-emerald-100/70 text-emerald-800 border border-emerald-200"
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <span>1실 전용</span>
-              </button>
-
-              {/* Room 2 */}
-              <button
-                type="button"
-                onClick={() => setSelectedRoomFilter("room2")}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                  selectedRoomFilter === "room2"
-                    ? "bg-blue-600 text-white shadow-md ring-2 ring-blue-300"
-                    : "bg-blue-50/70 hover:bg-blue-100/70 text-blue-800 border border-blue-200"
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-                <span>2실 전용</span>
-              </button>
-
-              {/* Room 3 */}
-              <button
-                type="button"
-                onClick={() => setSelectedRoomFilter("room3")}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                  selectedRoomFilter === "room3"
-                    ? "bg-purple-600 text-white shadow-md ring-2 ring-purple-300"
-                    : "bg-purple-50/70 hover:bg-purple-100/70 text-purple-800 border border-purple-200"
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-purple-400"></span>
-                <span>3실 전용</span>
-              </button>
-            </div>
-
-            <div className="text-[11px] text-gray-400 flex items-center gap-1">
-              <HiInformationCircle className="w-3.5 h-3.5 text-gray-400" />
-              <span>날짜 칸을 클릭하면 시간대별 세부 일정을 확인할 수 있습니다.</span>
-            </div>
+        {/* LIST / TABLE VIEW */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between px-1 text-[11px] text-gray-500">
+            <span className="font-bold text-gray-700">전체 학습실(1·2·3실) 감독 일정표</span>
+            <span className="hidden sm:inline text-gray-400">행을 클릭하면 시간대별 세부 일정을 확인할 수 있습니다.</span>
           </div>
-
-          {/* Active room filter notice message */}
-          <div className="text-xs text-gray-600 font-medium pl-1 flex items-center gap-1.5">
-            <span>{roomFilterDetails[selectedRoomFilter].text}</span>
-          </div>
-        </div>
-
-        {/* MAIN VIEW: Calendar vs List */}
-        {viewMode === "calendar" ? (
-          /* CALENDAR VIEW */
-          <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-hidden">
-            <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50 text-center font-black text-xs py-2.5">
-              <span className="text-rose-500">일</span>
-              <span className="text-gray-700">월</span>
-              <span className="text-gray-700">화</span>
-              <span className="text-gray-700">수</span>
-              <span className="text-gray-700">목</span>
-              <span className="text-gray-700">금</span>
-              <span className="text-blue-500">토</span>
-            </div>
-
-            <div className="grid grid-cols-7 divide-x divide-y divide-gray-100">
-              {calendarCells.map((dayData, idx) => {
-                if (!dayData) {
-                  return (
-                    <div
-                      key={`empty-${idx}`}
-                      className="min-h-[120px] md:min-h-[150px] bg-gray-50/40 p-1.5"
-                    />
-                  );
-                }
-
-                const isTargetDay = dayMatchesTeacher(dayData);
-                const isSunday = dayData.dow === "일";
-                const isSaturday = dayData.dow === "토";
-                const hasWeekend = hasWeekendDuty(dayData);
-                const hasWeekday = hasWeekdayDuty(dayData);
-                const isReturnOrHoliday = !dayData.isWeekend && hasWeekend;
-
-                return (
-                  <div
-                    key={dayData.day}
-                    onClick={() => setActiveDayDetail(dayData)}
-                    className={`min-h-[120px] md:min-h-[150px] p-1.5 md:p-2 transition-all cursor-pointer hover:bg-teal-50/40 relative flex flex-col justify-between group ${
-                      isTargetDay
-                        ? "bg-amber-50/70 ring-2 ring-inset ring-amber-400"
-                        : dayData.isWeekend
-                        ? "bg-slate-50/50"
-                        : isReturnOrHoliday
-                        ? "bg-orange-50/30"
-                        : "bg-white"
-                    }`}
-                  >
-                    <div>
-                      {/* Day Number Header */}
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-1">
-                          <span
-                            className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${
-                              isSunday
-                                ? "text-rose-600 bg-rose-50"
-                                : isSaturday
-                                ? "text-blue-600 bg-blue-50"
-                                : isReturnOrHoliday
-                                ? "text-amber-800 bg-amber-100/70 font-black"
-                                : "text-gray-800"
-                            }`}
-                          >
-                            {dayData.day}
-                          </span>
-                          {isReturnOrHoliday && (
-                            <span className="text-[9px] font-black px-1 py-0.5 rounded bg-orange-100 text-orange-800 border border-orange-200">
-                              {dayData.note || "귀교"}
-                            </span>
-                          )}
-                        </div>
-
-                        {dayData.note && !isReturnOrHoliday && (
-                          <span
-                            className="hidden md:inline-block max-w-[70px] truncate text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1 rounded font-bold"
-                            title={dayData.note}
-                          >
-                            {dayData.note}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Supervision Content */}
-                      {selectedRoomFilter === "all" ? (
-                        /* ALL ROOMS SUMMARY VIEW */
-                        <div className="space-y-1">
-                          {/* If standard weekday duty exists */}
-                          {hasWeekday && (
-                            <>
-                              {/* Room 1 */}
-                              {(dayData.weekday.room1.afterSchool || dayData.weekday.room1.night1) && (
-                                <div className="text-[11px] leading-tight flex items-center gap-1 flex-wrap">
-                                  <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-1 rounded shrink-0">1실</span>
-                                  {renderBadgeName(dayData.weekday.room1.afterSchool, "방")}
-                                  {dayData.weekday.room1.night1 && dayData.weekday.room1.night1 !== dayData.weekday.room1.afterSchool &&
-                                    renderBadgeName(dayData.weekday.room1.night1, "야1")}
-                                </div>
-                              )}
-                              {/* Room 2 */}
-                              {(dayData.weekday.room2.afterSchool || dayData.weekday.room2.night1) && (
-                                <div className="text-[11px] leading-tight flex items-center gap-1 flex-wrap">
-                                  <span className="text-[9px] font-black text-blue-700 bg-blue-50 px-1 rounded shrink-0">2실</span>
-                                  {renderBadgeName(dayData.weekday.room2.afterSchool, "방")}
-                                  {dayData.weekday.room2.night1 && dayData.weekday.room2.night1 !== dayData.weekday.room2.afterSchool &&
-                                    renderBadgeName(dayData.weekday.room2.night1, "야1")}
-                                </div>
-                              )}
-                              {/* Room 3 */}
-                              {(dayData.weekday.room3.afterSchool || dayData.weekday.room3.night1) && (
-                                <div className="text-[11px] leading-tight flex items-center gap-1 flex-wrap">
-                                  <span className="text-[9px] font-black text-purple-700 bg-purple-50 px-1 rounded shrink-0">3실</span>
-                                  {renderBadgeName(dayData.weekday.room3.afterSchool, "방")}
-                                  {dayData.weekday.room3.night1 && dayData.weekday.room3.night1 !== dayData.weekday.room3.afterSchool &&
-                                    renderBadgeName(dayData.weekday.room3.night1, "야1")}
-                                </div>
-                              )}
-                            </>
-                          )}
-
-                          {/* If weekend/holiday/return day duty exists */}
-                          {hasWeekend && (
-                            <>
-                              {(dayData.weekend.room1.morning || dayData.weekend.room1.night || dayData.weekend.room1.nightCare) && (
-                                <div className="text-[11px] leading-tight flex items-center gap-1 flex-wrap">
-                                  <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-1 rounded shrink-0">1실</span>
-                                  {renderBadgeName(dayData.weekend.room1.morning, "오전")}
-                                  {renderBadgeName(dayData.weekend.room1.afternoon, "오후")}
-                                  {renderBadgeName(dayData.weekend.room1.night, "야간")}
-                                  {renderBadgeName(dayData.weekend.room1.nightCare, "사감")}
-                                </div>
-                              )}
-                              {(dayData.weekend.room2.dayCare || dayData.weekend.room2.nightCare) && (
-                                <div className="text-[11px] leading-tight flex items-center gap-1 flex-wrap">
-                                  <span className="text-[9px] font-black text-blue-700 bg-blue-50 px-1 rounded shrink-0">2실</span>
-                                  {renderBadgeName(dayData.weekend.room2.dayCare, "주간")}
-                                  {renderBadgeName(dayData.weekend.room2.nightCare, "야간")}
-                                </div>
-                              )}
-                              {(dayData.weekend.room3.dayCare || dayData.weekend.room3.nightCare) && (
-                                <div className="text-[11px] leading-tight flex items-center gap-1 flex-wrap">
-                                  <span className="text-[9px] font-black text-purple-700 bg-purple-50 px-1 rounded shrink-0">3실</span>
-                                  {renderBadgeName(dayData.weekend.room3.dayCare, "주간")}
-                                  {renderBadgeName(dayData.weekend.room3.nightCare, "야간")}
-                                </div>
-                              )}
-                            </>
-                          )}
-
-                          {/* If neither duty is recorded */}
-                          {!hasWeekday && !hasWeekend && (
-                            <div className="text-[11px] text-gray-400 py-1 text-center font-medium">
-                              {dayData.note ? dayData.note : "-"}
-                            </div>
-                          )}
-                        </div>
-                      ) : selectedRoomFilter === "room1" ? (
-                        /* 1실 DEDICATED VIEW */
-                        <div className="space-y-1 bg-emerald-50/50 p-1 rounded-lg border border-emerald-100">
-                          <div className="text-[10px] font-black text-emerald-800 flex items-center justify-between pb-0.5 border-b border-emerald-200/50">
-                            <span>1실 전용</span>
-                            <span className="text-[9px] opacity-75">
-                              {isReturnOrHoliday ? "귀교·공휴일" : dayData.isWeekend ? "주말" : "평일"}
-                            </span>
-                          </div>
-
-                          {/* If weekday duty */}
-                          {hasWeekday && (
-                            <div className="space-y-0.5 text-[11px]">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] text-gray-500 font-medium">방과후:</span>
-                                {renderBadgeName(dayData.weekday.room1.afterSchool, undefined, "emerald")}
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] text-gray-500 font-medium">야간1:</span>
-                                {renderBadgeName(dayData.weekday.room1.night1, undefined, "emerald")}
-                              </div>
-                              {dayData.weekday.room1.night2 && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-500 font-medium">심야:</span>
-                                  {renderBadgeName(dayData.weekday.room1.night2, undefined, "default")}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* If weekend/return duty */}
-                          {hasWeekend && (
-                            <div className="space-y-0.5 text-[11px]">
-                              {dayData.weekend.room1.morning && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-500 font-medium">오전:</span>
-                                  {renderBadgeName(dayData.weekend.room1.morning, undefined, "emerald")}
-                                </div>
-                              )}
-                              {dayData.weekend.room1.afternoon && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-500 font-medium">오후:</span>
-                                  {renderBadgeName(dayData.weekend.room1.afternoon, undefined, "emerald")}
-                                </div>
-                              )}
-                              {dayData.weekend.room1.night && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-500 font-medium">야간:</span>
-                                  {renderBadgeName(dayData.weekend.room1.night, undefined, "emerald")}
-                                </div>
-                              )}
-                              {dayData.weekend.room1.nightCare && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-500 font-medium">사감:</span>
-                                  {renderBadgeName(dayData.weekend.room1.nightCare, undefined, "default")}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {!hasWeekday && !hasWeekend && (
-                            <div className="text-[10px] text-gray-400 py-1 text-center font-medium">
-                              {dayData.note ? dayData.note : "배정 없음"}
-                            </div>
-                          )}
-                        </div>
-                      ) : selectedRoomFilter === "room2" ? (
-                        /* 2실 DEDICATED VIEW */
-                        <div className="space-y-1 bg-blue-50/50 p-1 rounded-lg border border-blue-100">
-                          <div className="text-[10px] font-black text-blue-800 flex items-center justify-between pb-0.5 border-b border-blue-200/50">
-                            <span>2실 전용</span>
-                            <span className="text-[9px] opacity-75">
-                              {isReturnOrHoliday ? "귀교·공휴일" : dayData.isWeekend ? "주말" : "평일"}
-                            </span>
-                          </div>
-
-                          {/* If weekday duty */}
-                          {hasWeekday && (
-                            <div className="space-y-0.5 text-[11px]">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] text-gray-500 font-medium">방과후:</span>
-                                {renderBadgeName(dayData.weekday.room2.afterSchool, undefined, "blue")}
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] text-gray-500 font-medium">야간1:</span>
-                                {renderBadgeName(dayData.weekday.room2.night1, undefined, "blue")}
-                              </div>
-                              {dayData.weekday.room2.night2 && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-500 font-medium">심야:</span>
-                                  {renderBadgeName(dayData.weekday.room2.night2, undefined, "default")}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* If weekend/return duty */}
-                          {hasWeekend && (
-                            <div className="space-y-0.5 text-[11px]">
-                              {dayData.weekend.room2.dayCare && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-500 font-medium">주간:</span>
-                                  {renderBadgeName(dayData.weekend.room2.dayCare, undefined, "blue")}
-                                </div>
-                              )}
-                              {dayData.weekend.room2.nightCare && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-500 font-medium">야간:</span>
-                                  {renderBadgeName(dayData.weekend.room2.nightCare, undefined, "blue")}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {!hasWeekday && !hasWeekend && (
-                            <div className="text-[10px] text-gray-400 py-1 text-center font-medium">
-                              {dayData.note ? dayData.note : "배정 없음"}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        /* 3실 DEDICATED VIEW */
-                        <div className="space-y-1 bg-purple-50/50 p-1 rounded-lg border border-purple-100">
-                          <div className="text-[10px] font-black text-purple-800 flex items-center justify-between pb-0.5 border-b border-purple-200/50">
-                            <span>3실 전용</span>
-                            <span className="text-[9px] opacity-75">
-                              {isReturnOrHoliday ? "귀교·공휴일" : dayData.isWeekend ? "주말" : "평일"}
-                            </span>
-                          </div>
-
-                          {/* If weekday duty */}
-                          {hasWeekday && (
-                            <div className="space-y-0.5 text-[11px]">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] text-gray-500 font-medium">방과후:</span>
-                                {renderBadgeName(dayData.weekday.room3.afterSchool, undefined, "purple")}
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] text-gray-500 font-medium">야간1:</span>
-                                {renderBadgeName(dayData.weekday.room3.night1, undefined, "purple")}
-                              </div>
-                              {dayData.weekday.room3.night2 && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-500 font-medium">심야:</span>
-                                  {renderBadgeName(dayData.weekday.room3.night2, undefined, "default")}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* If weekend/return duty */}
-                          {hasWeekend && (
-                            <div className="space-y-0.5 text-[11px]">
-                              {dayData.weekend.room3.dayCare && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-500 font-medium">주간:</span>
-                                  {renderBadgeName(dayData.weekend.room3.dayCare, undefined, "purple")}
-                                </div>
-                              )}
-                              {dayData.weekend.room3.nightCare && (
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-gray-500 font-medium">야간:</span>
-                                  {renderBadgeName(dayData.weekend.room3.nightCare, undefined, "purple")}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {!hasWeekday && !hasWeekend && (
-                            <div className="text-[10px] text-gray-400 py-1 text-center font-medium">
-                              {dayData.note ? dayData.note : "배정 없음"}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Bottom Indicator for Sunday return guide */}
-                    {dayData.returnGuide && (
-                      <div className="mt-1 pt-1 border-t border-gray-100 flex items-center gap-1">
-                        <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1 rounded truncate">
-                          귀교: {dayData.returnGuide}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          /* LIST / TABLE VIEW (Respects selectedRoomFilter & Weekend/Return days) */
           <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-x-auto">
             <table className="w-full text-left text-xs text-gray-800">
               <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold">
                 <tr>
                   <th className="py-3 px-3 w-16 text-center">날짜</th>
                   <th className="py-3 px-2 w-12 text-center">요일</th>
-                  {(selectedRoomFilter === "all" || selectedRoomFilter === "room1") && (
-                    <th className="py-3 px-3 bg-emerald-50/40 text-emerald-900">
-                      1실 감독 {selectedRoomFilter === "room1" && "(전용)"}
-                    </th>
-                  )}
-                  {(selectedRoomFilter === "all" || selectedRoomFilter === "room2") && (
-                    <th className="py-3 px-3 bg-blue-50/40 text-blue-900">
-                      2실 감독 {selectedRoomFilter === "room2" && "(전용)"}
-                    </th>
-                  )}
-                  {(selectedRoomFilter === "all" || selectedRoomFilter === "room3") && (
-                    <th className="py-3 px-3 bg-purple-50/40 text-purple-900">
-                      3실 감독 {selectedRoomFilter === "room3" && "(전용)"}
-                    </th>
-                  )}
+                  <th className="py-3 px-3 bg-emerald-50/40 text-emerald-900">1실 감독</th>
+                  <th className="py-3 px-3 bg-blue-50/40 text-blue-900">2실 감독</th>
+                  <th className="py-3 px-3 bg-purple-50/40 text-purple-900">3실 감독</th>
                   <th className="py-3 px-3">귀교지도</th>
                   <th className="py-3 px-3">비고</th>
                   <th className="py-3 px-3 text-center w-16">상세</th>
@@ -1167,8 +676,7 @@ export default function SupervisionPage() {
                       </td>
 
                       {/* Room 1 Column */}
-                      {(selectedRoomFilter === "all" || selectedRoomFilter === "room1") && (
-                        <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-3">
                           <div className="flex items-center gap-1 flex-wrap">
                             {hasWeekday ? (
                               <>
@@ -1188,11 +696,9 @@ export default function SupervisionPage() {
                             )}
                           </div>
                         </td>
-                      )}
 
                       {/* Room 2 Column */}
-                      {(selectedRoomFilter === "all" || selectedRoomFilter === "room2") && (
-                        <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-3">
                           <div className="flex items-center gap-1 flex-wrap">
                             {hasWeekday ? (
                               <>
@@ -1210,11 +716,9 @@ export default function SupervisionPage() {
                             )}
                           </div>
                         </td>
-                      )}
 
                       {/* Room 3 Column */}
-                      {(selectedRoomFilter === "all" || selectedRoomFilter === "room3") && (
-                        <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-3">
                           <div className="flex items-center gap-1 flex-wrap">
                             {hasWeekday ? (
                               <>
@@ -1232,7 +736,6 @@ export default function SupervisionPage() {
                             )}
                           </div>
                         </td>
-                      )}
 
                       <td className="py-2.5 px-3">
                         {d.returnGuide ? (
@@ -1258,7 +761,7 @@ export default function SupervisionPage() {
               </tbody>
             </table>
           </div>
-        )}
+        </div>
       </div>
 
       {/* DAY DETAIL MODAL */}
@@ -1319,19 +822,19 @@ export default function SupervisionPage() {
                       <span className="text-[11px] font-semibold text-slate-400">교사 근무</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 pt-1">
-                      <div className={`p-2 rounded-lg border text-center ${selectedRoomFilter === "room1" ? "bg-slate-100 border-slate-400 font-bold" : "bg-white border-slate-200"}`}>
+                      <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">1실</span>
                         <span className="text-xs font-black text-slate-800">
                           {activeDayDetail.weekday.room1.afterSchool || "-"}
                         </span>
                       </div>
-                      <div className={`p-2 rounded-lg border text-center ${selectedRoomFilter === "room2" ? "bg-slate-100 border-slate-400 font-bold" : "bg-white border-slate-200"}`}>
+                      <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">2실</span>
                         <span className="text-xs font-black text-slate-800">
                           {activeDayDetail.weekday.room2.afterSchool || "-"}
                         </span>
                       </div>
-                      <div className={`p-2 rounded-lg border text-center ${selectedRoomFilter === "room3" ? "bg-slate-100 border-slate-400 font-bold" : "bg-white border-slate-200"}`}>
+                      <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">3실</span>
                         <span className="text-xs font-black text-slate-800">
                           {activeDayDetail.weekday.room3.afterSchool || "-"}
@@ -1350,19 +853,19 @@ export default function SupervisionPage() {
                       <span className="text-[11px] font-semibold text-slate-400">교사 / 사감</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 pt-1">
-                      <div className={`p-2 rounded-lg border text-center ${selectedRoomFilter === "room1" ? "bg-slate-100 border-slate-400 font-bold" : "bg-white border-slate-200"}`}>
+                      <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">1실</span>
                         <span className="text-xs font-black text-slate-800">
                           {activeDayDetail.weekday.room1.night1 || "-"}
                         </span>
                       </div>
-                      <div className={`p-2 rounded-lg border text-center ${selectedRoomFilter === "room2" ? "bg-slate-100 border-slate-400 font-bold" : "bg-white border-slate-200"}`}>
+                      <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">2실</span>
                         <span className="text-xs font-black text-slate-800">
                           {activeDayDetail.weekday.room1.night1 ? activeDayDetail.weekday.room2.night1 || "-" : activeDayDetail.weekday.room2.night1 || "-"}
                         </span>
                       </div>
-                      <div className={`p-2 rounded-lg border text-center ${selectedRoomFilter === "room3" ? "bg-slate-100 border-slate-400 font-bold" : "bg-white border-slate-200"}`}>
+                      <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">3실</span>
                         <span className="text-xs font-black text-slate-800">
                           {activeDayDetail.weekday.room3.night1 || "-"}
@@ -1381,19 +884,19 @@ export default function SupervisionPage() {
                       <span className="text-[11px] font-semibold text-slate-400">사감 근무</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 pt-1">
-                      <div className={`p-2 rounded-lg border text-center ${selectedRoomFilter === "room1" ? "bg-slate-100 border-slate-400 font-bold" : "bg-white border-slate-200"}`}>
+                      <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">1실</span>
                         <span className="text-xs font-black text-slate-800">
                           {activeDayDetail.weekday.room1.night2 || "-"}
                         </span>
                       </div>
-                      <div className={`p-2 rounded-lg border text-center ${selectedRoomFilter === "room2" ? "bg-slate-100 border-slate-400 font-bold" : "bg-white border-slate-200"}`}>
+                      <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">2실</span>
                         <span className="text-xs font-black text-slate-800">
                           {activeDayDetail.weekday.room2.night2 || "-"}
                         </span>
                       </div>
-                      <div className={`p-2 rounded-lg border text-center ${selectedRoomFilter === "room3" ? "bg-slate-100 border-slate-400 font-bold" : "bg-white border-slate-200"}`}>
+                      <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">3실</span>
                         <span className="text-xs font-black text-slate-800">
                           {activeDayDetail.weekday.room3.night2 || "-"}
@@ -1412,7 +915,7 @@ export default function SupervisionPage() {
                   </div>
 
                   {/* 1실 */}
-                  <div className={`p-3 rounded-xl border space-y-2 ${selectedRoomFilter === "room1" ? "bg-slate-100/90 border-slate-400 font-bold" : "bg-slate-50/80 border-slate-200"}`}>
+                  <div className={`p-3 rounded-xl border space-y-2 bg-slate-50/80 border-slate-200`}>
                     <span className="text-xs font-extrabold text-slate-800 block">
                       1실 감독 (오전 / 오후 / 야간 / 사감)
                     </span>
@@ -1450,7 +953,7 @@ export default function SupervisionPage() {
                       2실 & 3실 사감 근무
                     </span>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className={`p-2.5 rounded-lg border ${selectedRoomFilter === "room2" ? "bg-slate-100 border-slate-400" : "bg-white border-slate-200"}`}>
+                      <div className={`p-2.5 rounded-lg border bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 font-bold block mb-1">2실</span>
                         <div className="text-xs space-y-0.5">
                           <div>
@@ -1463,7 +966,7 @@ export default function SupervisionPage() {
                           </div>
                         </div>
                       </div>
-                      <div className={`p-2.5 rounded-lg border ${selectedRoomFilter === "room3" ? "bg-slate-100 border-slate-400" : "bg-white border-slate-200"}`}>
+                      <div className={`p-2.5 rounded-lg border bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 font-bold block mb-1">3실</span>
                         <div className="text-xs space-y-0.5">
                           <div>

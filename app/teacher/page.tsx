@@ -569,13 +569,19 @@ export default function TeacherPage() {
           <button
             type="button"
             onClick={() => setIsDongheonChatOpen(true)}
-            className="relative h-9 px-3 bg-white hover:bg-gray-50 border border-gray-200 text-gray-800 font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 text-xs cursor-pointer active:scale-95 shrink-0"
+            className="group relative h-9 px-3.5 bg-[#FEE500] hover:bg-[#FADA0A] text-[#371D1E] font-black rounded-2xl shadow-xs hover:shadow transition-all flex items-center justify-center text-xs cursor-pointer active:scale-95 shrink-0 border border-[#ECD100]"
             title="2101 강동헌 학생과의 1:1 실시간 톡"
           >
-            <span className="text-sm leading-none">💌</span>
-            <span>동헌톡</span>
+            {/* 카카오톡 말풍선 꼬리 */}
+            <svg
+              className="absolute -bottom-1.5 left-2.5 w-2.5 h-2 text-[#FEE500] group-hover:text-[#FADA0A] transition-colors fill-current drop-shadow-[0_1px_1px_rgba(0,0,0,0.06)] pointer-events-none"
+              viewBox="0 0 10 8"
+            >
+              <path d="M0,0 L10,0 L1,8 Z" />
+            </svg>
+            <span className="tracking-tight select-none font-black">동헌톡</span>
             {unreadDongheonChatCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black text-white bg-red-600 border border-white rounded-full shadow-sm animate-pulse">
+              <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black text-white bg-red-600 border-2 border-white rounded-full shadow-sm animate-pulse">
                 {unreadDongheonChatCount}
               </span>
             )}

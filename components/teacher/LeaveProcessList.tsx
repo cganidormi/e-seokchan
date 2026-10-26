@@ -150,10 +150,14 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                 {(isSangchanAdmin || teacherName?.includes('이상찬')) && (
                     <button
                         onClick={() => router.push('/teacher/supervision')}
-                        className="h-11 px-4 rounded-full text-sm font-bold transition-all bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 shadow-sm cursor-pointer active:scale-[0.98] flex items-center gap-1.5"
+                        className="h-11 px-4 rounded-full text-sm font-bold transition-all bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 shadow-sm cursor-pointer active:scale-[0.98] flex items-center gap-2"
                         title="양현재 학습실 감독표"
                     >
-                        <span className="text-base">📅</span>
+                        <img 
+                            src="/apple_calendar.png" 
+                            alt="감독표 달력" 
+                            className="w-5 h-5 object-contain flex-shrink-0" 
+                        />
                         <span>감독표</span>
                     </button>
                 )}
@@ -171,7 +175,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                 {/* Today Dashboard Button */}
                 <button
                     onClick={() => router.push('/today')}
-                    className="h-11 px-4 rounded-full text-sm font-bold transition-all bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 shadow-sm cursor-pointer active:scale-[0.98] flex items-center gap-2"
+                    className="h-11 pl-[5.5px] pr-4 rounded-full text-sm font-bold transition-all bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 shadow-sm cursor-pointer active:scale-[0.98] flex items-center gap-2"
                 >
                     <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex-shrink-0 shadow-xs">
                         <div className="p-[1px] bg-white rounded-full">
