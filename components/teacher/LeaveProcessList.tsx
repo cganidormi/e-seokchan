@@ -144,8 +144,20 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                 취침지도 호실배치도 →
             </button>
 
-            {/* Quick Link Buttons (Admin & Today Hongjigwan) */}
+            {/* Quick Link Buttons (Supervision, Admin & Today Hongjigwan) */}
             <div className="flex justify-end items-center gap-2 mb-6">
+                {/* Supervision Schedule Button (감독표 - 관리자인 이상찬 선생님에게만 노출) */}
+                {(isSangchanAdmin || teacherName?.includes('이상찬')) && (
+                    <button
+                        onClick={() => router.push('/teacher/supervision')}
+                        className="h-11 px-4 rounded-full text-sm font-bold transition-all bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 shadow-sm cursor-pointer active:scale-[0.98] flex items-center gap-1.5"
+                        title="양현재 학습실 감독표"
+                    >
+                        <span className="text-base">📅</span>
+                        <span>감독표</span>
+                    </button>
+                )}
+
                 {/* Admin Page Button (관리자 권한을 가진 교사에게만 노출) */}
                 {teacherPosition === '관리자' && (
                     <button

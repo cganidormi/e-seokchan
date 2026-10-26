@@ -25,7 +25,8 @@
     "react-select": "^5.10.2",
     "react-zoom-pan-pinch": "^3.7.0",
     "uuid": "^13.0.0",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

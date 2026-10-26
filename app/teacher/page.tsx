@@ -128,6 +128,9 @@ export default function TeacherPage() {
             globalTeacherLoginId = loginId;
             globalTeacherName = teacher.name;
             globalTeacherPosition = teacher.position;
+            try {
+              localStorage.setItem('dormichan_teacher_name', teacher.name.trim());
+            } catch (e) {}
             
             // 2. 이석 내역 조회와 학생 목록 조회를 동시에 병렬로 가동!
             await Promise.all([
