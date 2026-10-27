@@ -9,7 +9,6 @@ import {
   HiChevronLeft,
   HiChevronRight,
   HiUpload,
-  HiViewList,
   HiSearch,
   HiX,
   HiClock,
@@ -313,17 +312,27 @@ export default function SupervisionPage() {
     }
   };
 
-  const renderBadgeName = (name: string) => {
-    if (!name) return null;
+  const renderBadgeName = (name: string, fallbackToDash: boolean = false) => {
+    if (!name || name.trim() === "-" || name.trim() === "") {
+      if (fallbackToDash) {
+        return <span className="text-slate-300 text-[11px] font-medium py-0.5 px-2">-</span>;
+      }
+      return null;
+    }
     const isSpecial = name.startsWith("#");
     const clean = name.replace(/^#/, "").trim();
-    if (!clean || clean === "-") return null;
+    if (!clean || clean === "-") {
+      if (fallbackToDash) {
+        return <span className="text-slate-300 text-[11px] font-medium py-0.5 px-2">-</span>;
+      }
+      return null;
+    }
     const isTarget = selectedTeacher && clean.includes(selectedTeacher.trim());
 
     if (isTarget) {
       return (
         <span
-          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-900 text-white shadow-2xs transition-all"
+          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-900 text-white shadow-2xs transition-all whitespace-nowrap"
           title={name}
         >
           {clean}
@@ -338,7 +347,7 @@ export default function SupervisionPage() {
 
     return (
       <span
-        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium transition-all ${themeCls}`}
+        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium transition-all whitespace-nowrap ${themeCls}`}
         title={name}
       >
         {clean}
@@ -475,11 +484,6 @@ export default function SupervisionPage() {
                 )}
               </div>
 
-              {/* View Mode: 목록만 유지 */}
-              <div className="flex items-center px-3 py-1.5 bg-gray-100 rounded-xl border border-gray-200 text-xs font-bold text-gray-800 gap-1.5 shrink-0 shadow-2xs">
-                <HiViewList className="w-3.5 h-3.5 text-[#0E8694]" />
-                <span>목록</span>
-              </div>
             </div>
           </div>
 
@@ -598,9 +602,9 @@ export default function SupervisionPage() {
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                 <tr>
                   <th className="py-2.5 px-3 w-16 text-center">날짜</th>
-                  <th className="py-2.5 px-3 min-w-[180px]">1실 감독</th>
-                  <th className="py-2.5 px-3 min-w-[180px]">2실 감독</th>
-                  <th className="py-2.5 px-3 min-w-[180px]">3실 감독</th>
+                  <th className="py-2.5 px-3 min-w-[95px]">1실 감독</th>
+                  <th className="py-2.5 px-3 min-w-[95px]">2실 감독</th>
+                  <th className="py-2.5 px-3 min-w-[95px]">3실 감독</th>
                   <th className="py-2.5 px-3">귀교지도</th>
                   <th className="py-2.5 px-3">비고</th>
                   <th className="py-2.5 px-3 text-center w-16">상세</th>
@@ -640,65 +644,58 @@ export default function SupervisionPage() {
                       </td>
 
                       {/* Room 1 Column */}
-                      <td className="py-2 px-3">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {hasWeekday ? (
-                            <>
-                              {renderBadgeName(d.weekday.room1.afterSchool)}
-                              {renderBadgeName(d.weekday.room1.night1)}
-                              {renderBadgeName(d.weekday.room1.night2)}
-                            </>
-                          ) : hasWeekend ? (
-                            <>
-                              {renderBadgeName(d.weekend.room1.morning)}
-                              {renderBadgeName(d.weekend.room1.afternoon)}
-                              {renderBadgeName(d.weekend.room1.night)}
-                              {renderBadgeName(d.weekend.room1.nightCare)}
-                            </>
-                          ) : (
-                            <span className="text-slate-300">-</span>
-                          )}
-                        </div>
+                      <td className="py-2.5 px-3 align-middle">
+                        {hasWeekday ? (
+                          <div className="flex flex-col gap-1 items-start">
+                            {renderBadgeName(d.weekday.room1.afterSchool, true)}
+                            {renderBadgeName(d.weekday.room1.night1, true)}
+                            {renderBadgeName(d.weekday.room1.night2, true)}
+                          </div>
+                        ) : hasWeekend ? (
+                          <div className="flex flex-col gap-1 items-start">
+                            {renderBadgeName(d.weekend.room1.morning, true)}
+                            {renderBadgeName(d.weekend.room1.afternoon, true)}
+                            {renderBadgeName(d.weekend.room1.night, true)}
+                          </div>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
                       </td>
 
                       {/* Room 2 Column */}
-                      <td className="py-2 px-3">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {hasWeekday ? (
-                            <>
-                              {renderBadgeName(d.weekday.room2.afterSchool)}
-                              {renderBadgeName(d.weekday.room2.night1)}
-                              {renderBadgeName(d.weekday.room2.night2)}
-                            </>
-                          ) : hasWeekend ? (
-                            <>
-                              {renderBadgeName(d.weekend.room2.dayCare)}
-                              {renderBadgeName(d.weekend.room2.nightCare)}
-                            </>
-                          ) : (
-                            <span className="text-slate-300">-</span>
-                          )}
-                        </div>
+                      <td className="py-2.5 px-3 align-middle">
+                        {hasWeekday ? (
+                          <div className="flex flex-col gap-1 items-start">
+                            {renderBadgeName(d.weekday.room2.afterSchool, true)}
+                            {renderBadgeName(d.weekday.room2.night1, true)}
+                            {renderBadgeName(d.weekday.room2.night2, true)}
+                          </div>
+                        ) : hasWeekend ? (
+                          <div className="flex flex-col gap-1 items-start">
+                            {renderBadgeName(d.weekend.room2.dayCare, true)}
+                            {renderBadgeName(d.weekend.room2.nightCare, true)}
+                          </div>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
                       </td>
 
                       {/* Room 3 Column */}
-                      <td className="py-2 px-3">
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {hasWeekday ? (
-                            <>
-                              {renderBadgeName(d.weekday.room3.afterSchool)}
-                              {renderBadgeName(d.weekday.room3.night1)}
-                              {renderBadgeName(d.weekday.room3.night2)}
-                            </>
-                          ) : hasWeekend ? (
-                            <>
-                              {renderBadgeName(d.weekend.room3.dayCare)}
-                              {renderBadgeName(d.weekend.room3.nightCare)}
-                            </>
-                          ) : (
-                            <span className="text-slate-300">-</span>
-                          )}
-                        </div>
+                      <td className="py-2.5 px-3 align-middle">
+                        {hasWeekday ? (
+                          <div className="flex flex-col gap-1 items-start">
+                            {renderBadgeName(d.weekday.room3.afterSchool, true)}
+                            {renderBadgeName(d.weekday.room3.night1, true)}
+                            {renderBadgeName(d.weekday.room3.night2, true)}
+                          </div>
+                        ) : hasWeekend ? (
+                          <div className="flex flex-col gap-1 items-start">
+                            {renderBadgeName(d.weekend.room3.dayCare, true)}
+                            {renderBadgeName(d.weekend.room3.nightCare, true)}
+                          </div>
+                        ) : (
+                          <span className="text-slate-300">-</span>
+                        )}
                       </td>
 
                       <td className="py-2 px-3">

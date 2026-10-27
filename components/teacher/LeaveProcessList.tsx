@@ -44,6 +44,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
 
     const [now, setNow] = useState(new Date());
     const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
+    const [todayDutyGroups, setTodayDutyGroups] = useState<{ room: string; periods: (string | number)[] }[] | null>(null);
 
     const leaveTypes = ['컴이석', '이석', '외출', '외박', '자리비움']; // Define leave types
 
@@ -51,6 +52,100 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
         const timer = setInterval(() => setNow(new Date()), 30000);
         return () => clearInterval(timer);
     }, []);
+
+    // 금일 감독 근무지 및 교시(노란 동그라미 배지) 자동 계산
+    React.useEffect(() => {
+        if (!teacherName) return;
+        const cleanName = teacherName.trim();
+
+        const fetchTodayDuty = async () => {
+            try {
+                const res = await fetch('/api/teacher/supervision-schedule');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data.schedule?.months) return;
+
+                const todayObj = new Date();
+                const currentMonth = todayObj.getMonth() + 1;
+                const currentDay = todayObj.getDate();
+
+                const monthData = data.schedule.months[currentMonth];
+                if (!monthData?.days) {
+                    setTodayDutyGroups([]);
+                    return;
+                }
+
+                const dayData = monthData.days.find((d: any) => d.day === currentDay);
+                if (!dayData) {
+                    setTodayDutyGroups([]);
+                    return;
+                }
+
+                const roomMap = new Map<string, (string | number)[]>();
+                const addDuty = (room: string, periods: (string | number)[]) => {
+                    const existing = roomMap.get(room) || [];
+                    const merged = [...existing];
+                    periods.forEach(p => {
+                        if (!merged.includes(p)) merged.push(p);
+                    });
+                    roomMap.set(room, merged);
+                };
+
+                const check = (val?: string) => Boolean(val && val.replace(/^#/, '').trim().includes(cleanName));
+
+                // 평일 감독 (방과후=8,9교시 / 야간1=1,2교시 / 야간2=3,4교시)
+                if (dayData.weekday) {
+                    // 1실
+                    if (check(dayData.weekday.room1?.afterSchool)) addDuty('1실', [8, 9]);
+                    if (check(dayData.weekday.room1?.night1)) addDuty('1실', [1, 2]);
+                    if (check(dayData.weekday.room1?.night2)) addDuty('1실', [3, 4]);
+
+                    // 2실
+                    if (check(dayData.weekday.room2?.afterSchool)) addDuty('2실', [8, 9]);
+                    if (check(dayData.weekday.room2?.night1)) addDuty('2실', [1, 2]);
+                    if (check(dayData.weekday.room2?.night2)) addDuty('2실', [3, 4]);
+
+                    // 3실
+                    if (check(dayData.weekday.room3?.afterSchool)) addDuty('3실', [8, 9]);
+                    if (check(dayData.weekday.room3?.night1)) addDuty('3실', [1, 2]);
+                    if (check(dayData.weekday.room3?.night2)) addDuty('3실', [3, 4]);
+                }
+
+                // 주말 / 공휴일 감독
+                if (dayData.weekend) {
+                    // 1실 (오전: 1, 2, 3 / 오후: 4, 5, 6 / 야간: 1, 2, 3)
+                    if (check(dayData.weekend.room1?.morning)) addDuty('1실', [1, 2, 3]);
+                    if (check(dayData.weekend.room1?.afternoon)) addDuty('1실', [4, 5, 6]);
+                    if (check(dayData.weekend.room1?.night)) addDuty('1실', [1, 2, 3]);
+                    if (check(dayData.weekend.room1?.nightCare)) addDuty('1실', ['사']);
+
+                    // 2실
+                    if (check(dayData.weekend.room2?.dayCare)) addDuty('2실', ['주']);
+                    if (check(dayData.weekend.room2?.nightCare)) addDuty('2실', ['야']);
+
+                    // 3실
+                    if (check(dayData.weekend.room3?.dayCare)) addDuty('3실', ['주']);
+                    if (check(dayData.weekend.room3?.nightCare)) addDuty('3실', ['야']);
+                }
+
+                // 귀교 지도
+                if (check(dayData.returnGuide)) {
+                    addDuty('기숙사', ['귀교']);
+                }
+
+                const groups = Array.from(roomMap.entries()).map(([room, periods]) => ({
+                    room,
+                    periods,
+                }));
+
+                setTodayDutyGroups(groups);
+            } catch (e) {
+                console.error('Failed to load today duty:', e);
+            }
+        };
+
+        fetchTodayDuty();
+    }, [teacherName]);
 
     // Close status menu when clicking outside
     React.useEffect(() => {
@@ -108,11 +203,46 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
 
     return (
         <div className="flex flex-col w-full max-w-xl mx-auto relative">
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <div className="w-[3px] h-5 bg-[#0E8694] rounded-full shrink-0"></div>
-                    <h1 className="text-base sm:text-xl font-black text-gray-800">이석 처리 ({teacherName} 감독선생님)</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-4">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-[3.5px] h-5 bg-gray-800 rounded-full shrink-0"></div>
+                    <h1 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
+                        {teacherName} 감독선생님
+                    </h1>
                 </div>
+
+                {todayDutyGroups !== null && (
+                    <button
+                        type="button"
+                        onClick={() => router.push('/teacher/supervision')}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 border border-gray-200/90 shadow-2xs transition-all cursor-pointer self-start sm:self-auto active:scale-95"
+                        title="클릭 시 전체 감독표로 이동"
+                    >
+                        <span className="text-gray-500 font-medium">오늘 감독:</span>
+                        {todayDutyGroups.length > 0 ? (
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                                {todayDutyGroups.map((group, idx) => (
+                                    <div key={idx} className="flex items-center gap-1.5">
+                                        <span className="font-bold text-gray-900">{group.room}</span>
+                                        <div className="flex items-center gap-1">
+                                            {group.periods.map((p, pIdx) => (
+                                                <span
+                                                    key={pIdx}
+                                                    className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-black bg-yellow-400 text-black shadow-2xs shrink-0"
+                                                >
+                                                    {p}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                                <span className="text-gray-400 text-[11px] ml-0.5">→</span>
+                            </div>
+                        ) : (
+                            <span className="text-gray-400 font-normal">오늘 일정 없음</span>
+                        )}
+                    </button>
+                )}
             </div>
 
             {/* Pagination Dots (스와이프 넛지) - 1번 화면용 */}
