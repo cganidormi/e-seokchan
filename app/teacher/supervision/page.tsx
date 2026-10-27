@@ -312,6 +312,21 @@ export default function SupervisionPage() {
     }
   };
 
+  const renderBadgeContent = (clean: string, isTargetUser: boolean) => {
+    if (clean.includes("/")) {
+      const parts = clean.split("/");
+      return (
+        <span className="inline-flex flex-col items-center justify-center leading-tight py-0.5">
+          <span>{parts[0].trim()}</span>
+          <span className={`text-[10px] font-semibold tracking-tight ${isTargetUser ? "text-slate-300" : "text-slate-500"}`}>
+            /{parts.slice(1).join("/")}
+          </span>
+        </span>
+      );
+    }
+    return clean;
+  };
+
   const renderBadgeName = (name: string, fallbackToDash: boolean = false) => {
     if (!name || name.trim() === "-" || name.trim() === "") {
       if (fallbackToDash) {
@@ -332,10 +347,10 @@ export default function SupervisionPage() {
     if (isTarget) {
       return (
         <span
-          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-900 text-white shadow-2xs transition-all whitespace-nowrap"
+          className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-900 text-white shadow-2xs transition-all whitespace-nowrap text-center"
           title={name}
         >
-          {clean}
+          {renderBadgeContent(clean, true)}
         </span>
       );
     }
@@ -347,12 +362,31 @@ export default function SupervisionPage() {
 
     return (
       <span
-        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium transition-all whitespace-nowrap ${themeCls}`}
+        className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[11px] font-medium transition-all whitespace-nowrap text-center ${themeCls}`}
         title={name}
       >
-        {clean}
+        {renderBadgeContent(clean, false)}
       </span>
     );
+  };
+
+  const renderDetailName = (name?: string) => {
+    if (!name || name.trim() === "-" || name.trim() === "") return "-";
+    const clean = name.replace(/^#/, "").trim();
+    if (!clean || clean === "-") return "-";
+
+    if (clean.includes("/")) {
+      const parts = clean.split("/");
+      return (
+        <span className="inline-flex flex-col items-center justify-center leading-tight">
+          <span>{parts[0].trim()}</span>
+          <span className="text-[10px] font-semibold tracking-tight text-slate-500">
+            /{parts.slice(1).join("/")}
+          </span>
+        </span>
+      );
+    }
+    return clean;
   };
 
   return (
@@ -606,8 +640,6 @@ export default function SupervisionPage() {
                   <th className="py-2.5 px-3 min-w-[95px]">2실 감독</th>
                   <th className="py-2.5 px-3 min-w-[95px]">3실 감독</th>
                   <th className="py-2.5 px-3">귀교지도</th>
-                  <th className="py-2.5 px-3">비고</th>
-                  <th className="py-2.5 px-3 text-center w-16">상세</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -631,16 +663,28 @@ export default function SupervisionPage() {
                       }`}
                     >
                       <td className="py-2 px-3 text-center whitespace-nowrap">
-                        <span className="text-xs font-bold text-slate-800">
-                          {d.day}
-                        </span>
-                        <span
-                          className={`text-xs font-semibold ml-0.5 ${
-                            isSunday ? "text-rose-500" : isSaturday ? "text-blue-500" : "text-slate-500"
-                          }`}
-                        >
-                          {d.dow}
-                        </span>
+                        <div className="flex flex-col items-center justify-center">
+                          <div>
+                            <span className="text-xs font-bold text-slate-800">
+                              {d.day}
+                            </span>
+                            <span
+                              className={`text-xs font-semibold ml-0.5 ${
+                                isSunday ? "text-rose-500" : isSaturday ? "text-blue-500" : "text-slate-500"
+                              }`}
+                            >
+                              {d.dow}
+                            </span>
+                          </div>
+                          {d.note && (
+                            <span
+                              className="text-[10px] text-amber-900 font-bold bg-amber-50 border border-amber-200/80 px-1.5 py-0.5 rounded mt-1 max-w-[85px] truncate block shadow-2xs"
+                              title={d.note}
+                            >
+                              {d.note}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Room 1 Column */}
@@ -707,15 +751,6 @@ export default function SupervisionPage() {
                           <span className="text-slate-300">-</span>
                         )}
                       </td>
-                      <td className="py-2 px-3 text-slate-500">{d.note || "-"}</td>
-                      <td className="py-2 px-3 text-center">
-                        <button
-                          type="button"
-                          className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded text-[11px] font-medium transition cursor-pointer"
-                        >
-                          보기
-                        </button>
-                      </td>
                     </tr>
                   );
                 })}
@@ -776,30 +811,29 @@ export default function SupervisionPage() {
 
                   {/* Period 1 */}
                   <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-black text-slate-800">
+                    <div className="flex items-center text-xs font-black text-slate-800">
                       <span className="flex items-center gap-1.5 text-slate-800">
                         <HiClock className="w-3.5 h-3.5 text-slate-500" />
                         <span>16:30 ~ 18:20 (방과후 1차)</span>
                       </span>
-                      <span className="text-[11px] font-semibold text-slate-400">교사 근무</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 pt-1">
                       <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">1실</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekday.room1.afterSchool || "-"}
+                          {renderDetailName(activeDayDetail.weekday.room1.afterSchool)}
                         </span>
                       </div>
                       <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">2실</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekday.room2.afterSchool || "-"}
+                          {renderDetailName(activeDayDetail.weekday.room2.afterSchool)}
                         </span>
                       </div>
                       <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">3실</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekday.room3.afterSchool || "-"}
+                          {renderDetailName(activeDayDetail.weekday.room3.afterSchool)}
                         </span>
                       </div>
                     </div>
@@ -807,30 +841,29 @@ export default function SupervisionPage() {
 
                   {/* Period 2 */}
                   <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-black text-slate-800">
+                    <div className="flex items-center text-xs font-black text-slate-800">
                       <span className="flex items-center gap-1.5 text-slate-800">
                         <HiClock className="w-3.5 h-3.5 text-slate-500" />
                         <span>19:30 ~ 21:20 (야간 1차)</span>
                       </span>
-                      <span className="text-[11px] font-semibold text-slate-400">교사 / 사감</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 pt-1">
                       <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">1실</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekday.room1.night1 || "-"}
+                          {renderDetailName(activeDayDetail.weekday.room1.night1)}
                         </span>
                       </div>
                       <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">2실</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekday.room1.night1 ? activeDayDetail.weekday.room2.night1 || "-" : activeDayDetail.weekday.room2.night1 || "-"}
+                          {renderDetailName(activeDayDetail.weekday.room2.night1)}
                         </span>
                       </div>
                       <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">3실</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekday.room3.night1 || "-"}
+                          {renderDetailName(activeDayDetail.weekday.room3.night1)}
                         </span>
                       </div>
                     </div>
@@ -838,30 +871,29 @@ export default function SupervisionPage() {
 
                   {/* Period 3 */}
                   <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-black text-slate-800">
+                    <div className="flex items-center text-xs font-black text-slate-800">
                       <span className="flex items-center gap-1.5 text-slate-800">
                         <HiClock className="w-3.5 h-3.5 text-slate-500" />
                         <span>21:20 ~ 23:30 (야간 2차)</span>
                       </span>
-                      <span className="text-[11px] font-semibold text-slate-400">사감 근무</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 pt-1">
                       <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">1실</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekday.room1.night2 || "-"}
+                          {renderDetailName(activeDayDetail.weekday.room1.night2)}
                         </span>
                       </div>
                       <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">2실</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekday.room2.night2 || "-"}
+                          {renderDetailName(activeDayDetail.weekday.room2.night2)}
                         </span>
                       </div>
                       <div className={`p-2 rounded-lg border text-center bg-white border-slate-200`}>
                         <span className="text-[10px] text-slate-500 block font-bold">3실</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekday.room3.night2 || "-"}
+                          {renderDetailName(activeDayDetail.weekday.room3.night2)}
                         </span>
                       </div>
                     </div>
@@ -885,25 +917,25 @@ export default function SupervisionPage() {
                       <div className="bg-white p-2 rounded-lg border border-slate-200 text-center">
                         <span className="text-[10px] text-slate-400 block font-bold">오전 (09:00~13:15)</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekend.room1.morning || "-"}
+                          {renderDetailName(activeDayDetail.weekend.room1.morning)}
                         </span>
                       </div>
                       <div className="bg-white p-2 rounded-lg border border-slate-200 text-center">
                         <span className="text-[10px] text-slate-400 block font-bold">오후 (13:10~17:25)</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekend.room1.afternoon || "-"}
+                          {renderDetailName(activeDayDetail.weekend.room1.afternoon)}
                         </span>
                       </div>
                       <div className="bg-white p-2 rounded-lg border border-slate-200 text-center">
                         <span className="text-[10px] text-slate-400 block font-bold">야간 (17:20~21:20)</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekend.room1.night || "-"}
+                          {renderDetailName(activeDayDetail.weekend.room1.night)}
                         </span>
                       </div>
                       <div className="bg-white p-2 rounded-lg border border-slate-200 text-center">
                         <span className="text-[10px] text-slate-400 block font-bold">사감 (21:20~22:20)</span>
                         <span className="text-xs font-black text-slate-800">
-                          {activeDayDetail.weekend.room1.nightCare || "-"}
+                          {renderDetailName(activeDayDetail.weekend.room1.nightCare)}
                         </span>
                       </div>
                     </div>
@@ -920,11 +952,11 @@ export default function SupervisionPage() {
                         <div className="text-xs space-y-0.5">
                           <div>
                             <span className="text-slate-400">주간:</span>{" "}
-                            <span className="font-bold text-slate-800">{activeDayDetail.weekend.room2.dayCare || "-"}</span>
+                            <span className="font-bold text-slate-800">{renderDetailName(activeDayDetail.weekend.room2.dayCare)}</span>
                           </div>
                           <div>
                             <span className="text-slate-400">야간:</span>{" "}
-                            <span className="font-bold text-slate-800">{activeDayDetail.weekend.room2.nightCare || "-"}</span>
+                            <span className="font-bold text-slate-800">{renderDetailName(activeDayDetail.weekend.room2.nightCare)}</span>
                           </div>
                         </div>
                       </div>
@@ -933,11 +965,11 @@ export default function SupervisionPage() {
                         <div className="text-xs space-y-0.5">
                           <div>
                             <span className="text-slate-400">주간:</span>{" "}
-                            <span className="font-bold text-slate-800">{activeDayDetail.weekend.room3.dayCare || "-"}</span>
+                            <span className="font-bold text-slate-800">{renderDetailName(activeDayDetail.weekend.room3.dayCare)}</span>
                           </div>
                           <div>
                             <span className="text-slate-400">야간:</span>{" "}
-                            <span className="font-bold text-slate-800">{activeDayDetail.weekend.room3.nightCare || "-"}</span>
+                            <span className="font-bold text-slate-800">{renderDetailName(activeDayDetail.weekend.room3.nightCare)}</span>
                           </div>
                         </div>
                       </div>
