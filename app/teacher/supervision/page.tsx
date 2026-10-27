@@ -522,29 +522,45 @@ export default function SupervisionPage() {
           </div>
 
           {/* Teacher Duty Summary & Sleek Mini Calendar Card */}
-          {teacherStats && selectedTeacher && (
+          {calendarCells.length > 0 && (
             <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 space-y-3.5 transition-all animate-fadeIn">
               {/* Header Info Row */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200/60">
-                      개인 감독 일정
-                    </span>
-                    <h3 className="text-base font-black text-slate-900 tracking-tight">
-                      {selectedTeacher} 선생님
-                    </h3>
-                  </div>
+                {selectedTeacher && teacherStats ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200/60">
+                        개인 감독 일정
+                      </span>
+                      <h3 className="text-base font-black text-slate-900 tracking-tight">
+                        {selectedTeacher} 선생님
+                      </h3>
+                    </div>
 
-                  <div className="text-xs text-slate-500 font-medium">
-                    {selectedMonth}월 배정 감독:{" "}
-                    <span className="text-sm font-black text-slate-900">{teacherStats.total}회</span>
-                    <span className="text-slate-400 mx-1.5">|</span>
-                    <span>평일 {teacherStats.weekdayCount}회</span>
-                    <span className="text-slate-400 mx-1">·</span>
-                    <span>주말 및 공휴일 {teacherStats.weekendCount}회</span>
+                    <div className="text-xs text-slate-500 font-medium">
+                      {selectedMonth}월 배정 감독:{" "}
+                      <span className="text-sm font-black text-slate-900">{teacherStats.total}회</span>
+                      <span className="text-slate-400 mx-1.5">|</span>
+                      <span>평일 {teacherStats.weekdayCount}회</span>
+                      <span className="text-slate-400 mx-1">·</span>
+                      <span>주말 및 공휴일 {teacherStats.weekendCount}회</span>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200/60">
+                        월간 일정 달력
+                      </span>
+                      <h3 className="text-base font-black text-slate-900 tracking-tight">
+                        {selectedMonth}월 학사 및 감독 일정
+                      </h3>
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium">
+                      날짜를 클릭하면 세부 감독 배정을 확인할 수 있습니다.
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Minimalist Apple-Style Mini Calendar Widget */}
@@ -564,23 +580,25 @@ export default function SupervisionPage() {
                 <div className="grid grid-cols-7 gap-y-1 gap-x-0.5 pt-2 text-center">
                   {calendarCells.map((cell, idx) => {
                     if (!cell) {
-                      return <div key={`sleek-empty-${idx}`} className="h-8" />;
+                      return <div key={`sleek-empty-${idx}`} className="h-10 sm:h-[42px]" />;
                     }
 
-                    const isDuty = teacherStats.dutyDays.includes(cell.day);
+                    const isDuty = teacherStats ? teacherStats.dutyDays.includes(cell.day) : false;
                     const isToday =
                       selectedYear === today.year &&
                       selectedMonth === today.month &&
                       cell.day === today.day;
                     const isSun = cell.dow === "일";
                     const isSat = cell.dow === "토";
+                    const isHomecoming = Boolean(cell.note && cell.note.includes("귀가"));
+                    const isReturnSchool = Boolean(cell.note && cell.note.includes("귀교"));
 
                     return (
                       <button
                         key={`sleek-day-${cell.day}`}
                         type="button"
                         onClick={() => setActiveDayDetail(cell)}
-                        className={`h-8 w-8 mx-auto rounded-full flex flex-col items-center justify-center transition-all cursor-pointer relative ${
+                        className={`w-8 sm:w-9 h-10 sm:h-[42px] mx-auto rounded-xl flex flex-col items-center justify-between py-1 transition-all cursor-pointer relative ${
                           isToday
                             ? isDuty
                               ? "bg-white text-slate-900 font-black shadow-2xs ring-1 ring-blue-500 hover:ring-blue-600"
@@ -589,8 +607,27 @@ export default function SupervisionPage() {
                             ? "bg-white text-slate-900 font-black shadow-2xs ring-1 ring-slate-200 hover:ring-rose-400"
                             : "hover:bg-slate-200/50 text-slate-600 font-medium"
                         }`}
-                        title={`${cell.day}일 (${cell.dow})${isToday ? " - 오늘" : ""}${isDuty ? " - 근무일 (클릭 시 상세 일정)" : ""}`}
+                        title={`${cell.day}일 (${cell.dow})${isToday ? " - 오늘" : ""}${isDuty ? " - 근무일 (클릭 시 상세 일정)" : ""}${isHomecoming ? " [귀가일]" : ""}${isReturnSchool ? " [귀교일]" : ""}`}
                       >
+                        {/* Status Label (귀가 / 귀교) */}
+                        {isHomecoming ? (
+                          <span className="text-[8px] sm:text-[8.5px] font-black leading-none text-black tracking-tight">
+                            귀가
+                          </span>
+                        ) : isReturnSchool ? (
+                          <span className="text-[8px] sm:text-[8.5px] font-black leading-none text-black tracking-tight">
+                            귀교
+                          </span>
+                        ) : (
+                          <span
+                            className="text-[8px] sm:text-[8.5px] leading-none opacity-0 select-none pointer-events-none"
+                            aria-hidden="true"
+                          >
+                            &nbsp;
+                          </span>
+                        )}
+
+                        {/* Date Number */}
                         <span
                           className={`text-[11px] leading-none ${
                             isToday
@@ -607,11 +644,11 @@ export default function SupervisionPage() {
                           {cell.day}
                         </span>
 
-                        {/* Refined Pin-point Red Dot */}
+                        {/* Duty Indicator Dot */}
                         {isDuty ? (
-                          <span className="w-1 h-1 rounded-full bg-rose-500 mt-0.5 shrink-0" />
+                          <span className="w-1 h-1 rounded-full bg-rose-500 shrink-0" />
                         ) : (
-                          <span className="w-1 h-1 mt-0.5 shrink-0" />
+                          <span className="w-1 h-1 shrink-0 opacity-0" />
                         )}
                       </button>
                     );

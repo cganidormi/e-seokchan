@@ -236,7 +236,7 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
             </button>
 
             {/* Quick Link Buttons (Supervision, Admin & Today Hongjigwan) */}
-            <div className="flex justify-end items-center gap-2 mb-6">
+            <div className="flex justify-end items-center gap-2 mb-3">
                 {/* Admin Page Button (관리자 권한을 가진 교사에게만 노출) */}
                 {teacherPosition === '관리자' && (
                     <button
@@ -274,6 +274,14 @@ export const LeaveProcessList: React.FC<LeaveProcessListProps> = ({
                     </div>
                     <span>오늘의 홍지관 →</span>
                 </button>
+            </div>
+
+            {/* Visual Divider & Section Separation */}
+            <div className="relative my-7 sm:my-8 flex items-center justify-center">
+                <div className="w-full border-t border-gray-300/60" />
+                <span className="absolute px-3.5 bg-gray-100 text-[11px] font-extrabold text-gray-400 select-none tracking-wider">
+                    이석 현황
+                </span>
             </div>
 
             {/* 탭 전환 UI */}
