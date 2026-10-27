@@ -275,11 +275,21 @@ export default function SupervisionPage() {
     return { total, weekdayCount, weekendCount, dutyDays };
   }, [selectedTeacher, currentMonthData]);
 
+  // Today reference for calendar highlight
+  const today = useMemo(() => {
+    const now = new Date();
+    return {
+      year: now.getFullYear(),
+      month: now.getMonth() + 1,
+      day: now.getDate(),
+    };
+  }, []);
+
   // Calendar Grid Preparation
   const calendarCells = useMemo(() => {
     if (!currentMonthData.length) return [];
     const firstDay = currentMonthData[0];
-    const dowMap: Record<string, number> = { 일: 0, 월: 1, 화: 2, 수: 3, 목: 4, 금: 5, 토: 6 };
+    const dowMap: Record<string, number> = { 월: 0, 화: 1, 수: 2, 목: 3, 금: 4, 토: 5, 일: 6 };
     const firstDowIndex = dowMap[firstDay.dow] ?? 0;
 
     const cells: (DaySupervision | null)[] = [];
@@ -303,44 +313,34 @@ export default function SupervisionPage() {
     }
   };
 
-  const renderBadgeName = (
-    name: string,
-    rolePrefix?: string,
-    roomTheme?: "emerald" | "blue" | "purple" | "amber" | "default"
-  ) => {
+  const renderBadgeName = (name: string) => {
     if (!name) return null;
     const isSpecial = name.startsWith("#");
     const clean = name.replace(/^#/, "").trim();
+    if (!clean || clean === "-") return null;
     const isTarget = selectedTeacher && clean.includes(selectedTeacher.trim());
 
     if (isTarget) {
       return (
         <span
-          className="inline-block px-1.5 py-0.5 rounded text-[11px] font-black bg-amber-400 text-gray-950 ring-2 ring-amber-500 scale-105 shadow-xs transition-all"
-          title={`${rolePrefix ? rolePrefix + ": " : ""}${name}`}
+          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-slate-900 text-white shadow-2xs transition-all"
+          title={name}
         >
-          {rolePrefix && <span className="text-[9px] opacity-75 mr-0.5">{rolePrefix}</span>}
           {clean}
         </span>
       );
     }
 
-    let themeCls = "bg-gray-100 text-gray-800";
-    if (roomTheme === "emerald") themeCls = "bg-emerald-50 text-emerald-800 border border-emerald-200/60";
-    else if (roomTheme === "blue") themeCls = "bg-blue-50 text-blue-800 border border-blue-200/60";
-    else if (roomTheme === "purple") themeCls = "bg-purple-50 text-purple-800 border border-purple-200/60";
-    else if (roomTheme === "amber") themeCls = "bg-amber-50 text-amber-900 border border-amber-200/60";
-
+    let themeCls = "bg-slate-100/90 text-slate-700 border border-slate-200/80";
     if (isSpecial) {
-      themeCls = "bg-rose-50 text-rose-700 border border-rose-200";
+      themeCls = "bg-slate-50 text-slate-600 border border-dashed border-slate-300";
     }
 
     return (
       <span
-        className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold truncate transition-all ${themeCls}`}
-        title={`${rolePrefix ? rolePrefix + ": " : ""}${name}`}
+        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium transition-all ${themeCls}`}
+        title={name}
       >
-        {rolePrefix && <span className="text-[9px] opacity-70 mr-0.5 font-bold">{rolePrefix}</span>}
         {clean}
       </span>
     );
@@ -507,27 +507,19 @@ export default function SupervisionPage() {
                     <span>주말 및 공휴일 {teacherStats.weekendCount}회</span>
                   </div>
                 </div>
-
-                {/* Legend & Quick Info */}
-                <div className="flex items-center gap-2 self-start sm:self-auto">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-[11px] font-semibold text-slate-600 shadow-2xs">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                    <span>근무일</span>
-                  </span>
-                </div>
               </div>
 
               {/* Minimalist Apple-Style Mini Calendar Widget */}
               <div className="max-w-xs sm:max-w-sm mx-auto bg-slate-50/70 rounded-xl p-3 border border-slate-200/60">
                 {/* Weekday Labels */}
                 <div className="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400 pb-2 border-b border-slate-200/50">
-                  <span className="text-rose-500">일</span>
                   <span>월</span>
                   <span>화</span>
                   <span>수</span>
                   <span>목</span>
                   <span>금</span>
                   <span className="text-blue-500">토</span>
+                  <span className="text-rose-500">일</span>
                 </div>
 
                 {/* Days Grid */}
@@ -538,6 +530,10 @@ export default function SupervisionPage() {
                     }
 
                     const isDuty = teacherStats.dutyDays.includes(cell.day);
+                    const isToday =
+                      selectedYear === today.year &&
+                      selectedMonth === today.month &&
+                      cell.day === today.day;
                     const isSun = cell.dow === "일";
                     const isSat = cell.dow === "토";
 
@@ -547,15 +543,21 @@ export default function SupervisionPage() {
                         type="button"
                         onClick={() => setActiveDayDetail(cell)}
                         className={`h-8 w-8 mx-auto rounded-full flex flex-col items-center justify-center transition-all cursor-pointer relative ${
-                          isDuty
+                          isToday
+                            ? isDuty
+                              ? "bg-white text-slate-900 font-black shadow-2xs ring-1 ring-blue-500 hover:ring-blue-600"
+                              : "bg-white text-slate-900 font-bold shadow-2xs ring-1 ring-blue-500 hover:bg-blue-50/40"
+                            : isDuty
                             ? "bg-white text-slate-900 font-black shadow-2xs ring-1 ring-slate-200 hover:ring-rose-400"
                             : "hover:bg-slate-200/50 text-slate-600 font-medium"
                         }`}
-                        title={`${cell.day}일 (${cell.dow})${isDuty ? " - 근무일 (클릭 시 상세 일정)" : ""}`}
+                        title={`${cell.day}일 (${cell.dow})${isToday ? " - 오늘" : ""}${isDuty ? " - 근무일 (클릭 시 상세 일정)" : ""}`}
                       >
                         <span
                           className={`text-[11px] leading-none ${
-                            isDuty
+                            isToday
+                              ? "font-black text-blue-600"
+                              : isDuty
                               ? "font-black text-slate-900"
                               : isSun
                               ? "text-rose-500"
@@ -579,30 +581,6 @@ export default function SupervisionPage() {
                 </div>
               </div>
 
-              {/* Duty Days Quick Jump List */}
-              {teacherStats.dutyDays.length > 0 ? (
-                <div className="flex items-center justify-center gap-1.5 flex-wrap pt-1 text-xs text-slate-600">
-                  <span className="font-semibold text-slate-400 text-[11px]">배정 일자:</span>
-                  {teacherStats.dutyDays.map((day) => (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => {
-                        const targetDay = currentMonthData.find((d) => d.day === day);
-                        if (targetDay) setActiveDayDetail(targetDay);
-                      }}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200/80 transition-colors cursor-pointer"
-                    >
-                      <span className="w-1 h-1 rounded-full bg-rose-500"></span>
-                      <span>{day}일</span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-xs text-slate-400 font-medium pt-1">
-                  이번 달 배정된 근무가 없습니다.
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -615,142 +593,128 @@ export default function SupervisionPage() {
             <span className="font-bold text-gray-700">전체 학습실(1·2·3실) 감독 일정표</span>
             <span className="hidden sm:inline text-gray-400">행을 클릭하면 시간대별 세부 일정을 확인할 수 있습니다.</span>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-x-auto">
-            <table className="w-full text-left text-xs text-gray-800">
-              <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold">
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-800">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
                 <tr>
-                  <th className="py-3 px-3 w-16 text-center">날짜</th>
-                  <th className="py-3 px-2 w-12 text-center">요일</th>
-                  <th className="py-3 px-3 bg-emerald-50/40 text-emerald-900">1실 감독</th>
-                  <th className="py-3 px-3 bg-blue-50/40 text-blue-900">2실 감독</th>
-                  <th className="py-3 px-3 bg-purple-50/40 text-purple-900">3실 감독</th>
-                  <th className="py-3 px-3">귀교지도</th>
-                  <th className="py-3 px-3">비고</th>
-                  <th className="py-3 px-3 text-center w-16">상세</th>
+                  <th className="py-2.5 px-3 w-16 text-center">날짜</th>
+                  <th className="py-2.5 px-3 min-w-[180px]">1실 감독</th>
+                  <th className="py-2.5 px-3 min-w-[180px]">2실 감독</th>
+                  <th className="py-2.5 px-3 min-w-[180px]">3실 감독</th>
+                  <th className="py-2.5 px-3">귀교지도</th>
+                  <th className="py-2.5 px-3">비고</th>
+                  <th className="py-2.5 px-3 text-center w-16">상세</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {currentMonthData.map((d) => {
                   const isTarget = dayMatchesTeacher(d);
                   const isSunday = d.dow === "일";
                   const isSaturday = d.dow === "토";
                   const hasWeekend = hasWeekendDuty(d);
                   const hasWeekday = hasWeekdayDuty(d);
-                  const isReturnOrHoliday = !d.isWeekend && hasWeekend;
 
                   return (
                     <tr
                       key={d.day}
                       onClick={() => setActiveDayDetail(d)}
-                      className={`hover:bg-teal-50/40 transition cursor-pointer ${
+                      className={`hover:bg-slate-100/60 transition cursor-pointer ${
                         isTarget
-                          ? "bg-amber-50/80 font-bold"
+                          ? "bg-slate-100 font-semibold"
                           : d.isWeekend
-                          ? "bg-slate-50/40"
-                          : isReturnOrHoliday
-                          ? "bg-orange-50/20"
+                          ? "bg-slate-50/50"
                           : "bg-white"
                       }`}
                     >
-                      <td className="py-2.5 px-3 text-center font-black">
+                      <td className="py-2 px-3 text-center whitespace-nowrap">
+                        <span className="text-xs font-bold text-slate-800">
+                          {d.day}
+                        </span>
                         <span
-                          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs ${
-                            isSunday
-                              ? "text-rose-600 bg-rose-50"
-                              : isSaturday
-                              ? "text-blue-600 bg-blue-50"
-                              : isReturnOrHoliday
-                              ? "text-amber-800 bg-amber-100"
-                              : "text-gray-800"
+                          className={`text-xs font-semibold ml-0.5 ${
+                            isSunday ? "text-rose-500" : isSaturday ? "text-blue-500" : "text-slate-500"
                           }`}
                         >
-                          {d.day}일
+                          {d.dow}
                         </span>
-                      </td>
-                      <td
-                        className={`py-2.5 px-2 text-center font-extrabold ${
-                          isSunday ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-gray-600"
-                        }`}
-                      >
-                        {d.dow}
                       </td>
 
                       {/* Room 1 Column */}
-                      <td className="py-2.5 px-3">
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {hasWeekday ? (
-                              <>
-                                {renderBadgeName(d.weekday.room1.afterSchool, "방과후", "emerald")}
-                                {renderBadgeName(d.weekday.room1.night1, "야간1", "emerald")}
-                                {renderBadgeName(d.weekday.room1.night2, "야간2", "default")}
-                              </>
-                            ) : hasWeekend ? (
-                              <>
-                                {renderBadgeName(d.weekend.room1.morning, "오전", "emerald")}
-                                {renderBadgeName(d.weekend.room1.afternoon, "오후", "emerald")}
-                                {renderBadgeName(d.weekend.room1.night, "야간", "emerald")}
-                                {renderBadgeName(d.weekend.room1.nightCare, "사감", "default")}
-                              </>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </div>
-                        </td>
+                      <td className="py-2 px-3">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {hasWeekday ? (
+                            <>
+                              {renderBadgeName(d.weekday.room1.afterSchool)}
+                              {renderBadgeName(d.weekday.room1.night1)}
+                              {renderBadgeName(d.weekday.room1.night2)}
+                            </>
+                          ) : hasWeekend ? (
+                            <>
+                              {renderBadgeName(d.weekend.room1.morning)}
+                              {renderBadgeName(d.weekend.room1.afternoon)}
+                              {renderBadgeName(d.weekend.room1.night)}
+                              {renderBadgeName(d.weekend.room1.nightCare)}
+                            </>
+                          ) : (
+                            <span className="text-slate-300">-</span>
+                          )}
+                        </div>
+                      </td>
 
                       {/* Room 2 Column */}
-                      <td className="py-2.5 px-3">
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {hasWeekday ? (
-                              <>
-                                {renderBadgeName(d.weekday.room2.afterSchool, "방과후", "blue")}
-                                {renderBadgeName(d.weekday.room2.night1, "야간1", "blue")}
-                                {renderBadgeName(d.weekday.room2.night2, "야간2", "default")}
-                              </>
-                            ) : hasWeekend ? (
-                              <>
-                                {renderBadgeName(d.weekend.room2.dayCare, "주간사감", "blue")}
-                                {renderBadgeName(d.weekend.room2.nightCare, "야간사감", "blue")}
-                              </>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </div>
-                        </td>
+                      <td className="py-2 px-3">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {hasWeekday ? (
+                            <>
+                              {renderBadgeName(d.weekday.room2.afterSchool)}
+                              {renderBadgeName(d.weekday.room2.night1)}
+                              {renderBadgeName(d.weekday.room2.night2)}
+                            </>
+                          ) : hasWeekend ? (
+                            <>
+                              {renderBadgeName(d.weekend.room2.dayCare)}
+                              {renderBadgeName(d.weekend.room2.nightCare)}
+                            </>
+                          ) : (
+                            <span className="text-slate-300">-</span>
+                          )}
+                        </div>
+                      </td>
 
                       {/* Room 3 Column */}
-                      <td className="py-2.5 px-3">
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {hasWeekday ? (
-                              <>
-                                {renderBadgeName(d.weekday.room3.afterSchool, "방과후", "purple")}
-                                {renderBadgeName(d.weekday.room3.night1, "야간1", "purple")}
-                                {renderBadgeName(d.weekday.room3.night2, "야간2", "default")}
-                              </>
-                            ) : hasWeekend ? (
-                              <>
-                                {renderBadgeName(d.weekend.room3.dayCare, "주간사감", "purple")}
-                                {renderBadgeName(d.weekend.room3.nightCare, "야간사감", "purple")}
-                              </>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </div>
-                        </td>
+                      <td className="py-2 px-3">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {hasWeekday ? (
+                            <>
+                              {renderBadgeName(d.weekday.room3.afterSchool)}
+                              {renderBadgeName(d.weekday.room3.night1)}
+                              {renderBadgeName(d.weekday.room3.night2)}
+                            </>
+                          ) : hasWeekend ? (
+                            <>
+                              {renderBadgeName(d.weekend.room3.dayCare)}
+                              {renderBadgeName(d.weekend.room3.nightCare)}
+                            </>
+                          ) : (
+                            <span className="text-slate-300">-</span>
+                          )}
+                        </div>
+                      </td>
 
-                      <td className="py-2.5 px-3">
+                      <td className="py-2 px-3">
                         {d.returnGuide ? (
-                          <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium text-slate-700 bg-slate-100 border border-slate-200/80">
                             {d.returnGuide}
                           </span>
                         ) : (
-                          <span className="text-gray-300">-</span>
+                          <span className="text-slate-300">-</span>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-gray-500">{d.note || "-"}</td>
-                      <td className="py-2.5 px-3 text-center">
+                      <td className="py-2 px-3 text-slate-500">{d.note || "-"}</td>
+                      <td className="py-2 px-3 text-center">
                         <button
                           type="button"
-                          className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-[11px] font-bold cursor-pointer"
+                          className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded text-[11px] font-medium transition cursor-pointer"
                         >
                           보기
                         </button>
@@ -760,6 +724,7 @@ export default function SupervisionPage() {
                 })}
               </tbody>
             </table>
+
           </div>
         </div>
       </div>
