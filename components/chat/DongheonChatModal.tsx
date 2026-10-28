@@ -202,7 +202,24 @@ export default function DongheonChatModal({
     }
   }, [isOpen, messages.length]);
 
-  // 푸시 알림 발송 헬퍼
+  // 푸시 알림 발송 헬퍼 (동일 기기 endpoint 중복 발송 방지)
+  const filterUniqueSubs = (subs: Array<{ subscription_json: any }>) => {
+    const seen = new Set<string>();
+    return subs.filter((sub) => {
+      let ep = '';
+      try {
+        const parsed =
+          typeof sub.subscription_json === 'string'
+            ? JSON.parse(sub.subscription_json)
+            : sub.subscription_json;
+        ep = parsed?.endpoint || '';
+      } catch {}
+      if (!ep || seen.has(ep)) return false;
+      seen.add(ep);
+      return true;
+    });
+  };
+
   const sendPushNotification = async (text: string) => {
     try {
       // 상대방이 지금 대화창을 보고 있다면 푸시 알림 생략
@@ -225,7 +242,7 @@ export default function DongheonChatModal({
             .eq('teacher_id', teacherData.id);
 
           if (subs && subs.length > 0) {
-            subs.forEach((sub) => {
+            filterUniqueSubs(subs).forEach((sub) => {
               fetch('/api/web-push', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -247,7 +264,7 @@ export default function DongheonChatModal({
           .eq('student_id', '2101강동헌');
 
         if (subs && subs.length > 0) {
-          subs.forEach((sub) => {
+          filterUniqueSubs(subs).forEach((sub) => {
             fetch('/api/web-push', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -274,6 +291,8 @@ export default function DongheonChatModal({
 
     try {
       setIsSending(true);
+      // 전송 즉시 입력창을 비워 연속 타이핑 시 다음 메시지의 첫 글자가 지워지지 않도록 처리
+      setInputText('');
 
       const newRecord = {
         sender_role: currentRole,
@@ -292,8 +311,6 @@ export default function DongheonChatModal({
         throw error;
       }
 
-      setInputText('');
-
       // 즉시 로컬 state 반영 (Realtime 대기 전 반응성 강화)
       if (data) {
         setMessages((prev) => {
@@ -308,6 +325,7 @@ export default function DongheonChatModal({
       sendPushNotification(trimmed);
     } catch (err: any) {
       console.error('Message send error:', err);
+      setInputText((prev) => prev || trimmed);
       toast.error('메시지 전송에 실패했습니다. (DB 테이블을 확인해주세요)');
     } finally {
       setIsSending(false);
@@ -315,6 +333,7 @@ export default function DongheonChatModal({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
