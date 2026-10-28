@@ -14,6 +14,7 @@ import SwipeWrapper from '@/components/teacher/SwipeWrapper';
 import SwipeNudgeDots from '@/components/teacher/SwipeNudgeDots';
 import { isWeeklyHomeTime } from '@/lib/weeklyReturn';
 import { HiHome } from 'react-icons/hi';
+import StudyLogModal from '@/components/teacher/StudyLogModal';
 
 interface Student {
     student_id: string;
@@ -108,6 +109,9 @@ export default function SeatManagementPage() {
 
     // Supervision Tip Modal State
     const [isTipModalOpen, setIsTipModalOpen] = useState(false);
+
+    // Study Log Modal State
+    const [isStudyLogModalOpen, setIsStudyLogModalOpen] = useState(false);
 
     const [checkedSeats, setCheckedSeats] = useState<Set<string>>(new Set());
 
@@ -229,16 +233,19 @@ export default function SeatManagementPage() {
 
             setHistoryRecords(recordsWithTeachers);
 
-            // Fetch today's yanghyeonjae violations for this student
+            // Fetch yanghyeonjae violations for this student based on rollcall cycle (18:00 ~ next day)
             try {
-                const startOfToday = new Date();
-                startOfToday.setHours(0, 0, 0, 0);
+                const now = new Date();
+                const rollcallStart = now.getHours() < 18
+                    ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 18, 0, 0, 0)
+                    : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0, 0);
+
                 const { data: yanghyeonjaeData } = await supabase
                     .from('morning_checks')
                     .select('id, student_id, checked_at, note, teacher_id')
                     .eq('student_id', studentId)
                     .eq('type', 'yanghyeonjae')
-                    .gte('checked_at', startOfToday.toISOString())
+                    .gte('checked_at', rollcallStart.toISOString())
                     .order('checked_at', { ascending: false });
                 setStudentYanghyeonjaeViolations(yanghyeonjaeData || []);
             } catch (err) {
@@ -1082,17 +1089,26 @@ export default function SeatManagementPage() {
                             <SwipeNudgeDots currentIndex={1} className="bg-gray-200/70 py-1.5 px-4 rounded-full shadow-inner" />
                         </div>
 
-                        {/* Row: Supervision Tip Button */}
-                        <div className="flex items-center justify-center w-full">
+                        {/* Row: Supervision Tip Button & Study Log Button */}
+                        <div className="flex items-center justify-center w-full gap-2 sm:gap-2.5">
                             <button
                                 type="button"
                                 onClick={() => setIsTipModalOpen(true)}
-                                className="px-5 py-2 rounded-xl text-xs sm:text-sm font-extrabold text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 shadow-xs hover:shadow transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                                className="h-9 sm:h-10 px-4 sm:px-5 rounded-xl text-xs sm:text-sm font-extrabold text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 shadow-xs hover:shadow transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
                             >
                                 <span>학생이 없는 경우</span>
-                                <span className="font-black text-indigo-600 bg-indigo-50 border border-indigo-200/70 px-1.5 py-0.5 rounded text-[11px] tracking-wide">
+                                <span className="font-black text-indigo-600 bg-indigo-50 border border-indigo-200/70 px-1.5 py-0.5 rounded text-[11px] tracking-wide leading-none">
                                     TIP
                                 </span>
+                            </button>
+
+                            {/* 학습일지/시설물 버튼 */}
+                            <button
+                                type="button"
+                                onClick={() => setIsStudyLogModalOpen(true)}
+                                className="h-9 sm:h-10 px-4 sm:px-5 rounded-xl text-xs sm:text-sm font-extrabold text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 shadow-xs hover:shadow transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                                <span>학습일지/시설물</span>
                             </button>
                         </div>
 
@@ -2125,6 +2141,15 @@ export default function SeatManagementPage() {
                         </div>
                     </div>
                 )}
+
+                {/* Study Log & Facility Request Modal */}
+                <StudyLogModal
+                    isOpen={isStudyLogModalOpen}
+                    onClose={() => setIsStudyLogModalOpen(false)}
+                    students={students}
+                    teacherName={teacherName}
+                    defaultRoomNumber={selectedRoom}
+                />
             </div>
         </SwipeWrapper>
     );

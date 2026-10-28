@@ -972,11 +972,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                             >
                                 {/* Grade Badge */}
                                 <div className="flex items-center justify-start pl-1">
-                                    <span className={`px-2 py-0.5 rounded-lg font-black text-xs border ${
-                                        g.grade === 1 ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                                        g.grade === 2 ? 'bg-purple-50 text-purple-600 border-purple-200' :
-                                        'bg-orange-50 text-orange-600 border-orange-200'
-                                    }`}>
+                                    <span className="px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900 border border-gray-200">
                                         {g.grade}학년
                                     </span>
                                 </div>
