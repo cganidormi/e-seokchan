@@ -46,6 +46,7 @@ export default function StudyLogDemoTutorialPage() {
     const [todayLogs, setTodayLogs] = useState<any[]>([]);
     const [editingLogId, setEditingLogId] = useState<number | null>(null);
     const [editingLogNote, setEditingLogNote] = useState('');
+    const [isPlaying, setIsPlaying] = useState(false);
 
     const timerRefs = useRef<NodeJS.Timeout[]>([]);
 
@@ -100,6 +101,7 @@ export default function StudyLogDemoTutorialPage() {
         clearTimers();
 
         // 1. Reset state
+        setIsPlaying(true);
         setIsModalOpen(false);
         setActiveTab('yanghyeonjae');
         setSelectedStudent(null);
@@ -267,12 +269,24 @@ export default function StudyLogDemoTutorialPage() {
             setStep(7);
         }, 10400);
 
-        // Step 7: Completed (at 11.2s)
+        // Step 8: Edit Button Shiny Circle + '수정가능' (at 11.2s)
         const t15 = setTimeout(() => {
             setPointer({ show: false, x: 0, y: 0, clicking: false });
+            setStep(8);
         }, 11200);
 
-        timerRefs.current.push(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15);
+        // Step 9: Trash Button Shiny Circle + '삭제가능' (at 12.6s)
+        const t16 = setTimeout(() => {
+            setStep(9);
+        }, 12600);
+
+        // Step 10: Big Shiny Notice + Finished (at 14.0s)
+        const t17 = setTimeout(() => {
+            setStep(10);
+            setIsPlaying(false);
+        }, 14000);
+
+        timerRefs.current.push(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17);
     };
 
     // Auto trigger once data ready
@@ -291,8 +305,19 @@ export default function StudyLogDemoTutorialPage() {
         <div className="min-h-screen bg-gray-100 font-sans select-none relative">
             <Toaster position="top-center" />
 
+            {/* TOUCH GUARD LAYER DURING DEMO (Prevents user touches like watching a video) */}
+            {isPlaying && (
+                <div 
+                    className="fixed inset-0 z-45 bg-transparent cursor-default select-none pointer-events-auto"
+                    onClick={e => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                    }}
+                />
+            )}
+
             {/* TOP BAR: ONLY A CLEAN '시연 재생' BUTTON */}
-            <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 py-2.5 px-4 flex items-center justify-between shadow-xs">
+            <div className="sticky top-0 z-60 bg-white/95 backdrop-blur-md border-b border-gray-200 py-2.5 px-4 flex items-center justify-between shadow-xs">
                 <button
                     type="button"
                     onClick={() => router.push('/teacher/seats')}
@@ -304,10 +329,15 @@ export default function StudyLogDemoTutorialPage() {
                 <button
                     type="button"
                     onClick={runDemo}
-                    className="px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-yellow-950 font-black text-sm flex items-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer"
+                    className={clsx(
+                        "px-4 py-2 rounded-xl text-yellow-950 font-black text-sm flex items-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer",
+                        isPlaying 
+                            ? "bg-yellow-300 ring-2 ring-yellow-400 animate-pulse" 
+                            : "bg-yellow-400 hover:bg-yellow-300"
+                    )}
                 >
                     <FaPlay className="text-xs" />
-                    <span>시연재생</span>
+                    <span>{isPlaying ? '시연 진행 중...' : '시연재생'}</span>
                 </button>
 
                 <div className="w-16"></div>
@@ -537,12 +567,24 @@ export default function StudyLogDemoTutorialPage() {
             {isModalOpen && (
                 <div 
                     className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={() => {
+                        if (!isPlaying) setIsModalOpen(false);
+                    }}
                 >
                     <div 
-                        className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200"
+                        className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200 relative"
                         onClick={e => e.stopPropagation()}
                     >
+                        {/* Internal Modal Touch Guard during Demo */}
+                        {isPlaying && (
+                            <div 
+                                className="absolute inset-0 z-40 bg-transparent cursor-default select-none pointer-events-auto"
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                }}
+                            />
+                        )}
                         {/* Top Bar: Toggle Segment Control & Close Button */}
                         <div className="p-3.5 sm:p-4 border-b border-gray-100 flex items-center justify-between gap-3 bg-white shrink-0">
                             <div className="flex-1 bg-gray-100 p-1 rounded-2xl flex items-center border border-gray-200/80 shadow-inner">
@@ -822,33 +864,80 @@ export default function StudyLogDemoTutorialPage() {
                                                         </div>
                                                         <p className="text-gray-700 font-medium">{log.detail}</p>
                                                     </div>
-                                                    <div className="flex items-center gap-1 shrink-0 ml-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setEditingLogId(log.id);
-                                                                setEditingLogNote(log.detail);
-                                                            }}
-                                                            className="p-1 text-gray-400 hover:text-gray-700 cursor-pointer"
-                                                            title="수정"
-                                                        >
-                                                            <FaEdit size={12} />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setTodayLogs(prev => prev.filter(l => l.id !== log.id));
-                                                                toast.success('삭제되었습니다.');
-                                                            }}
-                                                            className="p-1 text-gray-400 hover:text-red-600 cursor-pointer"
-                                                            title="삭제"
-                                                        >
-                                                            <FaTrash size={11} />
-                                                        </button>
+                                                    <div className="flex items-center gap-2 shrink-0 ml-2 relative">
+                                                        {/* Edit Button with Shiny Circle & Badge */}
+                                                        <div className="relative">
+                                                            {step === 8 && (
+                                                                <>
+                                                                    <span className="absolute -inset-1 rounded-full bg-blue-400 animate-ping opacity-75 pointer-events-none"></span>
+                                                                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-lg whitespace-nowrap animate-bounce z-30">
+                                                                        수정가능
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setEditingLogId(log.id);
+                                                                    setEditingLogNote(log.detail);
+                                                                }}
+                                                                className={clsx(
+                                                                    "p-1.5 rounded-full transition-all cursor-pointer relative z-10",
+                                                                    step === 8
+                                                                        ? "bg-blue-100 text-blue-700 ring-2 ring-blue-500 scale-110"
+                                                                        : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                                                                )}
+                                                                title="수정"
+                                                            >
+                                                                <FaEdit size={13} />
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Trash Button with Shiny Circle & Badge */}
+                                                        <div className="relative">
+                                                            {step === 9 && (
+                                                                <>
+                                                                    <span className="absolute -inset-1 rounded-full bg-red-400 animate-ping opacity-75 pointer-events-none"></span>
+                                                                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-lg whitespace-nowrap animate-bounce z-30">
+                                                                        삭제가능
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setTodayLogs(prev => prev.filter(l => l.id !== log.id));
+                                                                    toast.success('삭제되었습니다.');
+                                                                }}
+                                                                className={clsx(
+                                                                    "p-1.5 rounded-full transition-all cursor-pointer relative z-10",
+                                                                    step === 9
+                                                                        ? "bg-red-100 text-red-600 ring-2 ring-red-500 scale-110"
+                                                                        : "text-gray-400 hover:text-red-600 hover:bg-gray-100"
+                                                                )}
+                                                                title="삭제"
+                                                            >
+                                                                <FaTrash size={12} />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );
                                         })}
+                                    </div>
+                                )}
+
+                                {/* 심플하고 세련된 모던 안내 바 */}
+                                {todayLogs.length > 0 && (
+                                    <div className="mt-3.5 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-center shadow-xs animate-in fade-in duration-200">
+                                        <p className="text-xs sm:text-sm font-bold text-slate-800 tracking-tight flex items-center justify-center gap-1.5 flex-wrap">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-900"></span>
+                                            <span>학습일지 및 시설물 내역은</span>
+                                            <span className="text-slate-900 font-extrabold bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs">
+                                                오늘의 홍지관
+                                            </span>
+                                            <span className="text-slate-700 font-medium">페이지에서 확인 가능합니다.</span>
+                                        </p>
                                     </div>
                                 )}
                             </div>

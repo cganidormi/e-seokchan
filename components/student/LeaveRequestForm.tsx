@@ -10,6 +10,7 @@ import { Student, Teacher } from './types';
 import { supabase } from '@/supabaseClient';
 import { isWeeklyHomeTime } from '@/lib/weeklyReturn';
 import DongheonChatModal from '@/components/chat/DongheonChatModal';
+import GeonheeChatModal from '@/components/chat/GeonheeChatModal';
 
 interface LeaveRequestFormProps {
     studentId: string;
@@ -98,14 +99,25 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
         return (s?.grade === 2 && s?.class === 1 && s?.number === 1) || s?.name === '강동헌';
     }, [actualLoginId, studentId, students]);
 
-    // 강동헌 학생일 경우 이상찬 선생님이 보낸 읽지 않은 메시지 실시간 감지
+    // 3308 이건희 학생 여부 판별 (오직 이건희 학생에게만 채팅 버튼 노출)
+    const isGeonhee = React.useMemo(() => {
+        const idToCheck = (actualLoginId || studentId || '').trim();
+        if (idToCheck === '3308이건희' || idToCheck === '3308' || idToCheck.startsWith('3308')) return true;
+        const s = students.find(item => item.student_id === idToCheck);
+        return (s?.grade === 3 && s?.class === 3 && s?.number === 8) || s?.name === '이건희';
+    }, [actualLoginId, studentId, students]);
+
+    // 강동헌/이건희 학생일 경우 이상찬 선생님이 보낸 읽지 않은 메시지 실시간 감지
     React.useEffect(() => {
-        if (!isDongheon) return;
+        if (!isDongheon && !isGeonhee) return;
+
+        const table = isDongheon ? 'dongheon_chats' : 'geonhee_chats';
+        const channelName = isDongheon ? 'dongheon_unread_badge_student' : 'geonhee_unread_badge_student';
 
         const fetchUnread = async () => {
             try {
                 const { count } = await supabase
-                    .from('dongheon_chats')
+                    .from(table)
                     .select('*', { count: 'exact', head: true })
                     .eq('sender_role', 'teacher')
                     .eq('is_read', false);
@@ -118,10 +130,10 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
         fetchUnread();
 
         const channel = supabase
-            .channel('dongheon_unread_badge_student')
+            .channel(channelName)
             .on(
                 'postgres_changes',
-                { event: '*', schema: 'public', table: 'dongheon_chats' },
+                { event: '*', schema: 'public', table },
                 () => {
                     fetchUnread();
                 }
@@ -131,7 +143,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [isDongheon]);
+    }, [isDongheon, isGeonhee]);
 
     // Keep targetDate in sync with current date if it is in the past (e.g. mobile browser kept in background)
     React.useEffect(() => {
@@ -751,7 +763,7 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                 <div className="flex items-center gap-2 flex-wrap">
                     <div className="w-[3px] h-5 bg-[#0E8694] rounded-full shrink-0"></div>
                     <h1 className="text-xl font-extrabold text-gray-800">이석 신청</h1>
-                    {isDongheon && (
+                    {(isDongheon || isGeonhee) && (
                         <button
                             type="button"
                             onClick={() => setIsChatOpen(true)}
@@ -1158,6 +1170,19 @@ export const LeaveRequestForm: React.FC<LeaveRequestFormProps> = ({
                     }}
                     currentRole="student"
                     currentName="강동헌"
+                />
+            )}
+
+            {/* 이건희 학생 전용 이상찬 쌤과의 실시간 톡 모달 */}
+            {isGeonhee && (
+                <GeonheeChatModal
+                    isOpen={isChatOpen}
+                    onClose={() => {
+                        setIsChatOpen(false);
+                        setUnreadChatCount(0);
+                    }}
+                    currentRole="student"
+                    currentName="이건희"
                 />
             )}
 

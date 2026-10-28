@@ -15,6 +15,7 @@ import LoadingScreen from '@/components/LoadingScreen';
 import AnniversaryBanner from '@/components/parent/ParentsDayCelebration';
 import SwipeWrapper from '@/components/teacher/SwipeWrapper';
 import DongheonChatModal from '@/components/chat/DongheonChatModal';
+import GeonheeChatModal from '@/components/chat/GeonheeChatModal';
 
 // 메모리 캐싱을 통해 뒤로가기 시 로딩 화면(학교 로고)이 나타나는 지연 현상 방지
 let globalTeacherId: string | null = null;
@@ -36,6 +37,8 @@ export default function TeacherPage() {
   const [unifiedViewMode, setUnifiedViewMode] = useState<'my_active' | 'all_active' | 'past_all' | 'search_name'>('my_active');
   const [isDongheonChatOpen, setIsDongheonChatOpen] = useState(false);
   const [unreadDongheonChatCount, setUnreadDongheonChatCount] = useState(0);
+  const [isGeonheeChatOpen, setIsGeonheeChatOpen] = useState(false);
+  const [unreadGeonheeChatCount, setUnreadGeonheeChatCount] = useState(0);
 
   // 이상찬 관리자님 여부 체크 (오직 이상찬 관리자님에게만 노출)
   const isSangchanAdmin = Boolean(
@@ -45,7 +48,8 @@ export default function TeacherPage() {
   useEffect(() => {
     if (!isSangchanAdmin) return;
 
-    const fetchUnread = async () => {
+    // 1. 동헌톡 안 읽은 메시지
+    const fetchDongheonUnread = async () => {
       try {
         const { count } = await supabase
           .from('dongheon_chats')
@@ -56,21 +60,46 @@ export default function TeacherPage() {
       } catch (e) {}
     };
 
-    fetchUnread();
+    // 2. 건희톡 안 읽은 메시지
+    const fetchGeonheeUnread = async () => {
+      try {
+        const { count } = await supabase
+          .from('geonhee_chats')
+          .select('*', { count: 'exact', head: true })
+          .eq('sender_role', 'student')
+          .eq('is_read', false);
+        setUnreadGeonheeChatCount(count || 0);
+      } catch (e) {}
+    };
 
-    const channel = supabase
+    fetchDongheonUnread();
+    fetchGeonheeUnread();
+
+    const channelDongheon = supabase
       .channel('dongheon_unread_badge_teacher')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'dongheon_chats' },
         () => {
-          fetchUnread();
+          fetchDongheonUnread();
+        }
+      )
+      .subscribe();
+
+    const channelGeonhee = supabase
+      .channel('geonhee_unread_badge_teacher')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'geonhee_chats' },
+        () => {
+          fetchGeonheeUnread();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channelDongheon);
+      supabase.removeChannel(channelGeonhee);
     };
   }, [isSangchanAdmin]);
 
@@ -566,26 +595,51 @@ export default function TeacherPage() {
       {/* Admin Buttons & Actions */}
       <div className="flex justify-end mb-4 gap-2 items-center flex-wrap">
         {isSangchanAdmin && (
-          <button
-            type="button"
-            onClick={() => setIsDongheonChatOpen(true)}
-            className="group relative h-9 px-3.5 bg-[#FEE500] hover:bg-[#FADA0A] text-[#371D1E] font-black rounded-2xl shadow-xs hover:shadow transition-all flex items-center justify-center text-xs cursor-pointer active:scale-95 shrink-0 border border-[#ECD100]"
-            title="2101 강동헌 학생과의 1:1 실시간 톡"
-          >
-            {/* 카카오톡 말풍선 꼬리 */}
-            <svg
-              className="absolute -bottom-1.5 left-2.5 w-2.5 h-2 text-[#FEE500] group-hover:text-[#FADA0A] transition-colors fill-current drop-shadow-[0_1px_1px_rgba(0,0,0,0.06)] pointer-events-none"
-              viewBox="0 0 10 8"
+          <>
+            {/* 동헌톡 */}
+            <button
+              type="button"
+              onClick={() => setIsDongheonChatOpen(true)}
+              className="group relative h-9 px-3.5 bg-[#FEE500] hover:bg-[#FADA0A] text-[#371D1E] font-black rounded-2xl shadow-xs hover:shadow transition-all flex items-center justify-center text-xs cursor-pointer active:scale-95 shrink-0 border border-[#ECD100]"
+              title="2101 강동헌 학생과의 1:1 실시간 톡"
             >
-              <path d="M0,0 L10,0 L1,8 Z" />
-            </svg>
-            <span className="tracking-tight select-none font-black">동헌톡</span>
-            {unreadDongheonChatCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black text-white bg-red-600 border-2 border-white rounded-full shadow-sm animate-pulse">
-                {unreadDongheonChatCount}
-              </span>
-            )}
-          </button>
+              {/* 카카오톡 말풍선 꼬리 */}
+              <svg
+                className="absolute -bottom-1.5 left-2.5 w-2.5 h-2 text-[#FEE500] group-hover:text-[#FADA0A] transition-colors fill-current drop-shadow-[0_1px_1px_rgba(0,0,0,0.06)] pointer-events-none"
+                viewBox="0 0 10 8"
+              >
+                <path d="M0,0 L10,0 L1,8 Z" />
+              </svg>
+              <span className="tracking-tight select-none font-black">동헌톡</span>
+              {unreadDongheonChatCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black text-white bg-red-600 border-2 border-white rounded-full shadow-sm animate-pulse">
+                  {unreadDongheonChatCount}
+                </span>
+              )}
+            </button>
+
+            {/* 건희톡 */}
+            <button
+              type="button"
+              onClick={() => setIsGeonheeChatOpen(true)}
+              className="group relative h-9 px-3.5 bg-[#FEE500] hover:bg-[#FADA0A] text-[#371D1E] font-black rounded-2xl shadow-xs hover:shadow transition-all flex items-center justify-center text-xs cursor-pointer active:scale-95 shrink-0 border border-[#ECD100]"
+              title="3308 이건희 학생과의 1:1 실시간 톡"
+            >
+              {/* 카카오톡 말풍선 꼬리 */}
+              <svg
+                className="absolute -bottom-1.5 left-2.5 w-2.5 h-2 text-[#FEE500] group-hover:text-[#FADA0A] transition-colors fill-current drop-shadow-[0_1px_1px_rgba(0,0,0,0.06)] pointer-events-none"
+                viewBox="0 0 10 8"
+              >
+                <path d="M0,0 L10,0 L1,8 Z" />
+              </svg>
+              <span className="tracking-tight select-none font-black">건희톡</span>
+              {unreadGeonheeChatCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-black text-white bg-red-600 border-2 border-white rounded-full shadow-sm animate-pulse">
+                  {unreadGeonheeChatCount}
+                </span>
+              )}
+            </button>
+          </>
         )}
 
         <button
@@ -675,6 +729,19 @@ export default function TeacherPage() {
             onClose={() => {
               setIsDongheonChatOpen(false);
               setUnreadDongheonChatCount(0);
+            }}
+            currentRole="teacher"
+            currentName="이상찬"
+          />
+        )}
+
+        {/* 이상찬 관리자님 전용 3308 이건희 학생과의 실시간 톡 모달 */}
+        {isSangchanAdmin && (
+          <GeonheeChatModal
+            isOpen={isGeonheeChatOpen}
+            onClose={() => {
+              setIsGeonheeChatOpen(false);
+              setUnreadGeonheeChatCount(0);
             }}
             currentRole="teacher"
             currentName="이상찬"
