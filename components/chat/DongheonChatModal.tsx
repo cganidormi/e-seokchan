@@ -109,7 +109,7 @@ export default function DongheonChatModal({
       .channel('dongheon_chats_realtime', {
         config: { presence: { key: presenceKey } },
       })
-      .on('presence', { event: 'sync' }, () => {})
+      .on('presence', { event: 'sync' }, () => { })
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'dongheon_chats' },
@@ -154,7 +154,7 @@ export default function DongheonChatModal({
           role: currentRole,
           visible: document.visibilityState === 'visible',
         })
-        .catch(() => {});
+        .catch(() => { });
     };
 
     const handleVisibility = () => {
@@ -189,7 +189,7 @@ export default function DongheonChatModal({
         type: 'DONGHEON_CHAT_STATE',
         open: false,
       });
-      channel.untrack().catch(() => {});
+      channel.untrack().catch(() => { });
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
@@ -213,7 +213,7 @@ export default function DongheonChatModal({
             ? JSON.parse(sub.subscription_json)
             : sub.subscription_json;
         ep = parsed?.endpoint || '';
-      } catch {}
+      } catch { }
       if (!ep || seen.has(ep)) return false;
       seen.add(ep);
       return true;
@@ -426,17 +426,15 @@ export default function DongheonChatModal({
                   )}
 
                   <div
-                    className={`flex items-end gap-1.5 max-w-[82%] ${
-                      isMine ? 'flex-row-reverse' : 'flex-row'
-                    }`}
+                    className={`flex items-end gap-1.5 max-w-[82%] ${isMine ? 'flex-row-reverse' : 'flex-row'
+                      }`}
                   >
                     {/* 말풍선 */}
                     <div
-                      className={`px-3.5 py-2.5 rounded-2xl text-xs md:text-sm font-medium leading-relaxed whitespace-pre-wrap break-words shadow-sm ${
-                        isMine
+                      className={`px-3.5 py-2.5 rounded-2xl text-xs md:text-sm font-medium leading-relaxed whitespace-pre-wrap break-words shadow-sm ${isMine
                           ? 'bg-gradient-to-tr from-teal-500 to-[#0E8694] text-white rounded-br-xs'
                           : 'bg-white text-gray-800 border border-teal-200/80 rounded-bl-xs'
-                      }`}
+                        }`}
                     >
                       {msg.message}
                     </div>
@@ -481,11 +479,10 @@ export default function DongheonChatModal({
           <button
             type="submit"
             disabled={!inputText.trim() || isSending}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all shadow-md shrink-0 cursor-pointer ${
-              inputText.trim() && !isSending
+            className={`w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all shadow-md shrink-0 cursor-pointer ${inputText.trim() && !isSending
                 ? 'bg-gradient-to-r from-teal-600 to-[#0E8694] hover:shadow-teal-200 hover:scale-105 active:scale-95'
                 : 'bg-gray-300 cursor-not-allowed shadow-none'
-            }`}
+              }`}
             title="보내기"
           >
             <IoSend className="w-4 h-4 ml-0.5" />
