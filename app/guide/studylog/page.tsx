@@ -44,6 +44,8 @@ export default function StudyLogDemoTutorialPage() {
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [detailInput, setDetailInput] = useState('');
     const [todayLogs, setTodayLogs] = useState<any[]>([]);
+    const [editingLogId, setEditingLogId] = useState<number | null>(null);
+    const [editingLogNote, setEditingLogNote] = useState('');
 
     const timerRefs = useRef<NodeJS.Timeout[]>([]);
 
@@ -769,31 +771,84 @@ export default function StudyLogDemoTutorialPage() {
                                     </div>
                                 ) : (
                                     <div className="space-y-2 animate-in slide-in-from-top-1">
-                                        {todayLogs.map(log => (
-                                            <div
-                                                key={log.id}
-                                                className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between text-xs"
-                                            >
-                                                <div>
-                                                    <div className="flex items-center gap-1.5 mb-0.5">
-                                                        <span className="font-extrabold text-gray-900">{log.student_id}</span>
-                                                        <span className="bg-gray-900 text-white text-[10px] px-1.5 py-0.2 rounded font-bold">
-                                                            {log.category}
-                                                        </span>
-                                                        <span className="text-[10px] text-gray-400">{log.time}</span>
-                                                        <span className="text-[10px] text-gray-400">(기록: {log.teacher})</span>
+                                        {todayLogs.map(log => {
+                                            const isEditing = editingLogId === log.id;
+
+                                            if (isEditing) {
+                                                return (
+                                                    <div key={log.id} className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-300">
+                                                        <input
+                                                            type="text"
+                                                            value={editingLogNote}
+                                                            onChange={e => setEditingLogNote(e.target.value)}
+                                                            className="flex-1 bg-white border border-gray-200 rounded px-2.5 py-1 text-xs"
+                                                            autoFocus
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setTodayLogs(prev => prev.map(l => l.id === log.id ? { ...l, detail: editingLogNote } : l));
+                                                                setEditingLogId(null);
+                                                                toast.success('수정되었습니다.');
+                                                            }}
+                                                            className="px-2.5 py-1 bg-gray-900 text-white rounded text-xs font-semibold cursor-pointer"
+                                                        >
+                                                            저장
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { setEditingLogId(null); setEditingLogNote(''); }}
+                                                            className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs cursor-pointer"
+                                                        >
+                                                            취소
+                                                        </button>
                                                     </div>
-                                                    <p className="text-gray-700 font-medium">{log.detail}</p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setTodayLogs([])}
-                                                    className="text-gray-400 hover:text-red-500 p-1"
+                                                );
+                                            }
+
+                                            return (
+                                                <div
+                                                    key={log.id}
+                                                    className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between text-xs"
                                                 >
-                                                    <FaTrash className="text-xs" />
-                                                </button>
-                                            </div>
-                                        ))}
+                                                    <div>
+                                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                                            <span className="font-extrabold text-gray-900">{log.student_id}</span>
+                                                            <span className="bg-gray-900 text-white text-[10px] px-1.5 py-0.2 rounded font-bold">
+                                                                {log.category}
+                                                            </span>
+                                                            <span className="text-[10px] text-gray-400">{log.time}</span>
+                                                            <span className="text-[10px] text-gray-400">(기록: {log.teacher})</span>
+                                                        </div>
+                                                        <p className="text-gray-700 font-medium">{log.detail}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setEditingLogId(log.id);
+                                                                setEditingLogNote(log.detail);
+                                                            }}
+                                                            className="p-1 text-gray-400 hover:text-gray-700 cursor-pointer"
+                                                            title="수정"
+                                                        >
+                                                            <FaEdit size={12} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setTodayLogs(prev => prev.filter(l => l.id !== log.id));
+                                                                toast.success('삭제되었습니다.');
+                                                            }}
+                                                            className="p-1 text-gray-400 hover:text-red-600 cursor-pointer"
+                                                            title="삭제"
+                                                        >
+                                                            <FaTrash size={11} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
