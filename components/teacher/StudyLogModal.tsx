@@ -697,8 +697,14 @@ export default function StudyLogModal({
                     )}
                 </div>
 
-                {/* Footer: Simple close button only */}
-                <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end shrink-0">
+                {/* Footer */}
+                <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 flex items-center justify-between shrink-0">
+                    <a
+                        href="/guide/studylog"
+                        className="text-xs text-blue-600 hover:text-blue-800 font-semibold underline flex items-center gap-1 cursor-pointer"
+                    >
+                        <span>📖 사용 가이드 보기</span>
+                    </a>
                     <button
                         type="button"
                         onClick={onClose}
