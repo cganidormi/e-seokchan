@@ -334,42 +334,42 @@ export default function StudyLogModal({
                 className="bg-white rounded-2xl shadow-xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden border border-gray-200"
                 onClick={e => e.stopPropagation()}
             >
-                {/* Header: Clean & Simple */}
-                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-                    <h2 className="text-base font-bold text-gray-900">학습일지 / 시설물</h2>
+                {/* Top Bar: Toggle Segment Control & Close Button */}
+                <div className="p-3.5 sm:p-4 border-b border-gray-100 flex items-center justify-between gap-3 bg-white shrink-0">
+                    {/* Toggle Segment Switch */}
+                    <div className="flex-1 bg-gray-100 p-1 rounded-2xl flex items-center border border-gray-200/80 shadow-inner">
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('yanghyeonjae')}
+                            className={`flex-1 py-2 sm:py-2.5 rounded-xl font-black text-sm sm:text-base transition-all duration-200 cursor-pointer text-center ${
+                                activeTab === 'yanghyeonjae'
+                                    ? 'bg-white text-gray-900 shadow-xs'
+                                    : 'text-gray-500 hover:text-gray-800'
+                            }`}
+                        >
+                            양현재 일지 등록
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('facility')}
+                            className={`flex-1 py-2 sm:py-2.5 rounded-xl font-black text-sm sm:text-base transition-all duration-200 cursor-pointer text-center ${
+                                activeTab === 'facility'
+                                    ? 'bg-white text-gray-900 shadow-xs'
+                                    : 'text-gray-500 hover:text-gray-800'
+                            }`}
+                        >
+                            시설물 수리요청
+                        </button>
+                    </div>
+
+                    {/* Close Button */}
                     <button
                         type="button"
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 p-1 text-sm cursor-pointer"
+                        className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer text-base font-bold shrink-0"
                         aria-label="닫기"
                     >
                         ✕
-                    </button>
-                </div>
-
-                {/* Tabs: Minimal Underline */}
-                <div className="flex border-b border-gray-100 px-5 gap-6 text-sm bg-white shrink-0">
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('yanghyeonjae')}
-                        className={`py-3 font-semibold transition-all border-b-2 cursor-pointer ${
-                            activeTab === 'yanghyeonjae'
-                                ? 'border-gray-900 text-gray-900'
-                                : 'border-transparent text-gray-400 hover:text-gray-600'
-                        }`}
-                    >
-                        양현재 일지 등록
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setActiveTab('facility')}
-                        className={`py-3 font-semibold transition-all border-b-2 cursor-pointer ${
-                            activeTab === 'facility'
-                                ? 'border-gray-900 text-gray-900'
-                                : 'border-transparent text-gray-400 hover:text-gray-600'
-                        }`}
-                    >
-                        시설물 수리요청
                     </button>
                 </div>
 
@@ -380,12 +380,15 @@ export default function StudyLogModal({
                         <div className="space-y-4">
                             {/* Student Search & Select */}
                             <div>
-                                <p className="text-xs text-blue-600 font-medium mb-2">
-                                    학생의 이름을 모르실 경우 좌석을 더블터치해서 지도 내용을 기록하시면 됩니다.
-                                </p>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                                    학생 선택
-                                </label>
+                                <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                                    <label className="text-xs font-semibold text-gray-600">
+                                        학생 선택
+                                    </label>
+                                    <p className="text-xs text-blue-600 font-semibold flex items-center gap-1">
+                                        <span>💡</span>
+                                        <span>이름을 모를 땐 좌석을 더블터치하세요.</span>
+                                    </p>
+                                </div>
                                 {selectedStudent ? (
                                     <div className="flex items-center justify-between bg-gray-50 border border-gray-200 px-3.5 py-2.5 rounded-xl">
                                         <div className="flex items-center gap-2">
@@ -481,33 +484,47 @@ export default function StudyLogModal({
                                 </div>
                             </div>
 
-                            {/* Detail Input & Submit */}
-                            {selectedCategory && (
+                            {/* Detail Input & Submit - Always Visible */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                                    상세 내용 기입
+                                </label>
                                 <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border border-gray-200">
-                                    <span className="text-xs font-bold text-gray-700 shrink-0 px-2 py-1 bg-white border border-gray-200 rounded-md">
-                                        {selectedCategory}
-                                    </span>
+                                    {selectedCategory ? (
+                                        <span className="text-xs font-bold text-gray-900 shrink-0 px-2.5 py-1 bg-white border border-gray-300 rounded-lg shadow-2xs">
+                                            {selectedCategory}
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs font-medium text-gray-400 shrink-0 px-2 py-1 bg-gray-100 rounded-lg border border-dashed border-gray-300">
+                                            항목 미선택
+                                        </span>
+                                    )}
                                     <input
                                         type="text"
-                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs sm:text-sm text-gray-900 outline-none focus:border-gray-400"
-                                        placeholder={selectedCategory === '기타' ? '상세 사유 (필수)' : '상세 내용 (선택)'}
+                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors"
+                                        placeholder={
+                                            selectedCategory === '기타'
+                                                ? '상세 사유를 입력하세요 (필수)'
+                                                : selectedCategory
+                                                ? '상세 내용을 입력하세요 (선택 사항)'
+                                                : '위반 항목을 위에서 선택하고 상세 내용을 입력하세요'
+                                        }
                                         value={violationDetail}
                                         onChange={e => setViolationDetail(e.target.value)}
                                         onKeyDown={e => {
                                             if (e.key === 'Enter') handleCreateYanghyeonjaeViolation();
                                         }}
-                                        autoFocus
                                     />
                                     <button
                                         type="button"
                                         onClick={handleCreateYanghyeonjaeViolation}
-                                        disabled={isSubmittingViolation || (selectedCategory === '기타' && !violationDetail.trim())}
+                                        disabled={isSubmittingViolation || !selectedCategory || (selectedCategory === '기타' && !violationDetail.trim())}
                                         className="px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer disabled:opacity-40"
                                     >
                                         등록
                                     </button>
                                 </div>
-                            )}
+                            </div>
 
                             {/* Today's Log List */}
                             <div className="pt-3 border-t border-gray-100">
