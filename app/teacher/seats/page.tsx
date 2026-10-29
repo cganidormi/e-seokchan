@@ -94,6 +94,8 @@ export default function SeatManagementPage() {
     const [historyStudent, setHistoryStudent] = useState<Student | null>(null);
     const [historyRecords, setHistoryRecords] = useState<any[]>([]);
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+    const [isLoadingPastHistory, setIsLoadingPastHistory] = useState(false);
+    const [hasLoadedPastHistory, setHasLoadedPastHistory] = useState(false);
     const [studentYanghyeonjaeViolations, setStudentYanghyeonjaeViolations] = useState<any[]>([]);
     const [isSubmittingViolation, setIsSubmittingViolation] = useState(false);
     const [selectedViolationCategory, setSelectedViolationCategory] = useState<string | null>(null);
@@ -102,6 +104,7 @@ export default function SeatManagementPage() {
     const [editingViolationNote, setEditingViolationNote] = useState('');
     const [isSavingViolationEdit, setIsSavingViolationEdit] = useState(false);
     const teacherMapCacheRef = React.useRef<Map<string, string> | null>(null);
+    const allTodayLeavesRef = React.useRef<any[]>([]);
     const lastClickTimeRef = React.useRef<{ [seatNum: number]: number }>({});
 
     // Morning Checkout Modal State
@@ -141,99 +144,123 @@ export default function SeatManagementPage() {
         setCheckedSeats(next);
     };
 
+    const sortAndDecorateLeaves = (records: any[]) => {
+        const now = new Date();
+        const isRecordPast = (rec: any) => {
+            if (rec.status === '복귀' || rec.status === '취소' || rec.status === '반려' || rec.status === '거절') return true;
+            if (rec.end_time && new Date(rec.end_time) < now) return true;
+            return false;
+        };
+        const teacherMap = teacherMapCacheRef.current || new Map<string, string>();
+
+        return [...records]
+            .sort((a, b) => {
+                const aPast = isRecordPast(a);
+                const bPast = isRecordPast(b);
+                if (!aPast && bPast) return -1;
+                if (aPast && !bPast) return 1;
+                const timeA = new Date(a.start_time || a.created_at).getTime();
+                const timeB = new Date(b.start_time || b.created_at).getTime();
+                return timeB - timeA;
+            })
+            .map(req => ({
+                ...req,
+                teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' }
+            }));
+    };
+
+    const getTodayStudentLeaves = (studentId: string, sourceData: any[]) => {
+        if (!sourceData || sourceData.length === 0) return [];
+        const matches = sourceData.filter(req => {
+            if (req.student_id === studentId) return true;
+            if (req.leave_request_students?.some((s: any) => s.student_id === studentId)) return true;
+            return false;
+        });
+        return sortAndDecorateLeaves(matches);
+    };
+
     const fetchStudentHistory = async (studentId: string, isSilent = false) => {
+        const s = students.find(st => st.student_id === studentId);
+        setHistoryStudent(s || { student_id: studentId, name: 'Unknown', grade: 0, class: 0 });
+        setIsHistoryModalOpen(true);
+        setExpandedHistoryId(null);
+        setHistoryMenuId(null);
+        setHasLoadedPastHistory(false);
+        setIsLoadingPastHistory(false);
+
         if (!isSilent) {
-            // 1. Immediately open modal and display student info on initial open (0ms latency)
-            const s = students.find(st => st.student_id === studentId);
-            setHistoryStudent(s || { student_id: studentId, name: 'Unknown', grade: 0, class: 0 });
-            setIsHistoryLoading(true);
-            setIsHistoryModalOpen(true);
             setStudentYanghyeonjaeViolations([]);
             setSelectedViolationCategory(null);
             setViolationDetail('');
         }
 
-        try {
-            // Teacher caching helper
-            const fetchTeachers = async () => {
-                if (teacherMapCacheRef.current) return teacherMapCacheRef.current;
-                const { data: teachersData } = await supabase.from('teachers').select('id, name');
-                const map = new Map<string, string>();
-                teachersData?.forEach(t => map.set(t.id, t.name));
-                teacherMapCacheRef.current = map;
-                return map;
-            };
+        // 1. Immediately extract from allTodayLeavesRef (0ms latency!)
+        const initialLeaves = getTodayStudentLeaves(studentId, allTodayLeavesRef.current);
+        setHistoryRecords(initialLeaves);
+        setIsHistoryLoading(initialLeaves.length === 0 && !isSilent);
 
-            // 2. Parallelize main requests, companion link, and teachers fetch
-            const [mainRes, coLinkRes, teacherMap] = await Promise.all([
+        // Teacher caching helper
+        const fetchTeachers = async () => {
+            if (teacherMapCacheRef.current) return teacherMapCacheRef.current;
+            const { data: teachersData } = await supabase.from('teachers').select('id, name');
+            const map = new Map<string, string>();
+            teachersData?.forEach(t => map.set(t.id, t.name));
+            teacherMapCacheRef.current = map;
+            return map;
+        };
+
+        // 2. Fetch today's / active requests in background to guarantee freshness
+        try {
+            await fetchTeachers();
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayIso = today.toISOString();
+
+            const [mainRes, coLinkRes] = await Promise.all([
                 supabase
                     .from('leave_requests')
                     .select('*, leave_request_students(student_id)')
                     .eq('student_id', studentId)
-                    .order('created_at', { ascending: false })
-                    .limit(50),
+                    .gte('end_time', todayIso)
+                    .order('created_at', { ascending: false }),
                 supabase
                     .from('leave_request_students')
                     .select('leave_request_id')
                     .eq('student_id', studentId)
-                    .order('created_at', { ascending: false })
-                    .limit(50),
-                fetchTeachers()
+                    .gte('created_at', todayIso)
             ]);
-
-            if (mainRes.error) throw mainRes.error;
-            if (coLinkRes.error) throw coLinkRes.error;
 
             const coRequestIds = coLinkRes.data?.map(c => c.leave_request_id) || [];
             let coRequests: any[] = [];
-
             if (coRequestIds.length > 0) {
-                const { data: fetchedCo, error: coError } = await supabase
+                const { data: fetchedCo } = await supabase
                     .from('leave_requests')
                     .select('*, leave_request_students(student_id)')
                     .in('id', coRequestIds)
-                    .order('created_at', { ascending: false });
-
-                if (coError) throw coError;
+                    .gte('end_time', todayIso);
                 if (fetchedCo) coRequests = fetchedCo;
             }
 
-            // 3. Combine and Deduplicate
             const combined = [...(mainRes.data || []), ...coRequests];
             const uniqueMap = new Map();
             combined.forEach(req => uniqueMap.set(req.id, req));
+            initialLeaves.forEach(req => {
+                if (!uniqueMap.has(req.id)) uniqueMap.set(req.id, req);
+            });
 
-            const now = new Date();
-            const isRecordPast = (rec: any) => {
-                if (rec.status === '복귀' || rec.status === '취소' || rec.status === '반려' || rec.status === '거절') return true;
-                if (rec.end_time && new Date(rec.end_time) < now) return true;
-                return false;
-            };
+            const freshSorted = sortAndDecorateLeaves(Array.from(uniqueMap.values()));
+            setHistoryRecords(freshSorted);
+        } catch (e) {
+            console.error('Failed to sync today leaves for student:', e);
+        } finally {
+            if (!isSilent) {
+                setIsHistoryLoading(false);
+            }
+        }
 
-            const sortedRecords = Array.from(uniqueMap.values())
-                .sort((a, b) => {
-                    const aPast = isRecordPast(a);
-                    const bPast = isRecordPast(b);
-
-                    // 1. Active requests first (aPast false before bPast true)
-                    if (!aPast && bPast) return -1;
-                    if (aPast && !bPast) return 1;
-
-                    // 2. Secondary sort: Recent start_time/created_at first
-                    const timeA = new Date(a.start_time || a.created_at).getTime();
-                    const timeB = new Date(b.start_time || b.created_at).getTime();
-                    return timeB - timeA;
-                })
-                .slice(0, 30); // 30 entries
-
-            const recordsWithTeachers = sortedRecords.map(req => ({
-                ...req,
-                teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' }
-            }));
-
-            setHistoryRecords(recordsWithTeachers);
-
-            // Fetch yanghyeonjae violations for this student based on rollcall cycle (18:00 ~ next day)
+        // 3. Asynchronously fetch yanghyeonjae violations without blocking leave cards
+        (async () => {
             try {
                 const now = new Date();
                 const rollcallStart = now.getHours() < 18
@@ -251,13 +278,31 @@ export default function SeatManagementPage() {
             } catch (err) {
                 console.error('Failed to load student yanghyeonjae violations:', err);
             }
-        } catch (e) {
-            console.error(e);
-            toast.error('기록을 불러오지 못했습니다.');
-        } finally {
-            if (!isSilent) {
-                setIsHistoryLoading(false);
+        })();
+    };
+
+    const fetchPastHistory = async (studentId: string) => {
+        setIsLoadingPastHistory(true);
+        try {
+            const { data } = await supabase
+                .from('leave_requests')
+                .select('*, leave_request_students(student_id)')
+                .eq('student_id', studentId)
+                .order('created_at', { ascending: false })
+                .limit(30);
+
+            if (data) {
+                const uniqueMap = new Map();
+                historyRecords.forEach(r => uniqueMap.set(r.id, r));
+                data.forEach(r => uniqueMap.set(r.id, r));
+                setHistoryRecords(sortAndDecorateLeaves(Array.from(uniqueMap.values())));
+                setHasLoadedPastHistory(true);
             }
+        } catch (err) {
+            console.error('Failed to load past history:', err);
+            toast.error('지난 기록을 불러오지 못했습니다.');
+        } finally {
+            setIsLoadingPastHistory(false);
         }
     };
 
@@ -613,6 +658,15 @@ export default function SeatManagementPage() {
             returnData.forEach(r => map.set(r.student_id, r.is_weekly));
             setWeeklyReturnMap(map);
         }
+
+        // Prefetch teachers to ensure 0ms latency in modal
+        supabase.from('teachers').select('id, name').then(({ data: teachersData }) => {
+            if (teachersData) {
+                const map = new Map<string, string>();
+                teachersData.forEach(t => map.set(t.id, t.name));
+                teacherMapCacheRef.current = map;
+            }
+        });
     }
 
     async function fetchLiveStatus(roomNum: number) {
@@ -622,14 +676,16 @@ export default function SeatManagementPage() {
         const { data } = await supabase
             .from('leave_requests')
             .select('*, leave_request_students(student_id)')
-            .in('status', ['승인', '신청']) // Fetch both to filter in memory
+            .in('status', ['승인', '신청', '복귀']) // Fetch active, pending, and returned for today
             .gte('end_time', today.toISOString());
 
         if (data) {
+            allTodayLeavesRef.current = data;
             // Strict Filtering Rule:
-            // 1. '컴이석' (Computer Iseok): Show regardless of status (Pending is visible).
+            // 1. '컴이석' (Computer Iseok): Show regardless of status (Pending is visible, not returned/cancelled).
             // 2. Others (Iseok, Outing, Overnight): Show ONLY if '승인' (Approved).
             const filteredData = data.filter(req => {
+                if (req.status === '복귀' || req.status === '취소' || req.status === '반려') return false;
                 if (req.leave_type === '컴이석') return true;
                 return req.status === '승인'; // Hide '신청' (Pending) for others
             });
@@ -2005,9 +2061,25 @@ export default function SeatManagementPage() {
                             </div>
 
                             {/* Divider for Leave History - Compact and Clean */}
-                            <div className="px-4 py-1.5 bg-gray-50 border-b border-gray-200/70 flex items-center justify-between shrink-0">
-                                <span className="text-xs font-bold text-gray-500">최근 이석 기록 (최대 30건)</span>
-                                <span className="text-[11px] font-semibold text-gray-400">{historyRecords.length}건</span>
+                            <div className="px-4 py-2 bg-gray-50 border-b border-gray-200/70 flex items-center justify-between shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-gray-700">
+                                        {hasLoadedPastHistory ? '전체 이석 기록' : '현재 및 금일 이석'}
+                                    </span>
+                                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                        {historyRecords.length}건
+                                    </span>
+                                </div>
+                                {!hasLoadedPastHistory && (
+                                    <button
+                                        type="button"
+                                        disabled={isLoadingPastHistory}
+                                        onClick={() => historyStudent && fetchPastHistory(historyStudent.student_id)}
+                                        className="text-[11px] font-bold text-gray-500 hover:text-gray-900 hover:underline cursor-pointer transition-colors disabled:opacity-50"
+                                    >
+                                        {isLoadingPastHistory ? '불러오는 중...' : '지난 기록 더보기'}
+                                    </button>
+                                )}
                             </div>
 
                             {/* Leave History List - Compact Padding & Gaps */}
@@ -2015,10 +2087,21 @@ export default function SeatManagementPage() {
                                 {isHistoryLoading ? (
                                     <div className="py-6 flex flex-col items-center justify-center gap-2">
                                         <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
-                                        <span className="text-xs text-gray-400 font-bold">이석 기록 불러오는 중...</span>
+                                        <span className="text-xs text-gray-400 font-bold">이석 현황 확인 중...</span>
                                     </div>
                                 ) : historyRecords.length === 0 ? (
-                                    <div className="py-6 text-center text-gray-400 text-xs font-medium">최근 이석 기록이 없습니다.</div>
+                                    <div className="py-6 text-center flex flex-col items-center justify-center gap-1.5">
+                                        <div className="text-gray-400 text-xs font-medium">현재 진행 중이거나 금일 신청된 이석이 없습니다.</div>
+                                        {!hasLoadedPastHistory && (
+                                            <button
+                                                type="button"
+                                                onClick={() => historyStudent && fetchPastHistory(historyStudent.student_id)}
+                                                className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
+                                            >
+                                                지난 이석 기록 조회하기
+                                            </button>
+                                        )}
+                                    </div>
                                 ) : (
                                     historyRecords.map((rec) => {
                                         const isPast = rec.status === '복귀' || rec.status === '취소' || rec.status === '반려' || new Date(rec.end_time) < currentTime;
