@@ -14,46 +14,47 @@
 export const isWeeklyHomeTime = (date: Date, holidaySet: Set<string> | string[] = new Set()): boolean => {
     const holidays = holidaySet instanceof Set ? holidaySet : new Set(holidaySet);
 
-    const getFormatDateStr = (d: Date) => {
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
-    };
+    // KST Offset (UTC+9)
+    const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+    const kstDate = new Date(date.getTime() + KST_OFFSET_MS);
 
-    const d = new Date(date);
-    const day = d.getDay(); // 0: Sun, 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri, 6: Sat
+    const year = kstDate.getUTCFullYear();
+    const month = kstDate.getUTCMonth();
+    const dayOfMonth = kstDate.getUTCDate();
+    const dayOfWeek = kstDate.getUTCDay(); // 0: Sun, 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri, 6: Sat
 
-    let fri = new Date(d);
-    if (day === 0) fri.setDate(d.getDate() - 2);
-    else if (day === 1) fri.setDate(d.getDate() - 3);
-    else if (day === 2) fri.setDate(d.getDate() - 4);
-    else if (day === 3) fri.setDate(d.getDate() + 2);
-    else if (day === 4) fri.setDate(d.getDate() + 1);
-    else if (day === 5) fri.setDate(d.getDate());
-    else if (day === 6) fri.setDate(d.getDate() - 1);
+    let diffDaysToFri = 0;
+    if (dayOfWeek === 0) diffDaysToFri = -2;
+    else if (dayOfWeek === 1) diffDaysToFri = -3;
+    else if (dayOfWeek === 2) diffDaysToFri = -4;
+    else if (dayOfWeek === 3) diffDaysToFri = 2;
+    else if (dayOfWeek === 4) diffDaysToFri = 1;
+    else if (dayOfWeek === 5) diffDaysToFri = 0;
+    else if (dayOfWeek === 6) diffDaysToFri = -1;
 
-    const friStr = getFormatDateStr(fri);
+    const friDate = new Date(Date.UTC(year, month, dayOfMonth + diffDaysToFri));
+    const friYear = friDate.getUTCFullYear();
+    const friMonth = String(friDate.getUTCMonth() + 1).padStart(2, '0');
+    const friDay = String(friDate.getUTCDate()).padStart(2, '0');
+    const friStr = `${friYear}-${friMonth}-${friDay}`;
+
     const isFriHoliday = holidays.has(friStr);
 
-    const start = new Date(fri);
-    if (isFriHoliday) {
-        start.setDate(fri.getDate() - 1); // 목요일
-    }
-    start.setHours(15, 30, 0, 0); // 15:30부터 시작
+    // 시작 시각: 목요일 또는 금요일 KST 15:30 (UTC 기준 06:30)
+    const startDaysOffset = isFriHoliday ? -1 : 0;
+    const startDate = new Date(Date.UTC(friYear, friDate.getUTCMonth(), friDate.getUTCDate() + startDaysOffset, 15 - 9, 30, 0, 0));
 
-    const mon = new Date(fri);
-    mon.setDate(fri.getDate() + 3);
-    const monStr = getFormatDateStr(mon);
+    // 월요일 공휴일 여부 체크
+    const monDate = new Date(Date.UTC(friYear, friDate.getUTCMonth(), friDate.getUTCDate() + 3));
+    const monYear = monDate.getUTCFullYear();
+    const monMonth = String(monDate.getUTCMonth() + 1).padStart(2, '0');
+    const monDay = String(monDate.getUTCDate()).padStart(2, '0');
+    const monStr = `${monYear}-${monMonth}-${monDay}`;
     const isMonHoliday = holidays.has(monStr);
 
-    const end = new Date(fri);
-    if (isMonHoliday) {
-        end.setDate(fri.getDate() + 3);
-    } else {
-        end.setDate(fri.getDate() + 2);
-    }
-    end.setHours(18, 50, 0, 0);
+    // 종료 시각: 일요일 또는 월요일 KST 18:50 (UTC 기준 09:50)
+    const endDaysOffset = isMonHoliday ? 3 : 2;
+    const endDate = new Date(Date.UTC(friYear, friDate.getUTCMonth(), friDate.getUTCDate() + endDaysOffset, 18 - 9, 50, 0, 0));
 
-    return date >= start && date <= end;
+    return date.getTime() >= startDate.getTime() && date.getTime() <= endDate.getTime();
 };
