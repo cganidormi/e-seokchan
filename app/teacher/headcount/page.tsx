@@ -241,6 +241,21 @@ export default function HeadcountPage() {
         right: { status: 'in' | 'out', name: string, student_id?: string, isWeekend?: boolean, leaveType?: '외출' | '외박' }
     }>>({});
     const [checkedSlots, setCheckedSlots] = useState<Set<string>>(new Set());
+
+    // 호실 침대 노란불(청소검사/점호 체크) 상태 로컬스토리지 복원 (다른 페이지 다녀와도 유지)
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('dormichan_headcount_checked_slots');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    setCheckedSlots(new Set(parsed));
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load checked slots:', e);
+        }
+    }, []);
     const router = useRouter();
 
     const [students, setStudents] = useState<Student[]>([]);
@@ -425,6 +440,11 @@ export default function HeadcountPage() {
             const next = new Set(prev);
             if (next.has(slotId)) next.delete(slotId);
             else next.add(slotId);
+            try {
+                localStorage.setItem('dormichan_headcount_checked_slots', JSON.stringify(Array.from(next)));
+            } catch (e) {
+                console.error('Failed to save checked slots:', e);
+            }
             return next;
         });
     };
@@ -865,893 +885,893 @@ export default function HeadcountPage() {
         <SwipeWrapper prevPath="/teacher/seats" topBottomOnly={true} topThresholdHeight={250}>
             <div className="h-screen flex flex-col bg-black text-white selection:bg-orange-500 selection:text-white overflow-hidden overscroll-y-none">
                 <Toaster toastOptions={{
-                className: 'bg-gray-800 text-white border border-white/10',
-                style: { background: '#1f2937', color: '#fff' }
-            }} />
+                    className: 'bg-gray-800 text-white border border-white/10',
+                    style: { background: '#1f2937', color: '#fff' }
+                }} />
 
-            {/* Header - Fixed & Fully Responsive */}
-            <header className="flex-none p-3.5 sm:p-4 pb-3 sm:pb-3.5 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 flex flex-col gap-2.5 sm:gap-3 shadow-xl">
-                {/* Top Row: Navigation & Mode Toggle */}
-                <div className="relative flex justify-between items-center w-full gap-1 sm:gap-2 min-h-[36px]">
-                    {/* Left: Title */}
-                    <div className="flex items-center gap-1.5 shrink-0 min-w-0 z-10">
-                        <div className="w-[3px] h-5 bg-orange-500 rounded-full shrink-0"></div>
-                        <h1 className="text-base sm:text-xl font-black text-white whitespace-nowrap">
-                            호실배치도
-                        </h1>
-                    </div>
+                {/* Header - Fixed & Fully Responsive */}
+                <header className="flex-none p-3.5 sm:p-4 pb-3 sm:pb-3.5 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 flex flex-col gap-2.5 sm:gap-3 shadow-xl">
+                    {/* Top Row: Navigation & Mode Toggle */}
+                    <div className="relative flex justify-between items-center w-full gap-1 sm:gap-2 min-h-[36px]">
+                        {/* Left: Title */}
+                        <div className="flex items-center gap-1.5 shrink-0 min-w-0 z-10">
+                            <div className="w-[3px] h-5 bg-orange-500 rounded-full shrink-0"></div>
+                            <h1 className="text-base sm:text-xl font-black text-white whitespace-nowrap">
+                                호실배치도
+                            </h1>
+                        </div>
 
-                    {/* Center: Navigation Cluster (Left: 오늘의 홍지관 | Center: 홈 | Right: 좌석배치도) */}
-                    <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-2 sm:gap-2.5 z-10 pointer-events-auto">
-                        {/* Left: 오늘의 홍지관 이동 버튼 (인스타 감성 그라디언트 테두리) */}
-                        <button
-                            onClick={() => router.push('/today')}
-                            className="h-11 sm:h-12 w-11 sm:w-12 p-[2px] rounded-xl bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95 group"
-                            title="오늘의 홍지관으로 이동"
-                        >
-                            <div className="w-full h-full rounded-[10px] overflow-hidden bg-white">
+                        {/* Center: Navigation Cluster (Left: 오늘의 홍지관 | Center: 홈 | Right: 좌석배치도) */}
+                        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center gap-2 sm:gap-2.5 z-10 pointer-events-auto">
+                            {/* Left: 오늘의 홍지관 이동 버튼 (인스타 감성 그라디언트 테두리) */}
+                            <button
+                                onClick={() => router.push('/today')}
+                                className="h-11 sm:h-12 w-11 sm:w-12 p-[2px] rounded-xl bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95 group"
+                                title="오늘의 홍지관으로 이동"
+                            >
+                                <div className="w-full h-full rounded-[10px] overflow-hidden bg-white">
+                                    <img
+                                        src="/dorm.jpg"
+                                        alt="오늘의 홍지관"
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                    />
+                                </div>
+                            </button>
+
+                            {/* Center: 홈 버튼 */}
+                            <button
+                                onClick={() => router.push('/teacher', { scroll: false })}
+                                className="h-11 sm:h-12 w-11 sm:w-12 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
+                                title="교사 홈으로 이동"
+                            >
+                                <HiHome className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+                            </button>
+
+                            {/* Right: 좌석배치도(학습)로 이동 버튼 */}
+                            <button
+                                onClick={() => router.push('/teacher/seats', { scroll: false })}
+                                className="h-11 sm:h-12 w-11 sm:w-12 rounded-xl overflow-hidden border border-gray-200/80 hover:border-white/50 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95 p-0 bg-white group relative"
+                                title="학습실 좌석배치도로 이동"
+                            >
                                 <img
-                                    src="/dorm.jpg"
-                                    alt="오늘의 홍지관"
+                                    src="/study_room.png"
+                                    alt="학습"
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
                                 />
-                            </div>
-                        </button>
-
-                        {/* Center: 홈 버튼 */}
-                        <button
-                            onClick={() => router.push('/teacher', { scroll: false })}
-                            className="h-11 sm:h-12 w-11 sm:w-12 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95"
-                            title="교사 홈으로 이동"
-                        >
-                            <HiHome className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
-                        </button>
-
-                        {/* Right: 좌석배치도(학습)로 이동 버튼 */}
-                        <button
-                            onClick={() => router.push('/teacher/seats', { scroll: false })}
-                            className="h-11 sm:h-12 w-11 sm:w-12 rounded-xl overflow-hidden border border-gray-200/80 hover:border-white/50 shadow-sm transition-all flex items-center justify-center cursor-pointer shrink-0 active:scale-95 p-0 bg-white group relative"
-                            title="학습실 좌석배치도로 이동"
-                        >
-                            <img
-                                src="/study_room.png"
-                                alt="학습"
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
-                            />
-                            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors flex items-center justify-center pointer-events-none">
-                                <span className="text-white font-black text-xs sm:text-[13px] tracking-tight leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                                    학습
-                                </span>
-                            </div>
-                        </button>
-                    </div>
-
-                    {/* Right: Room Management Toggle & Sub-Action (Reset on Left) */}
-                    {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자' || !teacherPosition) && (
-                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 z-10">
-                            {/* Reset Button Positioned to the Left (왼쪽으로 위치) */}
-                            {mode === 'assign' && (
-                                <button
-                                    onClick={handleResetAssignments}
-                                    className="px-2.5 py-1 text-red-300 hover:text-red-200 font-bold text-xs bg-red-950/80 backdrop-blur-xl rounded-lg border border-red-500/40 hover:bg-red-900/80 shadow-sm transition-all whitespace-nowrap cursor-pointer active:scale-95 flex items-center gap-1"
-                                    title="전체 호실 배정 초기화"
-                                >
-                                    <span>⚠️ 초기화</span>
-                                </button>
-                            )}
-
-                            <div className="flex items-center bg-gray-900/90 p-1 rounded-xl border border-gray-700/80 shadow-inner shrink-0">
-                                <button
-                                    onClick={() => setMode(mode === 'assign' ? 'check' : 'assign')}
-                                    className={clsx(
-                                        "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center gap-1.5",
-                                        mode === 'assign'
-                                            ? "bg-white text-gray-950 shadow-md font-black"
-                                            : "bg-gray-700 hover:bg-gray-600 text-white shadow-sm border border-gray-600/70"
-                                    )}
-                                >
-                                    <span>{mode === 'assign' ? '저장 & BACK' : '⚙️ 호실 관리'}</span>
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Pagination Dots (스와이프 넛지) - 3번 화면용 */}
-                <div className="flex items-center justify-center w-full">
-                    <SwipeNudgeDots currentIndex={2} theme="dark" className="bg-white/10 py-1.5 px-4 rounded-full shadow-inner backdrop-blur-sm" />
-                </div>
-
-                {/* Middle Row: Floor Grade Badges (말풍선 팝업 연동) */}
-                <div ref={badgesContainerRef} className="relative w-full">
-                    <div className="flex items-center justify-between w-full gap-1 sm:gap-1.5 whitespace-nowrap">
-                        {/* 1학년 */}
-                        <button
-                            type="button"
-                            onClick={() => handleBadgeClick(1)}
-                            className={clsx(
-                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
-                                activePopoverGrade === 1
-                                    ? "bg-yellow-500/20 border-yellow-400 ring-2 ring-yellow-400/40"
-                                    : "bg-gray-800/90 hover:bg-gray-700/90 border-yellow-500/30"
-                            )}
-                            title="1학년 외박자 확인"
-                        >
-                            <div className="relative flex items-center justify-center w-full">
-                                <span className="text-[11px] sm:text-xs font-extrabold text-yellow-400 leading-tight">1학년</span>
-                                {absentStats[1] > 0 && (
-                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/50 shadow-[0_0_8px_rgba(250,204,21,0.35)] leading-none">
-                                        {absentStats[1]}
+                                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors flex items-center justify-center pointer-events-none">
+                                    <span className="text-white font-black text-xs sm:text-[13px] tracking-tight leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                                        학습
                                     </span>
-                                )}
-                            </div>
-                            <div className="relative flex items-center justify-center w-full mt-0.5">
-                                <div className="relative inline-flex items-center justify-center">
-                                    <span className="text-xs sm:text-base font-black text-yellow-200 tabular-nums leading-tight">
-                                        {floorStats[1].present}/{floorStats[1].total}명
-                                    </span>
-                                    <HiChevronDoubleDown className={clsx(
-                                        "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-yellow-400/80 transition-transform duration-200 shrink-0",
-                                        activePopoverGrade === 1 ? "rotate-180 text-yellow-400" : "group-hover:text-yellow-400"
-                                    )} />
                                 </div>
-                            </div>
-                        </button>
-
-                        {/* 2학년 */}
-                        <button
-                            type="button"
-                            onClick={() => handleBadgeClick(2)}
-                            className={clsx(
-                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
-                                activePopoverGrade === 2
-                                    ? "bg-sky-500/20 border-sky-400 ring-2 ring-sky-400/40"
-                                    : "bg-gray-800/90 hover:bg-gray-700/90 border-sky-500/30"
-                            )}
-                            title="2학년 외박자 확인"
-                        >
-                            <div className="relative flex items-center justify-center w-full">
-                                <span className="text-[11px] sm:text-xs font-extrabold text-sky-400 leading-tight">2학년</span>
-                                {absentStats[2] > 0 && (
-                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-sky-400/20 text-sky-300 border border-sky-400/50 shadow-[0_0_8px_rgba(56,189,248,0.35)] leading-none">
-                                        {absentStats[2]}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="relative flex items-center justify-center w-full mt-0.5">
-                                <div className="relative inline-flex items-center justify-center">
-                                    <span className="text-xs sm:text-base font-black text-sky-200 tabular-nums leading-tight">
-                                        {floorStats[2].present}/{floorStats[2].total}명
-                                    </span>
-                                    <HiChevronDoubleDown className={clsx(
-                                        "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-sky-400/80 transition-transform duration-200 shrink-0",
-                                        activePopoverGrade === 2 ? "rotate-180 text-sky-400" : "group-hover:text-sky-400"
-                                    )} />
-                                </div>
-                            </div>
-                        </button>
-
-                        {/* 3학년 */}
-                        <button
-                            type="button"
-                            onClick={() => handleBadgeClick(3)}
-                            className={clsx(
-                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
-                                activePopoverGrade === 3
-                                    ? "bg-red-500/20 border-red-400 ring-2 ring-red-400/40"
-                                    : "bg-gray-800/90 hover:bg-gray-700/90 border-red-500/30"
-                            )}
-                            title="3학년 외박자 확인"
-                        >
-                            <div className="relative flex items-center justify-center w-full">
-                                <span className="text-[11px] sm:text-xs font-extrabold text-red-400 leading-tight">3학년</span>
-                                {absentStats[3] > 0 && (
-                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-400/20 text-red-300 border border-red-400/50 shadow-[0_0_8px_rgba(248,113,113,0.35)] leading-none">
-                                        {absentStats[3]}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="relative flex items-center justify-center w-full mt-0.5">
-                                <div className="relative inline-flex items-center justify-center">
-                                    <span className="text-xs sm:text-base font-black text-red-200 tabular-nums leading-tight">
-                                        {floorStats[3].present}/{floorStats[3].total}명
-                                    </span>
-                                    <HiChevronDoubleDown className={clsx(
-                                        "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-red-400/80 transition-transform duration-200 shrink-0",
-                                        activePopoverGrade === 3 ? "rotate-180 text-red-400" : "group-hover:text-red-400"
-                                    )} />
-                                </div>
-                            </div>
-                        </button>
-
-                        {/* 층 합계 */}
-                        <button
-                            type="button"
-                            onClick={() => handleBadgeClick('all')}
-                            className={clsx(
-                                "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
-                                activePopoverGrade === 'all'
-                                    ? "bg-white/20 border-white ring-2 ring-white/40"
-                                    : "bg-gray-800/90 hover:bg-gray-700/90 border-gray-600"
-                            )}
-                            title={`${currentFloor}층 전체 외박자 확인`}
-                        >
-                            <div className="relative flex items-center justify-center w-full">
-                                <span className="text-[11px] sm:text-xs font-extrabold text-gray-300 leading-tight">
-                                    <span className="hidden xs:inline">{currentFloor}층 </span>합계
-                                </span>
-                                {absentStats.all > 0 && (
-                                    <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white border border-white/50 shadow-[0_0_8px_rgba(255,255,255,0.35)] leading-none">
-                                        {absentStats.all}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="relative flex items-center justify-center w-full mt-0.5">
-                                <div className="relative inline-flex items-center justify-center">
-                                    <span className="text-xs sm:text-base font-black text-white tabular-nums leading-tight">
-                                        {absentStats.totalPresent}/{absentStats.totalCount}명
-                                    </span>
-                                    <HiChevronDoubleDown className={clsx(
-                                        "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-gray-300 transition-transform duration-200 shrink-0",
-                                        activePopoverGrade === 'all' ? "rotate-180 text-white" : "group-hover:text-white"
-                                    )} />
-                                </div>
-                            </div>
-                        </button>
-                    </div>
-
-                    {/* Speech Bubble Popover (말풍선 꼬리가 달린 순수 타원형 외박자 카드) */}
-                    {activePopoverGrade !== null && (
-                        <div
-                            ref={popoverRef}
-                            className="absolute top-[calc(100%+10px)] left-0 right-0 z-50 animate-in fade-in slide-in-from-top-1 duration-150 filter drop-shadow-[0_20px_35px_rgba(0,0,0,0.85)]"
-                        >
-                            {/* Speech Bubble Arrow Tail (해당 블럭을 가리키는 말풍선 꼬리 - 1px 블럭 라인과 일치) */}
-                            <div
-                                className="absolute -top-[8px] -translate-x-1/2 pointer-events-none z-30 transition-all duration-200"
-                                style={{
-                                    left: activePopoverGrade === 1 ? '12.5%' :
-                                          activePopoverGrade === 2 ? '37.5%' :
-                                          activePopoverGrade === 3 ? '62.5%' : '87.5%'
-                                }}
-                            >
-                                <svg width="20" height="9" viewBox="0 0 20 9" fill="none" xmlns="http://www.w3.org/2000/svg" className="overflow-visible">
-                                    <polygon points="1,9 10,1 19,9" fill="#1a1a1a" />
-                                    <path
-                                        d="M1 9L10 1L19 9"
-                                        fill="none"
-                                        stroke={
-                                            activePopoverGrade === 1 ? "#facc15" :
-                                            activePopoverGrade === 2 ? "#38bdf8" :
-                                            activePopoverGrade === 3 ? "#f87171" : "#ffffff"
-                                        }
-                                        strokeWidth="1"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    />
-                                </svg>
-                            </div>
-
-                            {/* 타원형 카드 스크롤 목록 */}
-                            <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
-                                {absentStudentsList.length === 0 ? (
-                                    <div
-                                        className={clsx(
-                                            "bg-[#1a1a1a] border shadow-2xl rounded-[2rem] px-5 py-3 !h-[60px] flex items-center justify-center text-xs font-bold",
-                                            activePopoverGrade === 1 ? "border-yellow-400 text-yellow-200" :
-                                            activePopoverGrade === 2 ? "border-sky-400 text-sky-200" :
-                                            activePopoverGrade === 3 ? "border-red-400 text-red-200" :
-                                            "border-white text-gray-300"
-                                        )}
-                                    >
-                                        외박자가 없습니다.
-                                    </div>
-                                ) : (
-                                    absentStudentsList.map(student => {
-                                        const cardReq: LeaveRequest = student.leaveRequest;
-
-                                        const cardBorder = activePopoverGrade === 1
-                                            ? "border-yellow-400"
-                                            : activePopoverGrade === 2
-                                            ? "border-sky-400"
-                                            : activePopoverGrade === 3
-                                            ? "border-red-400"
-                                            : student.grade === 1
-                                            ? "border-yellow-400"
-                                            : student.grade === 2
-                                            ? "border-sky-400"
-                                            : student.grade === 3
-                                            ? "border-red-400"
-                                            : "border-white";
-
-                                        return (
-                                            <LeaveProcessCard
-                                                key={cardReq.id}
-                                                req={cardReq}
-                                                isExpanded={expandedCardId === cardReq.id}
-                                                onToggleExpand={() => setExpandedCardId(expandedCardId === cardReq.id ? null : cardReq.id)}
-                                                isMenuOpen={menuCardId === cardReq.id}
-                                                onToggleMenu={(e) => {
-                                                    e.stopPropagation();
-                                                    setMenuCardId(menuCardId === cardReq.id ? null : cardReq.id);
-                                                }}
-                                                onUpdateStatus={handleUpdateStatus}
-                                                onCancel={handleCancelLeave}
-                                                viewMode="active"
-                                                currentTeacherId={typeof window !== 'undefined' ? (localStorage.getItem('dormichan_login_id') || '') : ''}
-                                                teacherPosition={teacherPosition}
-                                                hideActionButtons={!student.leaveRequest}
-                                                borderColor={cardBorder}
-                                            />
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Bottom Row: Student Search (Left) & Floor Selector Tabs (Right) */}
-                <div className="flex items-center justify-between w-full gap-2">
-                    {/* Left: Student Search Box */}
-                    <div className="relative flex-1 max-w-[180px] xs:max-w-[220px] sm:max-w-[260px] h-9 sm:h-10">
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="🔍 학생 검색..."
-                            enterKeyHint="search"
-                            autoComplete="off"
-                            className="w-full h-full px-3 text-xs sm:text-sm font-medium bg-gray-800/90 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 transition-all shadow-sm"
-                        />
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery('')}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs font-bold p-1"
-                            >
-                                ✕
                             </button>
-                        )}
-
-                        {/* Dropdown Results */}
-                        {searchQuery.trim() && (
-                            <div className="absolute left-0 top-full mt-1 min-w-[200px] max-w-[260px] w-auto bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto whitespace-nowrap">
-                                {searchResults.length > 0 ? (
-                                    searchResults.map((res, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => {
-                                                setCurrentFloor(res.floor);
-                                                setSearchQuery('');
-                                                toast.success(`${res.displayName} → ${res.roomNum}호 (${res.position === 'left' ? 'L' : 'R'}침대)`);
-
-                                                setTimeout(() => {
-                                                    if (transformRef.current) {
-                                                        transformRef.current.zoomToElement(`room-${res.roomNum}`, 1.2, 500);
-                                                    }
-                                                }, 150);
-                                            }}
-                                            className="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-orange-600/30 hover:text-white border-b border-gray-800 last:border-0 flex items-center justify-between gap-2 transition-colors cursor-pointer"
-                                        >
-                                            <span className="font-bold text-white truncate">
-                                                {res.displayName}
-                                            </span>
-                                            <span className="bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded text-[11px] font-mono border border-orange-500/30 shrink-0">
-                                                {res.roomNum}호 ({res.position === 'left' ? 'L' : 'R'})
-                                            </span>
-                                        </button>
-                                    ))
-                                ) : (
-                                    <div className="px-3 py-2 text-xs text-gray-400 text-center">
-                                        검색 결과 없음
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Right: Floor Selector Tabs */}
-                    <div className="flex items-center gap-1 bg-gray-900/90 p-1 rounded-xl border border-gray-700/80 shadow-inner shrink-0 h-9 sm:h-10">
-                        {[1, 2, 3, 4].map(floor => (
-                            <button
-                                key={floor}
-                                onClick={() => setCurrentFloor(floor)}
-                                className={clsx(
-                                    "h-full px-2.5 sm:px-3.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center justify-center",
-                                    currentFloor === floor
-                                        ? "bg-orange-500 text-white shadow-md font-bold scale-105"
-                                        : "text-gray-400 hover:text-white hover:bg-gray-800"
-                                )}
-                            >
-                                {floor}F
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </header>
-
-            {/* Main Content - Zoomable Area */}
-            <div
-                onClick={handleCanvasClick}
-                onDoubleClick={handleCanvasDoubleClick}
-                className="flex-1 relative overflow-hidden bg-[#121212] w-full h-full overscroll-y-none"
-            >
-
-                <TransformWrapper
-                    ref={transformRef}
-                    initialScale={0.3}
-                    minScale={0.2}
-                    maxScale={2}
-                    centerOnInit={true}
-                    wheel={{ step: 0.1 }}
-                    panning={{ disabled: false, velocityDisabled: true }}
-                    doubleClick={{ disabled: true }}
-                    limitToBounds={true} // This prevents panning "into the void" beyond content edges
-                >
-                    <TransformComponent
-                        wrapperStyle={{ width: "100%", height: "100%" }}
-                        contentStyle={{ display: "flex", alignItems: "center", justifyContent: "center" }} // Removed width/height 100% to let content define bounds
-                    >
-                        <div className="grid grid-cols-5 gap-1.5 min-w-[1000px] select-none px-10 pt-10 pb-40"> {/* Increased bottom padding to prevent clipping */}
-                            {Object.keys(currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT))).map((key) => {
-                                const idx = Number(key);
-                                const roomNum = currentFloor * 100 + idx;
-                                const roomData = roomStatus[roomNum] || { left: { status: 'in', name: '', student_id: '' }, right: { status: 'in', name: '', student_id: '' } };
-
-                                const leftGrade = roomData.left.student_id
-                                    ? gradeMap.get(roomData.left.student_id) || (/^[1-3]/.test(roomData.left.student_id) ? parseInt(roomData.left.student_id[0], 10) : undefined)
-                                    : (/^[1-3]/.test(roomData.left.name) ? parseInt(roomData.left.name[0], 10) : undefined);
-
-                                const rightGrade = roomData.right.student_id
-                                    ? gradeMap.get(roomData.right.student_id) || (/^[1-3]/.test(roomData.right.student_id) ? parseInt(roomData.right.student_id[0], 10) : undefined)
-                                    : (/^[1-3]/.test(roomData.right.name) ? parseInt(roomData.right.name[0], 10) : undefined);
-
-                                const roomGrade = leftGrade || rightGrade;
-
-                                const layout = currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT));
-                                const pos = layout[idx];
-
-                                // Layout helpers based on relative index
-                                // Top Row: 6-10 (Side by Side)
-                                const isSideBySide = idx >= 6 && idx <= 10;
-                                // Left Col (1-5) & Bottom Left (21-25) are Reverse Vertical
-                                // NOTE: Floor 1 assumes simple vertical for 21+, Floor 2 different.
-                                // Floor 4: Inner is 20-25. Vertical.
-                                const isReverseVertical = (idx >= 1 && idx <= 5) || (currentFloor !== 1 && currentFloor !== 2 && currentFloor !== 4 && idx >= 21 && idx <= 25);
-
-                                const FLIPPED_ROOMS = [120, 121, 122, 123, 222, 223, 224, 225, 226, 227, 420, 421, 422, 423, 424, 425];
-                                const isFlipped = FLIPPED_ROOMS.includes(roomNum);
-
-                                let flexDirClass = isSideBySide ? "flex-row" : (isReverseVertical ? "flex-col-reverse" : "flex-col");
-                                if (isFlipped) {
-                                    if (flexDirClass === "flex-row") flexDirClass = "flex-row-reverse";
-                                    else if (flexDirClass === "flex-col") flexDirClass = "flex-col-reverse";
-                                    else if (flexDirClass === "flex-col-reverse") flexDirClass = "flex-col";
-                                }
-
-                                return (
-                                    <div
-                                        key={roomNum}
-                                        id={`room-${roomNum}`}
-                                        style={{
-                                            gridColumn: pos?.col,
-                                            gridRow: pos?.row
-                                        }}
-                                        className={clsx(
-                                            "relative overflow-hidden rounded-[1rem] bg-[#1c1c1e] border border-white/5 p-1 flex flex-col gap-0.5 shadow-lg transition-all",
-                                            isSideBySide ? "h-24 w-full" : "h-40 w-3/5 min-w-[80px] mx-auto"
-                                        )}
-                                    >
-                                        {/* Room Number Header */}
-                                        <div className="flex justify-center items-center px-1 py-0.5 shrink-0 gap-1.5">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleRoomNumberClick(roomNum);
-                                                }}
-                                                className={clsx(
-                                                    "inline-flex items-center justify-center text-center h-6 px-2.5 rounded-full border border-white/20 bg-white/10 text-white font-extrabold tracking-tight hover:text-yellow-400 hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0 shadow-md leading-none",
-                                                    isSideBySide ? "text-xs sm:text-sm" : "text-xs sm:text-sm"
-                                                )}
-                                                title="생활규정 위반 체크"
-                                            >
-                                                <span className="inline-block -translate-y-[1px]">{roomNum}</span>
-                                            </button>
-                                            {roomGrade && (
-                                                <span className={clsx(
-                                                    "inline-flex items-center justify-center text-center h-6 px-2.5 rounded-full border font-extrabold tracking-tight shrink-0 shadow-md leading-none transition-all",
-                                                    isSideBySide ? "text-xs sm:text-sm" : "text-xs sm:text-sm",
-                                                    roomGrade === 1 && "text-yellow-300 border-yellow-400/50 bg-yellow-500/20",
-                                                    roomGrade === 2 && "text-sky-300 border-sky-400/50 bg-sky-500/20",
-                                                    roomGrade === 3 && "text-red-300 border-red-400/50 bg-red-500/20"
-                                                )}>
-                                                    <span className="inline-block -translate-y-[1px]">{roomGrade}학년</span>
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className={clsx(
-                                            "flex flex-1 gap-1 h-full",
-                                            flexDirClass
-                                        )}>
-                                            {/* Left Bed */}
-                                            <button
-                                                onDoubleClick={(e) => {
-                                                    if (roomData.left.student_id) {
-                                                        e.stopPropagation();
-                                                        fetchStudentHistory(roomData.left.student_id, roomData.left.name);
-                                                    }
-                                                }}
-                                                onClick={() => handleBedClick(roomNum, 'left')}
-                                                className={clsx(
-                                                    "relative flex-1 rounded-md border flex flex-col items-center justify-center transition-all duration-200 group active:scale-95",
-                                                    mode === 'check'
-                                                        ? (checkedSlots.has(`${roomNum}-left`)
-                                                            ? (roomData.left.leaveType === '외박'
-                                                                ? "bg-purple-600 border-yellow-400 border-[3px] shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20"
-                                                                : "bg-yellow-400 border-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.6)] z-20")
-                                                            : (roomData.left.status === 'out'
-                                                                ? (roomData.left.leaveType === '외출'
-                                                                    ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
-                                                                    : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
-                                                                : (roomData.left.name
-                                                                    ? (isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend
-                                                                        ? "bg-[#1f2937] border-gray-700 font-medium" // Weekly Home
-                                                                        : "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10") // Present
-                                                                    : "bg-[#1c1c1e] border-white/5" // Empty
-                                                                )
-                                                            )
-                                                        )
-                                                        : "bg-[#1f2937] border-dashed border-gray-600 hover:border-purple-400 hover:bg-gray-700"
-                                                )}
-                                            >
-                                                {/* Bed Position Label (Small) */}
-                                                <span className={clsx(
-                                                    "absolute top-0.5 left-1 text-[7px] font-black group-hover:text-gray-400",
-                                                    mode === 'check' && roomData.left.status === 'in' && roomData.left.name ? "text-gray-400" : "text-gray-600"
-                                                )}>
-                                                    L
-                                                </span>
-
-                                                {/* Overlap background for Weekly Home Goer -> REMOVED to match empty dark color as requested */}
-                                                {/* {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend && (
-                                                    <div className="absolute inset-0 bg-gray-200/90 z-20 flex items-center justify-center rounded-md" />
-                                                )} */}
-
-                                                {/* Student Name */}
-                                                <span className={clsx(
-                                                    "truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30 font-medium",
-                                                    mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend
-                                                        ? "text-gray-400"
-                                                        : (
-                                                            mode === 'check' && roomData.left.status === 'in' && roomData.left.name
-                                                                ? "text-black"
-                                                                : (
-                                                                    mode === 'check' && roomData.left.status === 'out'
-                                                                        ? "text-white"
-                                                                        : "text-gray-300"
-                                                                )
-                                                        ),
-                                                    mode === 'assign' && !roomData.left.name && "text-gray-600 text-[10px]"
-                                                )}>
-                                                    {roomData.left.name ? (
-                                                        <div className="flex items-baseline gap-0.5 w-full justify-center relative">
-                                                            <span className="text-[9px] sm:text-[10px] opacity-80 font-normal">{(roomData.left.student_id || roomData.left.name).match(/^\d+/)?.[0]}</span>
-                                                            <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.left.student_id || roomData.left.name).replace(/^\d+/, '').trim()}</span>
-                                                        </div>
-                                                    ) : (mode === 'assign' ? '빈 침대' : '-')}
-                                                    {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend && (
-                                                        <span className="text-[10px] font-bold text-gray-600 mt-0.5">매주귀가</span>
-                                                    )}
-                                                </span>
-                                            </button>
-
-                                            {/* Right Bed */}
-                                            <button
-                                                onDoubleClick={(e) => {
-                                                    if (roomData.right.student_id) {
-                                                        e.stopPropagation();
-                                                        fetchStudentHistory(roomData.right.student_id, roomData.right.name);
-                                                    }
-                                                }}
-                                                onClick={() => handleBedClick(roomNum, 'right')}
-                                                className={clsx(
-                                                    "relative flex-1 rounded-md border flex flex-col items-center justify-center transition-all duration-200 group active:scale-95",
-                                                    mode === 'check'
-                                                        ? (checkedSlots.has(`${roomNum}-right`)
-                                                            ? (roomData.right.leaveType === '외박'
-                                                                ? "bg-purple-600 border-yellow-400 border-[3px] shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20"
-                                                                : "bg-yellow-400 border-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.6)] z-20")
-                                                            : (roomData.right.status === 'out'
-                                                                ? (roomData.right.leaveType === '외출'
-                                                                    ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
-                                                                    : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
-                                                                : (roomData.right.name
-                                                                    ? (isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend
-                                                                        ? "bg-[#1f2937] border-gray-700 font-medium" // Weekly Home
-                                                                        : "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10") // Present
-                                                                    : "bg-[#1c1c1e] border-white/5" // Empty
-                                                                )
-                                                            )
-                                                        )
-                                                        : "bg-[#1f2937] border-dashed border-gray-600 hover:border-purple-400 hover:bg-gray-700"
-                                                )}
-                                            >
-                                                {/* Bed Position Label */}
-                                                <span className={clsx(
-                                                    "absolute top-0.5 left-1 text-[7px] font-black group-hover:text-gray-400",
-                                                    mode === 'check' && roomData.right.status === 'in' && roomData.right.name ? "text-gray-400" : "text-gray-600"
-                                                )}>
-                                                    R
-                                                </span>
-
-                                                {/* Overlap background for Weekly Home Goer -> REMOVED to match empty dark color as requested */}
-                                                {/* {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend && (
-                                                    <div className="absolute inset-0 bg-gray-200/90 z-20 flex items-center justify-center rounded-md" />
-                                                )} */}
-
-                                                {/* Student Name */}
-                                                <span className={clsx(
-                                                    "truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30 font-medium",
-                                                    mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend
-                                                        ? "text-gray-400"
-                                                        : (
-                                                            mode === 'check' && roomData.right.status === 'in' && roomData.right.name
-                                                                ? "text-black"
-                                                                : (
-                                                                    mode === 'check' && roomData.right.status === 'out'
-                                                                        ? "text-white"
-                                                                        : "text-gray-300"
-                                                                )
-                                                        ),
-                                                    mode === 'assign' && !roomData.right.name && "text-gray-600 text-[10px]"
-                                                )}>
-                                                    {roomData.right.name ? (
-                                                        <div className="flex items-baseline gap-0.5 w-full justify-center relative">
-                                                            <span className="text-[9px] sm:text-[10px] opacity-80 font-normal">{(roomData.right.student_id || roomData.right.name).match(/^\d+/)?.[0]}</span>
-                                                            <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.right.student_id || roomData.right.name).replace(/^\d+/, '').trim()}</span>
-                                                        </div>
-                                                    ) : (mode === 'assign' ? '빈 침대' : '-')}
-                                                    {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend && (
-                                                        <span className="text-[10px] font-bold text-gray-600 mt-0.5">매주귀가</span>
-                                                    )}
-                                                </span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
                         </div>
-                    </TransformComponent>
-                </TransformWrapper >
-            </div >
 
-            {/* Assignment Modal (Identical to seats/page.tsx) */}
-            {
-                isModalOpen && selectedSlot && (
-                    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsModalOpen(false)}>
-                        <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100" onClick={e => e.stopPropagation()}>
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-lg font-extrabold text-gray-800">
-                                    {selectedSlot.room}호 {selectedSlot.position === 'left' ? '왼쪽 침대' : '오른쪽 침대'} 배정
-                                </h2>
-                                <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
-                            </div>
-
-                            <div className="mb-6">
-                                <label className="block text-xs font-bold text-gray-400 mb-2">학생 선택 검색</label>
-                                <Select
-                                    autoFocus
-                                    menuPlacement="auto"
-                                    options={students
-                                        .filter(s => !Object.values(roomStatus).some(r => r.left.student_id === s.student_id || r.right.student_id === s.student_id))
-                                        .map(s => ({
-                                            value: s.student_id,
-                                            label: `${s.student_id} ${s.name}`,
-                                            student: s
-                                        }))}
-                                    onChange={(option: any) => {
-                                        assignStudent(option.value);
-                                    }}
-                                    placeholder="이름 또는 학번 검색..."
-                                    styles={{
-                                        control: (base) => ({
-                                            ...base,
-                                            borderRadius: '1rem',
-                                            padding: '4px',
-                                            borderColor: '#e5e7eb',
-                                            boxShadow: 'none',
-                                            '&:hover': { borderColor: '#fbbf24' }
-                                        }),
-                                        option: (base, state) => ({
-                                            ...base,
-                                            backgroundColor: state.isFocused ? '#fefce8' : 'white',
-                                            color: '#1f2937',
-                                            fontWeight: '500',
-                                            cursor: 'pointer'
-                                        })
-                                    }}
-                                />
-                            </div>
-
-                            <div className="flex gap-2">
-                                {roomStatus[selectedSlot.room][selectedSlot.position].student_id && (
+                        {/* Right: Room Management Toggle & Sub-Action (Reset on Left) */}
+                        {(teacherPosition === '사감' || teacherPosition === '기숙사부장' || teacherPosition === '관리자' || !teacherPosition) && (
+                            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 z-10">
+                                {/* Reset Button Positioned to the Left (왼쪽으로 위치) */}
+                                {mode === 'assign' && (
                                     <button
-                                        onClick={() => assignStudent(null)}
-                                        className="px-3 py-1.5 flex-1 bg-red-50 text-red-500 font-bold text-sm rounded-xl hover:bg-red-100 border border-red-100 transition-colors"
+                                        onClick={handleResetAssignments}
+                                        className="px-2.5 py-1 text-red-300 hover:text-red-200 font-bold text-xs bg-red-950/80 backdrop-blur-xl rounded-lg border border-red-500/40 hover:bg-red-900/80 shadow-sm transition-all whitespace-nowrap cursor-pointer active:scale-95 flex items-center gap-1"
+                                        title="전체 호실 배정 초기화"
                                     >
-                                        현재 배정 해제
+                                        <span>⚠️ 초기화</span>
                                     </button>
                                 )}
+
+                                <div className="flex items-center bg-gray-900/90 p-1 rounded-xl border border-gray-700/80 shadow-inner shrink-0">
+                                    <button
+                                        onClick={() => setMode(mode === 'assign' ? 'check' : 'assign')}
+                                        className={clsx(
+                                            "px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-extrabold transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center gap-1.5",
+                                            mode === 'assign'
+                                                ? "bg-white text-gray-950 shadow-md font-black"
+                                                : "bg-gray-700 hover:bg-gray-600 text-white shadow-sm border border-gray-600/70"
+                                        )}
+                                    >
+                                        <span>{mode === 'assign' ? '저장 & BACK' : '⚙️ 호실 관리'}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Pagination Dots (스와이프 넛지) - 3번 화면용 */}
+                    <div className="flex items-center justify-center w-full">
+                        <SwipeNudgeDots currentIndex={2} theme="dark" className="bg-white/10 py-1.5 px-4 rounded-full shadow-inner backdrop-blur-sm" />
+                    </div>
+
+                    {/* Middle Row: Floor Grade Badges (말풍선 팝업 연동) */}
+                    <div ref={badgesContainerRef} className="relative w-full">
+                        <div className="flex items-center justify-between w-full gap-1 sm:gap-1.5 whitespace-nowrap">
+                            {/* 1학년 */}
+                            <button
+                                type="button"
+                                onClick={() => handleBadgeClick(1)}
+                                className={clsx(
+                                    "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                    activePopoverGrade === 1
+                                        ? "bg-yellow-500/20 border-yellow-400 ring-2 ring-yellow-400/40"
+                                        : "bg-gray-800/90 hover:bg-gray-700/90 border-yellow-500/30"
+                                )}
+                                title="1학년 외박자 확인"
+                            >
+                                <div className="relative flex items-center justify-center w-full">
+                                    <span className="text-[11px] sm:text-xs font-extrabold text-yellow-400 leading-tight">1학년</span>
+                                    {absentStats[1] > 0 && (
+                                        <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/50 shadow-[0_0_8px_rgba(250,204,21,0.35)] leading-none">
+                                            {absentStats[1]}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="relative flex items-center justify-center w-full mt-0.5">
+                                    <div className="relative inline-flex items-center justify-center">
+                                        <span className="text-xs sm:text-base font-black text-yellow-200 tabular-nums leading-tight">
+                                            {floorStats[1].present}/{floorStats[1].total}명
+                                        </span>
+                                        <HiChevronDoubleDown className={clsx(
+                                            "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-yellow-400/80 transition-transform duration-200 shrink-0",
+                                            activePopoverGrade === 1 ? "rotate-180 text-yellow-400" : "group-hover:text-yellow-400"
+                                        )} />
+                                    </div>
+                                </div>
+                            </button>
+
+                            {/* 2학년 */}
+                            <button
+                                type="button"
+                                onClick={() => handleBadgeClick(2)}
+                                className={clsx(
+                                    "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                    activePopoverGrade === 2
+                                        ? "bg-sky-500/20 border-sky-400 ring-2 ring-sky-400/40"
+                                        : "bg-gray-800/90 hover:bg-gray-700/90 border-sky-500/30"
+                                )}
+                                title="2학년 외박자 확인"
+                            >
+                                <div className="relative flex items-center justify-center w-full">
+                                    <span className="text-[11px] sm:text-xs font-extrabold text-sky-400 leading-tight">2학년</span>
+                                    {absentStats[2] > 0 && (
+                                        <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-sky-400/20 text-sky-300 border border-sky-400/50 shadow-[0_0_8px_rgba(56,189,248,0.35)] leading-none">
+                                            {absentStats[2]}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="relative flex items-center justify-center w-full mt-0.5">
+                                    <div className="relative inline-flex items-center justify-center">
+                                        <span className="text-xs sm:text-base font-black text-sky-200 tabular-nums leading-tight">
+                                            {floorStats[2].present}/{floorStats[2].total}명
+                                        </span>
+                                        <HiChevronDoubleDown className={clsx(
+                                            "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-sky-400/80 transition-transform duration-200 shrink-0",
+                                            activePopoverGrade === 2 ? "rotate-180 text-sky-400" : "group-hover:text-sky-400"
+                                        )} />
+                                    </div>
+                                </div>
+                            </button>
+
+                            {/* 3학년 */}
+                            <button
+                                type="button"
+                                onClick={() => handleBadgeClick(3)}
+                                className={clsx(
+                                    "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                    activePopoverGrade === 3
+                                        ? "bg-red-500/20 border-red-400 ring-2 ring-red-400/40"
+                                        : "bg-gray-800/90 hover:bg-gray-700/90 border-red-500/30"
+                                )}
+                                title="3학년 외박자 확인"
+                            >
+                                <div className="relative flex items-center justify-center w-full">
+                                    <span className="text-[11px] sm:text-xs font-extrabold text-red-400 leading-tight">3학년</span>
+                                    {absentStats[3] > 0 && (
+                                        <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-400/20 text-red-300 border border-red-400/50 shadow-[0_0_8px_rgba(248,113,113,0.35)] leading-none">
+                                            {absentStats[3]}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="relative flex items-center justify-center w-full mt-0.5">
+                                    <div className="relative inline-flex items-center justify-center">
+                                        <span className="text-xs sm:text-base font-black text-red-200 tabular-nums leading-tight">
+                                            {floorStats[3].present}/{floorStats[3].total}명
+                                        </span>
+                                        <HiChevronDoubleDown className={clsx(
+                                            "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-red-400/80 transition-transform duration-200 shrink-0",
+                                            activePopoverGrade === 3 ? "rotate-180 text-red-400" : "group-hover:text-red-400"
+                                        )} />
+                                    </div>
+                                </div>
+                            </button>
+
+                            {/* 층 합계 */}
+                            <button
+                                type="button"
+                                onClick={() => handleBadgeClick('all')}
+                                className={clsx(
+                                    "group relative flex flex-col items-center justify-center rounded-xl px-1 sm:px-2 py-1.5 sm:py-2 border flex-1 min-w-0 whitespace-nowrap shadow-sm cursor-pointer transition-all active:scale-95",
+                                    activePopoverGrade === 'all'
+                                        ? "bg-white/20 border-white ring-2 ring-white/40"
+                                        : "bg-gray-800/90 hover:bg-gray-700/90 border-gray-600"
+                                )}
+                                title={`${currentFloor}층 전체 외박자 확인`}
+                            >
+                                <div className="relative flex items-center justify-center w-full">
+                                    <span className="text-[11px] sm:text-xs font-extrabold text-gray-300 leading-tight">
+                                        <span className="hidden xs:inline">{currentFloor}층 </span>합계
+                                    </span>
+                                    {absentStats.all > 0 && (
+                                        <span className="absolute -top-1 right-0 text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white border border-white/50 shadow-[0_0_8px_rgba(255,255,255,0.35)] leading-none">
+                                            {absentStats.all}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="relative flex items-center justify-center w-full mt-0.5">
+                                    <div className="relative inline-flex items-center justify-center">
+                                        <span className="text-xs sm:text-base font-black text-white tabular-nums leading-tight">
+                                            {absentStats.totalPresent}/{absentStats.totalCount}명
+                                        </span>
+                                        <HiChevronDoubleDown className={clsx(
+                                            "absolute left-full top-1/2 -translate-y-1/2 ml-0.5 sm:ml-1 w-4 h-4 sm:w-5 sm:h-5 text-gray-300 transition-transform duration-200 shrink-0",
+                                            activePopoverGrade === 'all' ? "rotate-180 text-white" : "group-hover:text-white"
+                                        )} />
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Speech Bubble Popover (말풍선 꼬리가 달린 순수 타원형 외박자 카드) */}
+                        {activePopoverGrade !== null && (
+                            <div
+                                ref={popoverRef}
+                                className="absolute top-[calc(100%+10px)] left-0 right-0 z-50 animate-in fade-in slide-in-from-top-1 duration-150 filter drop-shadow-[0_20px_35px_rgba(0,0,0,0.85)]"
+                            >
+                                {/* Speech Bubble Arrow Tail (해당 블럭을 가리키는 말풍선 꼬리 - 1px 블럭 라인과 일치) */}
+                                <div
+                                    className="absolute -top-[8px] -translate-x-1/2 pointer-events-none z-30 transition-all duration-200"
+                                    style={{
+                                        left: activePopoverGrade === 1 ? '12.5%' :
+                                            activePopoverGrade === 2 ? '37.5%' :
+                                                activePopoverGrade === 3 ? '62.5%' : '87.5%'
+                                    }}
+                                >
+                                    <svg width="20" height="9" viewBox="0 0 20 9" fill="none" xmlns="http://www.w3.org/2000/svg" className="overflow-visible">
+                                        <polygon points="1,9 10,1 19,9" fill="#1a1a1a" />
+                                        <path
+                                            d="M1 9L10 1L19 9"
+                                            fill="none"
+                                            stroke={
+                                                activePopoverGrade === 1 ? "#facc15" :
+                                                    activePopoverGrade === 2 ? "#38bdf8" :
+                                                        activePopoverGrade === 3 ? "#f87171" : "#ffffff"
+                                            }
+                                            strokeWidth="1"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                </div>
+
+                                {/* 타원형 카드 스크롤 목록 */}
+                                <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
+                                    {absentStudentsList.length === 0 ? (
+                                        <div
+                                            className={clsx(
+                                                "bg-[#1a1a1a] border shadow-2xl rounded-[2rem] px-5 py-3 !h-[60px] flex items-center justify-center text-xs font-bold",
+                                                activePopoverGrade === 1 ? "border-yellow-400 text-yellow-200" :
+                                                    activePopoverGrade === 2 ? "border-sky-400 text-sky-200" :
+                                                        activePopoverGrade === 3 ? "border-red-400 text-red-200" :
+                                                            "border-white text-gray-300"
+                                            )}
+                                        >
+                                            외박자가 없습니다.
+                                        </div>
+                                    ) : (
+                                        absentStudentsList.map(student => {
+                                            const cardReq: LeaveRequest = student.leaveRequest;
+
+                                            const cardBorder = activePopoverGrade === 1
+                                                ? "border-yellow-400"
+                                                : activePopoverGrade === 2
+                                                    ? "border-sky-400"
+                                                    : activePopoverGrade === 3
+                                                        ? "border-red-400"
+                                                        : student.grade === 1
+                                                            ? "border-yellow-400"
+                                                            : student.grade === 2
+                                                                ? "border-sky-400"
+                                                                : student.grade === 3
+                                                                    ? "border-red-400"
+                                                                    : "border-white";
+
+                                            return (
+                                                <LeaveProcessCard
+                                                    key={cardReq.id}
+                                                    req={cardReq}
+                                                    isExpanded={expandedCardId === cardReq.id}
+                                                    onToggleExpand={() => setExpandedCardId(expandedCardId === cardReq.id ? null : cardReq.id)}
+                                                    isMenuOpen={menuCardId === cardReq.id}
+                                                    onToggleMenu={(e) => {
+                                                        e.stopPropagation();
+                                                        setMenuCardId(menuCardId === cardReq.id ? null : cardReq.id);
+                                                    }}
+                                                    onUpdateStatus={handleUpdateStatus}
+                                                    onCancel={handleCancelLeave}
+                                                    viewMode="active"
+                                                    currentTeacherId={typeof window !== 'undefined' ? (localStorage.getItem('dormichan_login_id') || '') : ''}
+                                                    teacherPosition={teacherPosition}
+                                                    hideActionButtons={!student.leaveRequest}
+                                                    borderColor={cardBorder}
+                                                />
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Bottom Row: Student Search (Left) & Floor Selector Tabs (Right) */}
+                    <div className="flex items-center justify-between w-full gap-2">
+                        {/* Left: Student Search Box */}
+                        <div className="relative flex-1 max-w-[180px] xs:max-w-[220px] sm:max-w-[260px] h-9 sm:h-10">
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="🔍 학생 검색..."
+                                enterKeyHint="search"
+                                autoComplete="off"
+                                className="w-full h-full px-3 text-xs sm:text-sm font-medium bg-gray-800/90 border border-gray-700 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-orange-500 transition-all shadow-sm"
+                            />
+                            {searchQuery && (
                                 <button
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="px-3 py-1.5 flex-1 bg-gray-100 text-gray-600 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs font-bold p-1"
+                                >
+                                    ✕
+                                </button>
+                            )}
+
+                            {/* Dropdown Results */}
+                            {searchQuery.trim() && (
+                                <div className="absolute left-0 top-full mt-1 min-w-[200px] max-w-[260px] w-auto bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto whitespace-nowrap">
+                                    {searchResults.length > 0 ? (
+                                        searchResults.map((res, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => {
+                                                    setCurrentFloor(res.floor);
+                                                    setSearchQuery('');
+                                                    toast.success(`${res.displayName} → ${res.roomNum}호 (${res.position === 'left' ? 'L' : 'R'}침대)`);
+
+                                                    setTimeout(() => {
+                                                        if (transformRef.current) {
+                                                            transformRef.current.zoomToElement(`room-${res.roomNum}`, 1.2, 500);
+                                                        }
+                                                    }, 150);
+                                                }}
+                                                className="w-full text-left px-3 py-2 text-xs text-gray-200 hover:bg-orange-600/30 hover:text-white border-b border-gray-800 last:border-0 flex items-center justify-between gap-2 transition-colors cursor-pointer"
+                                            >
+                                                <span className="font-bold text-white truncate">
+                                                    {res.displayName}
+                                                </span>
+                                                <span className="bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded text-[11px] font-mono border border-orange-500/30 shrink-0">
+                                                    {res.roomNum}호 ({res.position === 'left' ? 'L' : 'R'})
+                                                </span>
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <div className="px-3 py-2 text-xs text-gray-400 text-center">
+                                            검색 결과 없음
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right: Floor Selector Tabs */}
+                        <div className="flex items-center gap-1 bg-gray-900/90 p-1 rounded-xl border border-gray-700/80 shadow-inner shrink-0 h-9 sm:h-10">
+                            {[1, 2, 3, 4].map(floor => (
+                                <button
+                                    key={floor}
+                                    onClick={() => setCurrentFloor(floor)}
+                                    className={clsx(
+                                        "h-full px-2.5 sm:px-3.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 cursor-pointer whitespace-nowrap flex items-center justify-center",
+                                        currentFloor === floor
+                                            ? "bg-orange-500 text-white shadow-md font-bold scale-105"
+                                            : "text-gray-400 hover:text-white hover:bg-gray-800"
+                                    )}
+                                >
+                                    {floor}F
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </header>
+
+                {/* Main Content - Zoomable Area */}
+                <div
+                    onClick={handleCanvasClick}
+                    onDoubleClick={handleCanvasDoubleClick}
+                    className="flex-1 relative overflow-hidden bg-[#121212] w-full h-full overscroll-y-none"
+                >
+
+                    <TransformWrapper
+                        ref={transformRef}
+                        initialScale={0.3}
+                        minScale={0.2}
+                        maxScale={2}
+                        centerOnInit={true}
+                        wheel={{ step: 0.1 }}
+                        panning={{ disabled: false, velocityDisabled: true }}
+                        doubleClick={{ disabled: true }}
+                        limitToBounds={true} // This prevents panning "into the void" beyond content edges
+                    >
+                        <TransformComponent
+                            wrapperStyle={{ width: "100%", height: "100%" }}
+                            contentStyle={{ display: "flex", alignItems: "center", justifyContent: "center" }} // Removed width/height 100% to let content define bounds
+                        >
+                            <div className="grid grid-cols-5 gap-1.5 min-w-[1000px] select-none px-10 pt-10 pb-40"> {/* Increased bottom padding to prevent clipping */}
+                                {Object.keys(currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT))).map((key) => {
+                                    const idx = Number(key);
+                                    const roomNum = currentFloor * 100 + idx;
+                                    const roomData = roomStatus[roomNum] || { left: { status: 'in', name: '', student_id: '' }, right: { status: 'in', name: '', student_id: '' } };
+
+                                    const leftGrade = roomData.left.student_id
+                                        ? gradeMap.get(roomData.left.student_id) || (/^[1-3]/.test(roomData.left.student_id) ? parseInt(roomData.left.student_id[0], 10) : undefined)
+                                        : (/^[1-3]/.test(roomData.left.name) ? parseInt(roomData.left.name[0], 10) : undefined);
+
+                                    const rightGrade = roomData.right.student_id
+                                        ? gradeMap.get(roomData.right.student_id) || (/^[1-3]/.test(roomData.right.student_id) ? parseInt(roomData.right.student_id[0], 10) : undefined)
+                                        : (/^[1-3]/.test(roomData.right.name) ? parseInt(roomData.right.name[0], 10) : undefined);
+
+                                    const roomGrade = leftGrade || rightGrade;
+
+                                    const layout = currentFloor === 1 ? FLOOR_1_LAYOUT : (currentFloor === 2 ? FLOOR_2_LAYOUT : (currentFloor === 4 ? FLOOR_4_LAYOUT : DEFAULT_LAYOUT));
+                                    const pos = layout[idx];
+
+                                    // Layout helpers based on relative index
+                                    // Top Row: 6-10 (Side by Side)
+                                    const isSideBySide = idx >= 6 && idx <= 10;
+                                    // Left Col (1-5) & Bottom Left (21-25) are Reverse Vertical
+                                    // NOTE: Floor 1 assumes simple vertical for 21+, Floor 2 different.
+                                    // Floor 4: Inner is 20-25. Vertical.
+                                    const isReverseVertical = (idx >= 1 && idx <= 5) || (currentFloor !== 1 && currentFloor !== 2 && currentFloor !== 4 && idx >= 21 && idx <= 25);
+
+                                    const FLIPPED_ROOMS = [120, 121, 122, 123, 222, 223, 224, 225, 226, 227, 420, 421, 422, 423, 424, 425];
+                                    const isFlipped = FLIPPED_ROOMS.includes(roomNum);
+
+                                    let flexDirClass = isSideBySide ? "flex-row" : (isReverseVertical ? "flex-col-reverse" : "flex-col");
+                                    if (isFlipped) {
+                                        if (flexDirClass === "flex-row") flexDirClass = "flex-row-reverse";
+                                        else if (flexDirClass === "flex-col") flexDirClass = "flex-col-reverse";
+                                        else if (flexDirClass === "flex-col-reverse") flexDirClass = "flex-col";
+                                    }
+
+                                    return (
+                                        <div
+                                            key={roomNum}
+                                            id={`room-${roomNum}`}
+                                            style={{
+                                                gridColumn: pos?.col,
+                                                gridRow: pos?.row
+                                            }}
+                                            className={clsx(
+                                                "relative overflow-hidden rounded-[1rem] bg-[#1c1c1e] border border-white/5 p-1 flex flex-col gap-0.5 shadow-lg transition-all",
+                                                isSideBySide ? "h-24 w-full" : "h-40 w-3/5 min-w-[80px] mx-auto"
+                                            )}
+                                        >
+                                            {/* Room Number Header */}
+                                            <div className="flex justify-center items-center px-1 py-0.5 shrink-0 gap-1.5">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleRoomNumberClick(roomNum);
+                                                    }}
+                                                    className={clsx(
+                                                        "inline-flex items-center justify-center text-center h-6 px-2.5 rounded-full border border-white/20 bg-white/10 text-white font-extrabold tracking-tight hover:text-yellow-400 hover:scale-105 active:scale-95 transition-all cursor-pointer shrink-0 shadow-md leading-none",
+                                                        isSideBySide ? "text-xs sm:text-sm" : "text-xs sm:text-sm"
+                                                    )}
+                                                    title="생활규정 위반 체크"
+                                                >
+                                                    <span className="inline-block -translate-y-[1px]">{roomNum}</span>
+                                                </button>
+                                                {roomGrade && (
+                                                    <span className={clsx(
+                                                        "inline-flex items-center justify-center text-center h-6 px-2.5 rounded-full border font-extrabold tracking-tight shrink-0 shadow-md leading-none transition-all",
+                                                        isSideBySide ? "text-xs sm:text-sm" : "text-xs sm:text-sm",
+                                                        roomGrade === 1 && "text-yellow-300 border-yellow-400/50 bg-yellow-500/20",
+                                                        roomGrade === 2 && "text-sky-300 border-sky-400/50 bg-sky-500/20",
+                                                        roomGrade === 3 && "text-red-300 border-red-400/50 bg-red-500/20"
+                                                    )}>
+                                                        <span className="inline-block -translate-y-[1px]">{roomGrade}학년</span>
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className={clsx(
+                                                "flex flex-1 gap-1 h-full",
+                                                flexDirClass
+                                            )}>
+                                                {/* Left Bed */}
+                                                <button
+                                                    onDoubleClick={(e) => {
+                                                        if (roomData.left.student_id) {
+                                                            e.stopPropagation();
+                                                            fetchStudentHistory(roomData.left.student_id, roomData.left.name);
+                                                        }
+                                                    }}
+                                                    onClick={() => handleBedClick(roomNum, 'left')}
+                                                    className={clsx(
+                                                        "relative flex-1 rounded-md border flex flex-col items-center justify-center transition-all duration-200 group active:scale-95",
+                                                        mode === 'check'
+                                                            ? (checkedSlots.has(`${roomNum}-left`)
+                                                                ? (roomData.left.leaveType === '외박'
+                                                                    ? "bg-purple-600 border-yellow-400 border-[3px] shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20"
+                                                                    : "bg-yellow-400 border-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.6)] z-20")
+                                                                : (roomData.left.status === 'out'
+                                                                    ? (roomData.left.leaveType === '외출'
+                                                                        ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+                                                                        : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
+                                                                    : (roomData.left.name
+                                                                        ? (isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend
+                                                                            ? "bg-[#1f2937] border-gray-700 font-medium" // Weekly Home
+                                                                            : "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10") // Present
+                                                                        : "bg-[#1c1c1e] border-white/5" // Empty
+                                                                    )
+                                                                )
+                                                            )
+                                                            : "bg-[#1f2937] border-dashed border-gray-600 hover:border-purple-400 hover:bg-gray-700"
+                                                    )}
+                                                >
+                                                    {/* Bed Position Label (Small) */}
+                                                    <span className={clsx(
+                                                        "absolute top-0.5 left-1 text-[7px] font-black group-hover:text-gray-400",
+                                                        mode === 'check' && roomData.left.status === 'in' && roomData.left.name ? "text-gray-400" : "text-gray-600"
+                                                    )}>
+                                                        L
+                                                    </span>
+
+                                                    {/* Overlap background for Weekly Home Goer -> REMOVED to match empty dark color as requested */}
+                                                    {/* {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend && (
+                                                    <div className="absolute inset-0 bg-gray-200/90 z-20 flex items-center justify-center rounded-md" />
+                                                )} */}
+
+                                                    {/* Student Name */}
+                                                    <span className={clsx(
+                                                        "truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30 font-medium",
+                                                        mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend
+                                                            ? "text-gray-400"
+                                                            : (
+                                                                mode === 'check' && roomData.left.status === 'in' && roomData.left.name
+                                                                    ? "text-black"
+                                                                    : (
+                                                                        mode === 'check' && roomData.left.status === 'out'
+                                                                            ? "text-white"
+                                                                            : "text-gray-300"
+                                                                    )
+                                                            ),
+                                                        mode === 'assign' && !roomData.left.name && "text-gray-600 text-[10px]"
+                                                    )}>
+                                                        {roomData.left.name ? (
+                                                            <div className="flex items-baseline gap-0.5 w-full justify-center relative">
+                                                                <span className="text-[9px] sm:text-[10px] opacity-80 font-normal">{(roomData.left.student_id || roomData.left.name).match(/^\d+/)?.[0]}</span>
+                                                                <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.left.student_id || roomData.left.name).replace(/^\d+/, '').trim()}</span>
+                                                            </div>
+                                                        ) : (mode === 'assign' ? '빈 침대' : '-')}
+                                                        {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.left.isWeekend && (
+                                                            <span className="text-[10px] font-bold text-gray-600 mt-0.5">매주귀가</span>
+                                                        )}
+                                                    </span>
+                                                </button>
+
+                                                {/* Right Bed */}
+                                                <button
+                                                    onDoubleClick={(e) => {
+                                                        if (roomData.right.student_id) {
+                                                            e.stopPropagation();
+                                                            fetchStudentHistory(roomData.right.student_id, roomData.right.name);
+                                                        }
+                                                    }}
+                                                    onClick={() => handleBedClick(roomNum, 'right')}
+                                                    className={clsx(
+                                                        "relative flex-1 rounded-md border flex flex-col items-center justify-center transition-all duration-200 group active:scale-95",
+                                                        mode === 'check'
+                                                            ? (checkedSlots.has(`${roomNum}-right`)
+                                                                ? (roomData.right.leaveType === '외박'
+                                                                    ? "bg-purple-600 border-yellow-400 border-[3px] shadow-[0_0_15px_rgba(250,204,21,0.5)] z-20"
+                                                                    : "bg-yellow-400 border-yellow-300 shadow-[0_0_12px_rgba(250,204,21,0.6)] z-20")
+                                                                : (roomData.right.status === 'out'
+                                                                    ? (roomData.right.leaveType === '외출'
+                                                                        ? "bg-green-600 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+                                                                        : "bg-purple-600 border-purple-500 shadow-[0_0_10px_rgba(147,51,234,0.4)]")
+                                                                    : (roomData.right.name
+                                                                        ? (isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend
+                                                                            ? "bg-[#1f2937] border-gray-700 font-medium" // Weekly Home
+                                                                            : "bg-white border-white shadow-[0_0_12px_rgba(255,255,255,0.6)] z-10") // Present
+                                                                        : "bg-[#1c1c1e] border-white/5" // Empty
+                                                                    )
+                                                                )
+                                                            )
+                                                            : "bg-[#1f2937] border-dashed border-gray-600 hover:border-purple-400 hover:bg-gray-700"
+                                                    )}
+                                                >
+                                                    {/* Bed Position Label */}
+                                                    <span className={clsx(
+                                                        "absolute top-0.5 left-1 text-[7px] font-black group-hover:text-gray-400",
+                                                        mode === 'check' && roomData.right.status === 'in' && roomData.right.name ? "text-gray-400" : "text-gray-600"
+                                                    )}>
+                                                        R
+                                                    </span>
+
+                                                    {/* Overlap background for Weekly Home Goer -> REMOVED to match empty dark color as requested */}
+                                                    {/* {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend && (
+                                                    <div className="absolute inset-0 bg-gray-200/90 z-20 flex items-center justify-center rounded-md" />
+                                                )} */}
+
+                                                    {/* Student Name */}
+                                                    <span className={clsx(
+                                                        "truncate max-w-full leading-tight px-0.5 sm:px-1 flex flex-col items-center z-30 font-medium",
+                                                        mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend
+                                                            ? "text-gray-400"
+                                                            : (
+                                                                mode === 'check' && roomData.right.status === 'in' && roomData.right.name
+                                                                    ? "text-black"
+                                                                    : (
+                                                                        mode === 'check' && roomData.right.status === 'out'
+                                                                            ? "text-white"
+                                                                            : "text-gray-300"
+                                                                    )
+                                                            ),
+                                                        mode === 'assign' && !roomData.right.name && "text-gray-600 text-[10px]"
+                                                    )}>
+                                                        {roomData.right.name ? (
+                                                            <div className="flex items-baseline gap-0.5 w-full justify-center relative">
+                                                                <span className="text-[9px] sm:text-[10px] opacity-80 font-normal">{(roomData.right.student_id || roomData.right.name).match(/^\d+/)?.[0]}</span>
+                                                                <span className="text-[11px] sm:text-[12px] font-bold">{(roomData.right.student_id || roomData.right.name).replace(/^\d+/, '').trim()}</span>
+                                                            </div>
+                                                        ) : (mode === 'assign' ? '빈 침대' : '-')}
+                                                        {mode === 'check' && isWeeklyHomeTime(new Date(), specialHolidays) && roomData.right.isWeekend && (
+                                                            <span className="text-[10px] font-bold text-gray-600 mt-0.5">매주귀가</span>
+                                                        )}
+                                                    </span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </TransformComponent>
+                    </TransformWrapper >
+                </div >
+
+                {/* Assignment Modal (Identical to seats/page.tsx) */}
+                {
+                    isModalOpen && selectedSlot && (
+                        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsModalOpen(false)}>
+                            <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm transform transition-all scale-100" onClick={e => e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-lg font-extrabold text-gray-800">
+                                        {selectedSlot.room}호 {selectedSlot.position === 'left' ? '왼쪽 침대' : '오른쪽 침대'} 배정
+                                    </h2>
+                                    <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold">✕</button>
+                                </div>
+
+                                <div className="mb-6">
+                                    <label className="block text-xs font-bold text-gray-400 mb-2">학생 선택 검색</label>
+                                    <Select
+                                        autoFocus
+                                        menuPlacement="auto"
+                                        options={students
+                                            .filter(s => !Object.values(roomStatus).some(r => r.left.student_id === s.student_id || r.right.student_id === s.student_id))
+                                            .map(s => ({
+                                                value: s.student_id,
+                                                label: `${s.student_id} ${s.name}`,
+                                                student: s
+                                            }))}
+                                        onChange={(option: any) => {
+                                            assignStudent(option.value);
+                                        }}
+                                        placeholder="이름 또는 학번 검색..."
+                                        styles={{
+                                            control: (base) => ({
+                                                ...base,
+                                                borderRadius: '1rem',
+                                                padding: '4px',
+                                                borderColor: '#e5e7eb',
+                                                boxShadow: 'none',
+                                                '&:hover': { borderColor: '#fbbf24' }
+                                            }),
+                                            option: (base, state) => ({
+                                                ...base,
+                                                backgroundColor: state.isFocused ? '#fefce8' : 'white',
+                                                color: '#1f2937',
+                                                fontWeight: '500',
+                                                cursor: 'pointer'
+                                            })
+                                        }}
+                                    />
+                                </div>
+
+                                <div className="flex gap-2">
+                                    {roomStatus[selectedSlot.room][selectedSlot.position].student_id && (
+                                        <button
+                                            onClick={() => assignStudent(null)}
+                                            className="px-3 py-1.5 flex-1 bg-red-50 text-red-500 font-bold text-sm rounded-xl hover:bg-red-100 border border-red-100 transition-colors"
+                                        >
+                                            현재 배정 해제
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => setIsModalOpen(false)}
+                                        className="px-3 py-1.5 flex-1 bg-gray-100 text-gray-600 font-bold text-sm rounded-xl hover:bg-gray-200 transition-colors"
+                                    >
+                                        닫기
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* Student History Modal */}
+                {
+                    isHistoryModalOpen && historyStudent && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsHistoryModalOpen(false)}>
+                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden text-gray-800" onClick={e => e.stopPropagation()}>
+                                <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                                    <div className="flex items-center gap-3">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-lg font-bold text-gray-800">{historyStudent.student_id}</h3>
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
+                                                        try {
+                                                            const res = await fetch('/api/teacher/summon', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({
+                                                                    studentId: historyStudent.student_id,
+                                                                    teacherName: '담당 교사'
+                                                                })
+                                                            });
+                                                            const data = await res.json();
+                                                            if (res.ok) toast.success('호출 알림을 보냈습니다.');
+                                                            else toast.error(data.error || '호출 실패');
+                                                        } catch (err) {
+                                                            toast.error('오류 발생');
+                                                        }
+                                                    }}
+                                                    className="text-xl p-1 text-gray-400 hover:text-red-500 transition-colors"
+                                                    title="호출"
+                                                >
+                                                    🔔
+                                                </button>
+                                            </div>
+                                            <p className="text-xs text-gray-500">최근 이석 기록 (최신순 20건)</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400">
+                                        ✕
+                                    </button>
+                                </div>
+
+                                <div className="overflow-y-auto p-4 flex flex-col gap-3">
+                                    {historyRecords.length === 0 ? (
+                                        <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
+                                    ) : (
+                                        historyRecords.map((rec) => {
+                                            const statusColors: any = {
+                                                '신청': 'bg-blue-50 text-blue-600',
+                                                '승인': 'bg-green-50 text-green-600',
+                                                '반려': 'bg-red-50 text-red-600',
+                                                '취소': 'bg-gray-50 text-gray-500',
+                                                '복귀': 'bg-gray-100 text-gray-600',
+                                                '학부모승인': 'bg-orange-50 text-orange-600',
+                                                '학부모승인대기': 'bg-yellow-50 text-yellow-600',
+                                            };
+
+                                            return (
+                                                <div key={rec.id} className="flex flex-col p-3 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors bg-white shadow-sm">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={clsx("px-2 py-0.5 rounded text-[10px] font-bold border border-opacity-10", statusColors[rec.status] || 'bg-gray-50 text-gray-500')}>
+                                                                {rec.status}
+                                                            </span>
+                                                            <span className="font-bold text-gray-700 text-sm">{rec.leave_type}</span>
+                                                        </div>
+                                                        <span className="text-[10px] text-gray-400">{new Date(rec.created_at).toLocaleDateString()}</span>
+                                                    </div>
+
+                                                    <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg mb-2">
+                                                        {rec.leave_type === '컴이석' || rec.leave_type === '이석' ? (
+                                                            <div className="font-mono text-xs">
+                                                                {rec.period}
+                                                            </div>
+                                                        ) : (
+                                                            <div>
+                                                                {new Date(rec.start_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
+                                                                {new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {rec.reason && (
+                                                        <p className="text-[11px] text-gray-500 truncate">
+                                                            Running: {rec.reason}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+
+                <MorningCheckoutModal
+                    isOpen={isDisciplineModalOpen}
+                    onClose={() => setIsDisciplineModalOpen(false)}
+                    initialSelectedStudentIds={disciplineRoomStudentIds}
+                    roomNumber={disciplineRoomNum}
+                />
+
+                {/* Today Headcount Popup Modal */}
+                {isTodayModalOpen && (
+                    <div
+                        className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200"
+                        onClick={() => setIsTodayModalOpen(false)}
+                    >
+                        <div
+                            className="bg-[#FDFDFD] text-gray-800 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="p-3.5 sm:p-4 bg-gray-900 text-white flex justify-between items-center shadow-md">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500">
+                                        <div className="p-[1.5px] bg-gray-900 rounded-full">
+                                            <img src="/dorm.jpg" alt="Profile" className="w-6 h-6 rounded-full object-cover" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-sm sm:text-base text-white">오늘의 홍지관 인원현황</h3>
+                                        <p className="text-[10px] text-gray-400">외박자 · 외출자 및 학년/층별 실시간 현황</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setIsTodayModalOpen(false)}
+                                    className="hover:bg-white/20 p-1.5 rounded-full transition-colors text-white font-bold"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto">
+                                <DashboardMain />
+                            </div>
+
+                            <div className="p-3 bg-gray-100 border-t border-gray-200 flex justify-end">
+                                <button
+                                    onClick={() => setIsTodayModalOpen(false)}
+                                    className="px-5 py-2 bg-gray-900 text-white rounded-xl font-bold text-xs hover:bg-gray-800 transition-colors shadow-sm cursor-pointer"
                                 >
                                     닫기
                                 </button>
                             </div>
                         </div>
                     </div>
-                )
-            }
+                )}
 
-            {/* Student History Modal */}
-            {
-                isHistoryModalOpen && historyStudent && (
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsHistoryModalOpen(false)}>
-                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden text-gray-800" onClick={e => e.stopPropagation()}>
-                            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                                <div className="flex items-center gap-3">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-lg font-bold text-gray-800">{historyStudent.student_id}</h3>
-                                            <button
-                                                onClick={async (e) => {
-                                                    e.stopPropagation();
-                                                    if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
-                                                    try {
-                                                        const res = await fetch('/api/teacher/summon', {
-                                                            method: 'POST',
-                                                            headers: { 'Content-Type': 'application/json' },
-                                                            body: JSON.stringify({
-                                                                studentId: historyStudent.student_id,
-                                                                teacherName: '담당 교사'
-                                                            })
-                                                        });
-                                                        const data = await res.json();
-                                                        if (res.ok) toast.success('호출 알림을 보냈습니다.');
-                                                        else toast.error(data.error || '호출 실패');
-                                                    } catch (err) {
-                                                        toast.error('오류 발생');
-                                                    }
-                                                }}
-                                                className="text-xl p-1 text-gray-400 hover:text-red-500 transition-colors"
-                                                title="호출"
-                                            >
-                                                🔔
-                                            </button>
-                                        </div>
-                                        <p className="text-xs text-gray-500">최근 이석 기록 (최신순 20건)</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400">
-                                    ✕
-                                </button>
-                            </div>
-
-                            <div className="overflow-y-auto p-4 flex flex-col gap-3">
-                                {historyRecords.length === 0 ? (
-                                    <div className="py-10 text-center text-gray-400 text-sm">기록이 없습니다.</div>
-                                ) : (
-                                    historyRecords.map((rec) => {
-                                        const statusColors: any = {
-                                            '신청': 'bg-blue-50 text-blue-600',
-                                            '승인': 'bg-green-50 text-green-600',
-                                            '반려': 'bg-red-50 text-red-600',
-                                            '취소': 'bg-gray-50 text-gray-500',
-                                            '복귀': 'bg-gray-100 text-gray-600',
-                                            '학부모승인': 'bg-orange-50 text-orange-600',
-                                            '학부모승인대기': 'bg-yellow-50 text-yellow-600',
-                                        };
-
-                                        return (
-                                            <div key={rec.id} className="flex flex-col p-3 rounded-2xl border border-gray-100 hover:border-blue-200 transition-colors bg-white shadow-sm">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className={clsx("px-2 py-0.5 rounded text-[10px] font-bold border border-opacity-10", statusColors[rec.status] || 'bg-gray-50 text-gray-500')}>
-                                                            {rec.status}
-                                                        </span>
-                                                        <span className="font-bold text-gray-700 text-sm">{rec.leave_type}</span>
-                                                    </div>
-                                                    <span className="text-[10px] text-gray-400">{new Date(rec.created_at).toLocaleDateString()}</span>
-                                                </div>
-
-                                                <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg mb-2">
-                                                    {rec.leave_type === '컴이석' || rec.leave_type === '이석' ? (
-                                                        <div className="font-mono text-xs">
-                                                            {rec.period}
-                                                        </div>
-                                                    ) : (
-                                                        <div>
-                                                            {new Date(rec.start_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} ~
-                                                            {new Date(rec.end_time).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {rec.reason && (
-                                                    <p className="text-[11px] text-gray-500 truncate">
-                                                        Running: {rec.reason}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            <MorningCheckoutModal
-                isOpen={isDisciplineModalOpen}
-                onClose={() => setIsDisciplineModalOpen(false)}
-                initialSelectedStudentIds={disciplineRoomStudentIds}
-                roomNumber={disciplineRoomNum}
-            />
-
-            {/* Today Headcount Popup Modal */}
-            {isTodayModalOpen && (
-                <div
-                    className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200"
-                    onClick={() => setIsTodayModalOpen(false)}
-                >
-                    <div
-                        className="bg-[#FDFDFD] text-gray-800 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-200"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="p-3.5 sm:p-4 bg-gray-900 text-white flex justify-between items-center shadow-md">
-                            <div className="flex items-center gap-2.5">
-                                <div className="p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500">
-                                    <div className="p-[1.5px] bg-gray-900 rounded-full">
-                                        <img src="/dorm.jpg" alt="Profile" className="w-6 h-6 rounded-full object-cover" />
-                                    </div>
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-sm sm:text-base text-white">오늘의 홍지관 인원현황</h3>
-                                    <p className="text-[10px] text-gray-400">외박자 · 외출자 및 학년/층별 실시간 현황</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setIsTodayModalOpen(false)}
-                                className="hover:bg-white/20 p-1.5 rounded-full transition-colors text-white font-bold"
-                            >
-                                ✕
-                            </button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto">
-                            <DashboardMain />
-                        </div>
-
-                        <div className="p-3 bg-gray-100 border-t border-gray-200 flex justify-end">
-                            <button
-                                onClick={() => setIsTodayModalOpen(false)}
-                                className="px-5 py-2 bg-gray-900 text-white rounded-xl font-bold text-xs hover:bg-gray-800 transition-colors shadow-sm cursor-pointer"
-                            >
-                                닫기
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <ViolationStatsModal
-                isOpen={isViolationModalOpen}
-                onClose={() => setIsViolationModalOpen(false)}
-                initialFilter="today"
-            />
+                <ViolationStatsModal
+                    isOpen={isViolationModalOpen}
+                    onClose={() => setIsViolationModalOpen(false)}
+                    initialFilter="today"
+                />
             </div>
         </SwipeWrapper>
     );
