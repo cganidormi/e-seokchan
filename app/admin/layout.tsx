@@ -52,6 +52,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const menuItems = [
     { name: "학생관리", path: "/admin/students" },
+    { name: "진급관리", path: "/admin/promotion" },
     { name: "교사관리", path: "/admin/teachers" },
     { name: "일과표관리", path: "/admin/timetable" },
   ];

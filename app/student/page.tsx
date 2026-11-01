@@ -95,6 +95,15 @@ export default function StudentPage() {
     const fetchData = async () => {
       const { data: studentsData } = await supabase.from('students').select('*');
       if (studentsData) {
+        // 진급 또는 졸업으로 인해 기존 로컬스토리지 학번(loginId)이 DB에 더 이상 존재하지 않는 경우 재로그인 유도
+        const existsInDb = studentsData.some((s: any) => s.student_id === loginId);
+        if (!existsInDb && !isMaster) {
+          localStorage.removeItem('dormichan_login_id');
+          sessionStorage.removeItem('dormichan_login_id');
+          toast.error('새학기 진급 등으로 학번 정보가 변경되었습니다. 새 학번으로 다시 로그인해주세요.', { duration: 4000 });
+          router.replace('/login');
+          return;
+        }
         setStudents(studentsData as Student[]);
       }
 

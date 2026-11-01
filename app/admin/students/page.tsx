@@ -37,6 +37,17 @@ export default function StudentsPage() {
   // -------------------------
   const generateTempPassword = () => "1234";
 
+  // -------------------------
+  // 신규 학생 계정 생성용 고유 비밀번호 (숫자 4자리 + 영문 소문자 2자리)
+  // -------------------------
+  const generateUniquePassword = () => {
+    const num = Math.floor(1000 + Math.random() * 9000).toString();
+    const letters = Array.from({ length: 2 }, () =>
+      String.fromCharCode(97 + Math.floor(Math.random() * 26))
+    ).join("");
+    return num + letters;
+  };
+
   // ----------------------------------------
   // 짧은 토큰 생성 (대문자 2자리 + 숫자 4자리)
   // ----------------------------------------
@@ -405,8 +416,8 @@ export default function StudentsPage() {
       }
 
       // 3. 새 이름이 있으면 계정 생성/업데이트 (서버 API 통해 RLS 우회)
-      if (student_id) {
-        const tempPassword = generateTempPassword();
+      if (student_id && old_student_id !== student_id) {
+        const tempPassword = generateUniquePassword();
         try {
           const resp = await fetch('/api/admin/reset-student-password', {
             method: 'POST',
