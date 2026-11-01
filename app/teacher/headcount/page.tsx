@@ -449,6 +449,16 @@ export default function HeadcountPage() {
         });
     };
 
+    const clearCheckedSlots = () => {
+        setCheckedSlots(new Set());
+        try {
+            localStorage.removeItem('dormichan_headcount_checked_slots');
+        } catch (e) {
+            console.error('Failed to clear checked slots:', e);
+        }
+        toast.success('노란불 표시가 모두 해제되었습니다.');
+    };
+
     const handleBedClick = (roomNum: number, position: 'left' | 'right') => {
         if (mode === 'assign') {
             setSelectedSlot({ room: roomNum, position });
@@ -1270,6 +1280,20 @@ export default function HeadcountPage() {
                             )}
                         </div>
 
+                        {/* Right: Clear Checked Button & Floor Selector Tabs */}
+                        {checkedSlots.size > 0 && (
+                            <button
+                                type="button"
+                                onClick={clearCheckedSlots}
+                                className="ml-auto h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl bg-yellow-400/20 hover:bg-yellow-400/30 border border-yellow-400/60 text-yellow-300 text-xs sm:text-sm font-extrabold whitespace-nowrap flex items-center gap-1 shadow-[0_0_10px_rgba(250,204,21,0.25)] transition-all cursor-pointer active:scale-95 shrink-0"
+                                title="체크된 노란불 전체 해제"
+                            >
+                                <span>노란불 해제</span>
+                                <span className="px-1.5 py-0.5 rounded-full bg-yellow-400 text-black text-[10px] font-black leading-none">
+                                    {checkedSlots.size}
+                                </span>
+                            </button>
+                        )}
                         {/* Right: Floor Selector Tabs */}
                         <div className="flex items-center gap-1 bg-gray-900/90 p-1 rounded-xl border border-gray-700/80 shadow-inner shrink-0 h-9 sm:h-10">
                             {[1, 2, 3, 4].map(floor => (
