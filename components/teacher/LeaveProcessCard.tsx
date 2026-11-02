@@ -125,22 +125,22 @@ export const LeaveProcessCard: React.FC<LeaveProcessCardProps> = ({
                                 </button>
 
                                 {isMenuOpen && canEdit && (
-                                    <div className="absolute top-full left-0 mt-2 bg-[#2a2a2a] border border-white/10 rounded-2xl shadow-2xl z-50 py-2 w-24 animate-in fade-in slide-in-from-top-1">
+                                    <div className="absolute top-full left-0 mt-2 bg-[#2a2a2a] border border-white/10 rounded-2xl shadow-2xl z-50 py-2 w-[50px] animate-in fade-in slide-in-from-top-1">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '신청'); }}
-                                            className="w-full px-4 py-2 text-left text-xs text-blue-400 hover:bg-white/5 font-bold"
+                                            className="w-full py-2 text-center text-xs text-blue-400 hover:bg-white/5 font-bold"
                                         >
                                             대기
                                         </button>
                                         <button
                                             onClick={handleApprove}
-                                            className="w-full px-4 py-2 text-left text-xs text-green-400 hover:bg-white/5 font-bold"
+                                            className="w-full py-2 text-center text-xs text-green-400 hover:bg-white/5 font-bold"
                                         >
                                             승인
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); onUpdateStatus(req.id, '반려'); }}
-                                            className="w-full px-4 py-2 text-left text-xs text-red-400 hover:bg-white/5 font-bold"
+                                            className="w-full py-2 text-center text-xs text-red-400 hover:bg-white/5 font-bold"
                                         >
                                             반려
                                         </button>

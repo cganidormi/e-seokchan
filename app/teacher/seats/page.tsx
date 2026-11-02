@@ -1818,7 +1818,7 @@ export default function SeatManagementPage() {
                             setHistoryMenuId(null);
                         }}
                     >
-                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[92vh] sm:max-h-[88vh] min-h-[420px] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                             <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col relative bg-white shrink-0">
                                 {/* Close Button Top Right */}
                                 <button
@@ -2083,7 +2083,7 @@ export default function SeatManagementPage() {
                             </div>
 
                             {/* Leave History List - Compact Padding & Gaps */}
-                            <div className="overflow-y-auto p-2.5 sm:p-3 flex flex-col gap-2 bg-gray-100/50 flex-1 max-h-[35vh]">
+                            <div className="overflow-y-auto p-2.5 sm:p-3 flex flex-col gap-2 bg-gray-100/50 flex-1 min-h-[180px] max-h-[50vh] sm:max-h-[55vh] pb-28 sm:pb-32">
                                 {isHistoryLoading ? (
                                     <div className="py-6 flex flex-col items-center justify-center gap-2">
                                         <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
