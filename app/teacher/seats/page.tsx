@@ -322,9 +322,9 @@ export default function SeatManagementPage() {
         }
         setIsSubmittingViolation(true);
         try {
-            const currentTeacher = (teacherName && teacherName !== '담당 교사' ? teacherName : '') 
-                || localStorage.getItem('dormichan_login_id') 
-                || sessionStorage.getItem('dormichan_login_id') 
+            const currentTeacher = (teacherName && teacherName !== '담당 교사' ? teacherName : '')
+                || localStorage.getItem('dormichan_login_id')
+                || sessionStorage.getItem('dormichan_login_id')
                 || '지도교사';
 
             const payload = {
@@ -570,7 +570,7 @@ export default function SeatManagementPage() {
                             localStorage.setItem('dormichan_teacher_id', teacher.id);
                             localStorage.setItem('dormichan_teacher_name', teacher.name);
                             localStorage.setItem('dormichan_teacher_position', teacher.position);
-                        } catch (e) {}
+                        } catch (e) { }
                     }
                 });
         }
@@ -1164,7 +1164,7 @@ export default function SeatManagementPage() {
                                 onClick={() => setIsStudyLogModalOpen(true)}
                                 className="h-9 sm:h-10 px-4 sm:px-5 rounded-xl text-xs sm:text-sm font-extrabold text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 shadow-xs hover:shadow transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5"
                             >
-                                <span>학습일지/시설물</span>
+                                <span>학습일지/시설물</span><span className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-50 border border-amber-200/80 text-amber-600 shrink-0"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg></span>
                             </button>
                         </div>
 
@@ -1899,11 +1899,10 @@ export default function SeatManagementPage() {
                                                             setSelectedViolationCategory(cat);
                                                         }
                                                     }}
-                                                    className={`py-2.5 px-1 rounded-xl border font-black text-xs sm:text-sm transition-all cursor-pointer shadow-2xs active:scale-95 text-center ${
-                                                        isSelected
+                                                    className={`py-2.5 px-1 rounded-xl border font-black text-xs sm:text-sm transition-all cursor-pointer shadow-2xs active:scale-95 text-center ${isSelected
                                                             ? 'bg-slate-900 text-white border-slate-900 shadow-sm ring-2 ring-slate-900/20'
                                                             : 'bg-white text-slate-800 hover:bg-slate-100 border-slate-200'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     {cat}
                                                 </button>

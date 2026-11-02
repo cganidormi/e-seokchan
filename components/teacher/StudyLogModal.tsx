@@ -7,8 +7,7 @@ import {
     FaSearch, 
     FaCheck, 
     FaTrash, 
-    FaEdit, 
-    FaPlus
+    FaEdit
 } from 'react-icons/fa';
 
 export interface Student {
@@ -54,7 +53,7 @@ export default function StudyLogModal({
 }: StudyLogModalProps) {
     const [activeTab, setActiveTab] = useState<'yanghyeonjae' | 'facility'>('yanghyeonjae');
 
-    // [Tab 1] 양현재 일지 상태
+    // [Tab 1] 양현재 일지 상태 - 학생지도
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [studentSearch, setStudentSearch] = useState('');
     const [isSearchingStudent, setIsSearchingStudent] = useState(false);
@@ -62,6 +61,10 @@ export default function StudyLogModal({
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [violationDetail, setViolationDetail] = useState('');
     const [isSubmittingViolation, setIsSubmittingViolation] = useState(false);
+
+    // [Tab 1] 양현재 일지 상태 - 특이사항
+    const [specialNote, setSpecialNote] = useState('');
+    const [isSubmittingSpecialNote, setIsSubmittingSpecialNote] = useState(false);
 
     const [todayYanghyeonjaeLogs, setTodayYanghyeonjaeLogs] = useState<YanghyeonjaeLog[]>([]);
     const [isLoadingLogs, setIsLoadingLogs] = useState(false);
@@ -100,6 +103,7 @@ export default function StudyLogModal({
         } else {
             setSelectedCategory(null);
             setViolationDetail('');
+            setSpecialNote('');
             setEditingLogId(null);
         }
     }, [isOpen, initialStudentId, studentMap]);
@@ -208,6 +212,48 @@ export default function StudyLogModal({
             toast.error('등록에 실패했습니다.');
         } finally {
             setIsSubmittingViolation(false);
+        }
+    };
+
+    const handleCreateSpecialNote = async () => {
+        const trimmed = specialNote.trim();
+        if (!trimmed) {
+            toast.error('특이사항 내용을 입력해주세요.');
+            return;
+        }
+
+        setIsSubmittingSpecialNote(true);
+        try {
+            const currentTeacher = (teacherName && teacherName !== '담당 교사' ? teacherName : '') 
+                || localStorage.getItem('dormichan_login_id') 
+                || sessionStorage.getItem('dormichan_login_id') 
+                || '지도교사';
+
+            const payload = {
+                student_id: '특이사항',
+                teacher_id: currentTeacher,
+                type: 'yanghyeonjae',
+                note: trimmed,
+                checked_at: new Date().toISOString()
+            };
+
+            const { data, error } = await supabase
+                .from('morning_checks')
+                .insert(payload)
+                .select();
+
+            if (error) throw error;
+
+            toast.success('특이사항이 등록되었습니다.');
+            if (data && data[0]) {
+                setTodayYanghyeonjaeLogs(prev => [data[0], ...prev]);
+            }
+            setSpecialNote('');
+        } catch (err) {
+            console.error(err);
+            toast.error('등록에 실패했습니다.');
+        } finally {
+            setIsSubmittingSpecialNote(false);
         }
     };
 
@@ -337,14 +383,14 @@ export default function StudyLogModal({
                 {/* Top Bar: Toggle Segment Control & Close Button */}
                 <div className="p-3.5 sm:p-4 border-b border-gray-100 flex items-center justify-between gap-3 bg-white shrink-0">
                     {/* Toggle Segment Switch */}
-                    <div className="flex-1 bg-gray-100 p-1 rounded-2xl flex items-center border border-gray-200/80 shadow-inner">
+                    <div className="flex-1 bg-gray-200/90 p-1 rounded-2xl flex items-center gap-1 border border-gray-300/80 shadow-inner">
                         <button
                             type="button"
                             onClick={() => setActiveTab('yanghyeonjae')}
                             className={`flex-1 py-2 sm:py-2.5 rounded-xl font-black text-sm sm:text-base transition-all duration-200 cursor-pointer text-center ${
                                 activeTab === 'yanghyeonjae'
-                                    ? 'bg-white text-gray-900 shadow-xs'
-                                    : 'text-gray-500 hover:text-gray-800'
+                                    ? 'bg-yellow-400 text-yellow-950 shadow-md'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-300/60'
                             }`}
                         >
                             양현재 일지 등록
@@ -354,8 +400,8 @@ export default function StudyLogModal({
                             onClick={() => setActiveTab('facility')}
                             className={`flex-1 py-2 sm:py-2.5 rounded-xl font-black text-sm sm:text-base transition-all duration-200 cursor-pointer text-center ${
                                 activeTab === 'facility'
-                                    ? 'bg-white text-gray-900 shadow-xs'
-                                    : 'text-gray-500 hover:text-gray-800'
+                                    ? 'bg-yellow-400 text-yellow-950 shadow-md'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-300/60'
                             }`}
                         >
                             시설물 수리요청
@@ -378,147 +424,173 @@ export default function StudyLogModal({
                     {/* TAB 1: 양현재 일지 */}
                     {activeTab === 'yanghyeonjae' && (
                         <div className="space-y-4">
-                            {/* Student Search & Select */}
-                            <div>
-                                <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-                                    <label className="text-xs font-semibold text-gray-600">
-                                        학생 선택
-                                    </label>
+                            {/* Section 1: 학생지도 */}
+                            <div className="space-y-2.5">
+                                <div className="flex items-center justify-between flex-wrap gap-1">
+                                    <h3 className="text-xs sm:text-sm font-extrabold text-gray-800 flex items-center gap-1.5">
+                                        <span className="w-1 h-3.5 bg-yellow-400 rounded-full"></span>
+                                        <span>학생지도</span>
+                                    </h3>
                                     <p className="text-xs text-blue-600 font-semibold flex items-center gap-1">
                                         <span>💡</span>
                                         <span>이름을 모를 땐 좌석을 더블터치하세요.</span>
                                     </p>
                                 </div>
-                                {selectedStudent ? (
-                                    <div className="flex items-center justify-between bg-gray-50 border border-gray-200 px-3.5 py-2.5 rounded-xl">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold text-gray-900">{selectedStudent.student_id}</span>
-                                            <span className="font-medium text-gray-700">{selectedStudent.name}</span>
-                                            <span className="text-xs text-gray-400">({selectedStudent.grade}학년 {selectedStudent.class}반)</span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedStudent(null);
-                                                setStudentSearch('');
-                                            }}
-                                            className="text-xs text-gray-500 hover:text-gray-800 underline cursor-pointer"
-                                        >
-                                            변경
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="relative">
-                                        <div className="relative flex items-center">
-                                            <FaSearch className="absolute left-3 text-gray-400 text-xs" />
-                                            <input
-                                                type="text"
-                                                value={studentSearch}
-                                                onChange={e => {
-                                                    setStudentSearch(e.target.value);
-                                                    setIsSearchingStudent(true);
-                                                }}
-                                                onFocus={() => setIsSearchingStudent(true)}
-                                                placeholder="학번 또는 이름 검색..."
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-gray-400 focus:bg-white transition-colors"
-                                            />
-                                        </div>
 
-                                        {isSearchingStudent && filteredStudents.length > 0 && (
-                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden divide-y divide-gray-100">
-                                                {filteredStudents.map(student => (
-                                                    <button
-                                                        key={student.student_id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSelectedStudent(student);
-                                                            setIsSearchingStudent(false);
-                                                            setStudentSearch('');
-                                                        }}
-                                                        className="w-full px-3.5 py-2 flex items-center justify-between text-left hover:bg-gray-50 cursor-pointer"
-                                                    >
-                                                        <span className="font-medium text-gray-900">
-                                                            {student.student_id} {student.name}
-                                                        </span>
-                                                        <span className="text-xs text-gray-400">
-                                                            {student.grade}-{student.class}
-                                                        </span>
-                                                    </button>
-                                                ))}
+                                <div className="space-y-2">
+                                    {/* Student Search & Select */}
+                                    {selectedStudent ? (
+                                        <div className="flex items-center justify-between bg-gray-50 border border-gray-200 px-3.5 py-2 rounded-xl">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-gray-900">{selectedStudent.student_id}</span>
+                                                <span className="font-medium text-gray-700">{selectedStudent.name}</span>
+                                                <span className="text-xs text-gray-400">({selectedStudent.grade}학년 {selectedStudent.class}반)</span>
                                             </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Category Grid */}
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                                    위반 항목
-                                </label>
-                                <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-                                    {['졸음', '전자기기 위반', '무단이석', '지각 입실', '소란', '기타'].map(cat => {
-                                        const isSelected = selectedCategory === cat;
-                                        return (
                                             <button
-                                                key={cat}
                                                 type="button"
                                                 onClick={() => {
-                                                    if (isSelected) {
-                                                        setSelectedCategory(null);
-                                                        setViolationDetail('');
-                                                    } else {
-                                                        setSelectedCategory(cat);
-                                                    }
+                                                    setSelectedStudent(null);
+                                                    setStudentSearch('');
                                                 }}
-                                                className={`py-2 px-1 rounded-lg border text-xs font-semibold transition-all cursor-pointer text-center ${
-                                                    isSelected
-                                                        ? 'bg-gray-900 text-white border-gray-900'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
-                                                }`}
+                                                className="text-xs text-gray-500 hover:text-gray-800 underline cursor-pointer"
                                             >
-                                                {cat}
+                                                변경
                                             </button>
-                                        );
-                                    })}
+                                        </div>
+                                    ) : (
+                                        <div className="relative">
+                                            <div className="relative flex items-center">
+                                                <FaSearch className="absolute left-3 text-gray-400 text-xs" />
+                                                <input
+                                                    type="text"
+                                                    value={studentSearch}
+                                                    onChange={e => {
+                                                        setStudentSearch(e.target.value);
+                                                        setIsSearchingStudent(true);
+                                                    }}
+                                                    onFocus={() => setIsSearchingStudent(true)}
+                                                    placeholder="학번 또는 이름 검색..."
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-8 pr-3 py-2 text-sm text-gray-800 focus:outline-none focus:border-gray-400 focus:bg-white transition-colors"
+                                                />
+                                            </div>
+
+                                            {isSearchingStudent && filteredStudents.length > 0 && (
+                                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-hidden divide-y divide-gray-100">
+                                                    {filteredStudents.map(student => (
+                                                        <button
+                                                            key={student.student_id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedStudent(student);
+                                                                setIsSearchingStudent(false);
+                                                                setStudentSearch('');
+                                                            }}
+                                                            className="w-full px-3.5 py-2 flex items-center justify-between text-left hover:bg-gray-50 cursor-pointer"
+                                                        >
+                                                            <span className="font-medium text-gray-900">
+                                                                {student.student_id} {student.name}
+                                                            </span>
+                                                            <span className="text-xs text-gray-400">
+                                                                {student.grade}-{student.class}
+                                                            </span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Category Grid */}
+                                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                                        {['졸음', '전자기기 위반', '무단이석', '지각 입실', '소란', '기타'].map(cat => {
+                                            const isSelected = selectedCategory === cat;
+                                            return (
+                                                <button
+                                                    key={cat}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (isSelected) {
+                                                            setSelectedCategory(null);
+                                                            setViolationDetail('');
+                                                        } else {
+                                                            setSelectedCategory(cat);
+                                                        }
+                                                    }}
+                                                    className={`py-2 px-1 rounded-lg border text-xs font-semibold transition-all cursor-pointer text-center ${
+                                                        isSelected
+                                                            ? 'bg-gray-900 text-white border-gray-900'
+                                                            : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
+                                                    }`}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Detail Input & Submit */}
+                                    <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border border-gray-200">
+                                        {selectedCategory ? (
+                                            <span className="text-xs font-bold text-gray-900 shrink-0 px-2.5 py-1 bg-white border border-gray-300 rounded-lg shadow-2xs">
+                                                {selectedCategory}
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs font-medium text-gray-400 shrink-0 px-2 py-1 bg-gray-100 rounded-lg border border-dashed border-gray-300">
+                                                항목 미선택
+                                            </span>
+                                        )}
+                                        <input
+                                            type="text"
+                                            className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors"
+                                            placeholder={
+                                                selectedCategory === '기타'
+                                                    ? '상세 사유를 입력하세요 (필수)'
+                                                    : selectedCategory
+                                                        ? '상세 내용을 입력하세요 (선택 사항)'
+                                                        : '위반 항목을 선택하고 상세 내용을 입력하세요'
+                                            }
+                                            value={violationDetail}
+                                            onChange={e => setViolationDetail(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') handleCreateYanghyeonjaeViolation();
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleCreateYanghyeonjaeViolation}
+                                            disabled={isSubmittingViolation || !selectedCategory || (selectedCategory === '기타' && !violationDetail.trim())}
+                                            className="px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer disabled:opacity-40"
+                                        >
+                                            등록
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Detail Input & Submit - Always Visible */}
-                            <div>
-                                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                                    상세 내용 기입
-                                </label>
+                            {/* Section 2: 특이사항 */}
+                            <div className="pt-3 border-t border-gray-100 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-xs sm:text-sm font-extrabold text-gray-800 flex items-center gap-1.5">
+                                        <span className="w-1 h-3.5 bg-yellow-400 rounded-full"></span>
+                                        <span>특이사항</span>
+                                    </h3>
+                                    <span className="text-[11px] text-gray-400 font-medium">기타 건의사항·특이사항 기록</span>
+                                </div>
                                 <div className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border border-gray-200">
-                                    {selectedCategory ? (
-                                        <span className="text-xs font-bold text-gray-900 shrink-0 px-2.5 py-1 bg-white border border-gray-300 rounded-lg shadow-2xs">
-                                            {selectedCategory}
-                                        </span>
-                                    ) : (
-                                        <span className="text-xs font-medium text-gray-400 shrink-0 px-2 py-1 bg-gray-100 rounded-lg border border-dashed border-gray-300">
-                                            항목 미선택
-                                        </span>
-                                    )}
                                     <input
                                         type="text"
-                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors"
-                                        placeholder={
-                                            selectedCategory === '기타'
-                                                ? '상세 사유를 입력하세요 (필수)'
-                                                : selectedCategory
-                                                ? '상세 내용을 입력하세요 (선택 사항)'
-                                                : '위반 항목을 위에서 선택하고 상세 내용을 입력하세요'
-                                        }
-                                        value={violationDetail}
-                                        onChange={e => setViolationDetail(e.target.value)}
+                                        value={specialNote}
+                                        onChange={e => setSpecialNote(e.target.value)}
                                         onKeyDown={e => {
-                                            if (e.key === 'Enter') handleCreateYanghyeonjaeViolation();
+                                            if (e.key === 'Enter') handleCreateSpecialNote();
                                         }}
+                                        placeholder="기타 건의사항이나 면학실 특이사항을 입력하세요..."
+                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-gray-400 transition-colors"
                                     />
                                     <button
                                         type="button"
-                                        onClick={handleCreateYanghyeonjaeViolation}
-                                        disabled={isSubmittingViolation || !selectedCategory || (selectedCategory === '기타' && !violationDetail.trim())}
+                                        onClick={handleCreateSpecialNote}
+                                        disabled={isSubmittingSpecialNote || !specialNote.trim()}
                                         className="px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer disabled:opacity-40"
                                     >
                                         등록
@@ -531,14 +603,15 @@ export default function StudyLogModal({
                                 <div className="text-xs font-semibold text-gray-500 mb-2">
                                     오늘 등록 내역 ({todayYanghyeonjaeLogs.length}건)
                                 </div>
-                                <div className="flex flex-col gap-1.5 max-h-[180px] overflow-y-auto">
+                                <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto">
                                     {todayYanghyeonjaeLogs.length === 0 ? (
-                                        <div className="py-5 text-center text-gray-400 text-xs">
+                                        <div className="py-4 text-center text-gray-400 text-xs">
                                             등록된 내역이 없습니다.
                                         </div>
                                     ) : (
                                         todayYanghyeonjaeLogs.map(log => {
                                             const isEditing = editingLogId === log.id;
+                                            const isSpecial = log.student_id === '특이사항';
                                             const studentInfo = studentMap.get(log.student_id);
 
                                             if (isEditing) {
@@ -575,9 +648,19 @@ export default function StudyLogModal({
                                                     className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs"
                                                 >
                                                     <div className="flex items-center gap-2 truncate">
-                                                        <span className="font-bold text-gray-900">{log.student_id}</span>
-                                                        {studentInfo && <span className="text-gray-600 font-medium">{studentInfo.name}</span>}
-                                                        <span className="text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded truncate max-w-[220px]">
+                                                        {isSpecial ? (
+                                                            <span className="font-bold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded text-[11px] shrink-0">
+                                                                특이사항
+                                                            </span>
+                                                        ) : (
+                                                            <>
+                                                                <span className="font-bold text-gray-900 shrink-0">{log.student_id}</span>
+                                                                {studentInfo && !log.student_id.includes(studentInfo.name) && (
+                                                                    <span className="text-gray-600 font-medium shrink-0">{studentInfo.name}</span>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                        <span className="text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded truncate max-w-[260px]">
                                                             {log.note}
                                                         </span>
                                                     </div>

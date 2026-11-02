@@ -1142,9 +1142,9 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                         );
 
                                         // student_id가 '2308신성호'처럼 이름을 이미 포함하고 있는 경우 중복 출력 방지
-                                        const studentDisplayName = v.student_name && v.student_id?.includes(v.student_name)
+                                        const studentDisplayName = v.student_id === '특이사항' ? '' : (v.student_name && v.student_id?.includes(v.student_name)
                                             ? v.student_id
-                                            : `${v.student_id || ''} ${v.student_name || ''}`.trim();
+                                            : `${v.student_id || ''} ${v.student_name || ''}`.trim());
 
                                         return (
                                             <div
@@ -1235,14 +1235,14 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                             ) : (
                                 <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-0.5">
                                     {stats.yanghyeonjaeList.map((v, vIdx) => {
-                                        const rawNote = v.note || '';
-                                        let category = rawNote;
-                                        let detail = '';
-                                        if (rawNote.includes(': ')) {
+                                        const isSpecialNote = v.student_id === '특이사항'; const rawNote = v.note || '';
+                                        let category = isSpecialNote ? '특이사항' : rawNote;
+                                        let detail = isSpecialNote ? rawNote : '';
+                                        if (!isSpecialNote && rawNote.includes(': ')) {
                                             const parts = rawNote.split(': ');
                                             category = parts[0];
                                             detail = parts.slice(1).join(': ');
-                                        } else if (rawNote.includes(':')) {
+                                        } else if (!isSpecialNote && rawNote.includes(':')) {
                                             const parts = rawNote.split(':');
                                             category = parts[0];
                                             detail = parts.slice(1).join(':').trim();
@@ -1262,16 +1262,16 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                                     return 'bg-orange-50 text-orange-700 border-orange-200';
                                                 case '소란':
                                                     return 'bg-rose-50 text-rose-700 border-rose-200';
-                                                case '기타':
+                                                case '특이사항': return 'bg-yellow-100 text-yellow-900 border-yellow-300'; case '기타':
                                                 default:
                                                     return 'bg-slate-100 text-slate-700 border-slate-300';
                                             }
                                         };
 
                                         // student_id가 '2308신성호'처럼 이름을 이미 포함하고 있는 경우 중복 출력 방지
-                                        const studentDisplayName = v.student_name && v.student_id?.includes(v.student_name)
+                                        const studentDisplayName = v.student_id === '특이사항' ? '' : (v.student_name && v.student_id?.includes(v.student_name)
                                             ? v.student_id
-                                            : `${v.student_id || ''} ${v.student_name || ''}`.trim();
+                                            : `${v.student_id || ''} ${v.student_name || ''}`.trim());
 
                                         return (
                                             <div

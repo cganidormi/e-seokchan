@@ -317,7 +317,7 @@ export async function POST(request: Request) {
 
         // 3. 기존 students 및 students_auth 전체 정리 후 새학기 명단 일괄 반영
         await supabaseAdmin.from('monthly_return_applications').delete().neq('student_id', '');
-        await supabaseAdmin.from('students_auth').delete().neq('student_id', '');
+        await supabaseAdmin.from('students_auth').delete().neq('student_id', '특이사항');
         await supabaseAdmin.from('students').delete().neq('student_id', '');
 
         // 4. 새학기 students 일괄 삽입 (진급생 + 신입생/전입생)

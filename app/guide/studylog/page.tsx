@@ -430,7 +430,7 @@ export default function StudyLogDemoTutorialPage() {
                                     step === 1 && "ring-4 ring-yellow-400 ring-offset-2 animate-bounce"
                                 )}
                             >
-                                <span>학습일지/시설물</span>
+                                <span>학습일지/시설물</span><span className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-50 border border-amber-200/80 text-amber-600 shrink-0"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg></span>
                             </button>
                         </div>
 
