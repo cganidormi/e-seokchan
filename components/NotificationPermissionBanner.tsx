@@ -38,11 +38,12 @@ export function NotificationPermissionBanner({ userId, userType, parentToken, st
     const [isSupported, setIsSupported] = useState(true);
     const [isIOS, setIsIOS] = useState(false);
     const [isStandalone, setIsStandalone] = useState(true);
+    const [needsManualReconnect, setNeedsManualReconnect] = useState(false);
 
     const isSyncingRef = useRef(false);
     const lastSyncTimeRef = useRef(0);
 
-    // 무음 자동 갱신 함수 (앱 실행 시 최신 VAPID 키 검사 및 구형 토큰 강제 파기/재발급)
+    // 무음 자동 갱신 함수 (앱 실행 시 구독 상태 확인 및 서버 DB 동기화)
     const autoSyncSubscription = useCallback(async () => {
         if (!userId && !parentToken) return;
         const currentVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
@@ -60,115 +61,72 @@ export function NotificationPermissionBanner({ userId, userType, parentToken, st
             const expectedKeyBytes = urlBase64ToUint8Array(currentVapidKey);
 
             // 1. 현재 브라우저에 등록된 PushSubscription 확인
+            // (이미 정상 구독이 존재하는 학생은 기존 구독을 절대 해지(unsubscribe)하거나 건드리지 않음)
             let sub = await registration.pushManager.getSubscription();
 
-            // 2. 기존 구독이 최신 VAPID 키로 생성된 것인지 정밀 검사
-            let isCurrentKey = false;
-            if (sub) {
-                // (1) sub.options.applicationServerKey 검사
-                const existingKeyBuffer = sub.options?.applicationServerKey;
-                const bufferMatch = areKeysEqual(existingKeyBuffer, expectedKeyBytes);
-
-                // (2) localStorage에 기록된 키와 일치 여부 확인
-                const savedKey = localStorage.getItem('dormichan_active_vapid_key');
-                const storageMatch = savedKey === currentVapidKey;
-
-                // 키 버퍼가 제공되는 경우 버퍼 일치 여부 우선, 미제공 시 storage 확인
-                isCurrentKey = existingKeyBuffer ? bufferMatch : storageMatch;
-            }
-
-            let oldEndpoint: string | null = null;
-
-            // 3. 만약 기존 구독이 옛날 키이거나 유효하지 않다면 즉시 파기(unsubscribe)
-            if (sub && !isCurrentKey) {
-                console.log('[Push] Outdated VAPID key detected. Forcing unsubscribe and renewal...');
-                oldEndpoint = sub.endpoint;
-                try {
-                    await sub.unsubscribe();
-                } catch (unsubErr) {
-                    console.warn('[Push] Error unsubscribing outdated subscription:', unsubErr);
-                }
-                sub = null;
-            }
-
-            // 4. 구독이 없거나 방금 파기했다면 최신 VAPID 키로 새로 구독 생성
+            // 2. 구독이 아예 없는 경우(구독이 증발한 학생 등)에만 새로 구독 생성 시도
             if (!sub) {
-                sub = await registration.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: expectedKeyBytes
-                });
-                console.log('[Push] Successfully created fresh subscription with latest VAPID key!');
+                try {
+                    sub = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: expectedKeyBytes
+                    });
+                } catch (subErr) {
+                    // iOS 등에서 사용자 터치(User Gesture) 없이 백그라운드 subscribe 호출 시 차단될 수 있음
+                    // 이 경우 수동 재연결 배너를 노출하여 1회 터치로 발급받도록 유도
+                    console.warn('[Push] Background subscribe requires user gesture:', subErr);
+                    setNeedsManualReconnect(true);
+                    return;
+                }
             }
 
-            if (!sub) return;
+            if (!sub) {
+                setNeedsManualReconnect(true);
+                return;
+            }
 
-            // 최신 키를 localStorage에 영구 기록
+            // 구독이 정상 존재하면 배너 숨김 및 키 기록
+            setNeedsManualReconnect(false);
             localStorage.setItem('dormichan_active_vapid_key', currentVapidKey);
 
-            const payload: any = {
-                subscription_json: sub,
-                device_type: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-                last_used_at: new Date().toISOString()
-            };
+            // 3. DB에 이미 해당 학생의 현재 구독(endpoint)이 정상 등록되어 있는지 읽기 전용(SELECT)으로 확인
+            let query = supabase.from('push_subscriptions').select('id, subscription_json');
+            if (userType === 'teacher' && userId) query = query.eq('teacher_id', userId);
+            else if (userType === 'student' && userId) query = query.eq('student_id', userId);
+            else if (userType === 'parent' && parentToken) query = query.eq('parent_token', parentToken);
 
-            if (userType === 'teacher') payload.teacher_id = userId;
-            else if (userType === 'student') payload.student_id = userId;
-            else if (userType === 'parent') payload.parent_token = parentToken;
+            const { data: existingSubs } = await query;
+            const alreadyRegistered = existingSubs?.some((r: any) => {
+                const ep = typeof r.subscription_json === 'string'
+                    ? JSON.parse(r.subscription_json)?.endpoint
+                    : r.subscription_json?.endpoint;
+                return ep === sub!.endpoint;
+            });
 
-            // 5. 옛날 구형 endpoint가 있었다면 DB에서 이전 레코드 삭제 정리
-            if (oldEndpoint && oldEndpoint !== sub.endpoint) {
-                try {
-                    let oldQuery = supabase.from('push_subscriptions').select('id, subscription_json');
-                    if (userType === 'teacher') oldQuery = oldQuery.eq('teacher_id', userId);
-                    else if (userType === 'student') oldQuery = oldQuery.eq('student_id', userId);
-                    else if (userType === 'parent') oldQuery = oldQuery.eq('parent_token', parentToken);
-
-                    const { data: oldRows } = await oldQuery;
-                    const oldMatchIds = oldRows?.filter((r: any) => {
-                        const ep = typeof r.subscription_json === 'string'
-                            ? JSON.parse(r.subscription_json)?.endpoint
-                            : r.subscription_json?.endpoint;
-                        return ep === oldEndpoint;
-                    }).map((r: any) => r.id);
-
-                    if (oldMatchIds && oldMatchIds.length > 0) {
-                        await supabase.from('push_subscriptions').delete().in('id', oldMatchIds);
-                        console.log(`[Push] Removed ${oldMatchIds.length} obsolete subscriptions for updated key.`);
-                    }
-                } catch (cleanErr) {
-                    console.warn('[Push] Error cleaning up old endpoint row:', cleanErr);
-                }
+            // 이미 DB에 정상 등록되어 있는 학생이면 DB를 일절 건드리지 않고 즉시 통과(Pass)
+            if (alreadyRegistered) {
+                lastSyncTimeRef.current = Date.now();
+                return;
             }
 
-            // 6. 최신 토큰 DB 업서트 (동일 endpoint가 있으면 last_used_at 갱신, 없으면 insert)
-            const endpoint = sub.endpoint;
-            let existingId: string | null = null;
-            if (endpoint) {
-                let query = supabase.from('push_subscriptions').select('id, subscription_json');
-                if (userType === 'teacher') query = query.eq('teacher_id', userId);
-                else if (userType === 'student') query = query.eq('student_id', userId);
-                else if (userType === 'parent') query = query.eq('parent_token', parentToken);
+            const deviceType = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
 
-                const { data: existing } = await query;
-                const match = existing?.find((e: any) => {
-                    const ep = typeof e.subscription_json === 'string'
-                        ? JSON.parse(e.subscription_json)?.endpoint
-                        : e.subscription_json?.endpoint;
-                    return ep === endpoint;
-                });
-                if (match) existingId = match.id;
-            }
+            // 4. DB에 구독이 누락된 학생만 서버 API(/api/push-sync)를 통해 안전하게 등록
+            const syncRes = await fetch('/api/push-sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userType,
+                    userId,
+                    parentToken,
+                    subscription: sub,
+                    deviceType
+                })
+            });
 
-            if (existingId) {
-                await supabase.from('push_subscriptions').update({
-                    last_used_at: payload.last_used_at,
-                    device_type: payload.device_type,
-                    subscription_json: sub
-                }).eq('id', existingId);
-            } else {
-                await supabase.from('push_subscriptions').insert(payload);
+            if (syncRes.ok) {
+                lastSyncTimeRef.current = Date.now();
             }
-            lastSyncTimeRef.current = Date.now();
         } catch (err) {
             console.log('Silent push sync notice:', err);
         } finally {
@@ -219,7 +177,7 @@ export function NotificationPermissionBanner({ userId, userType, parentToken, st
     );
     const [isForceDismissed, setIsForceDismissed] = useState(() => {
         if (typeof window !== 'undefined') {
-            return sessionStorage.getItem('hong_notif_done') === 'true';
+            return localStorage.getItem('hong_notif_done_v2') === 'true' || sessionStorage.getItem('hong_notif_done') === 'true';
         }
         return false;
     });
@@ -281,17 +239,20 @@ export function NotificationPermissionBanner({ userId, userType, parentToken, st
 
             localStorage.setItem('dormichan_active_vapid_key', currentVapidKey);
 
-            // 3. Supabase DB에 신규 저장 (기존 홍석현 토큰 모두 정리 후 새로 등록)
+            // 3. 서버 API(/api/push-sync)를 통해 기존 홍석현 토큰 모두 정리(RLS 우회) 후 신규 저장
             const targetStudentId = userId || '2220홍석현';
-            await supabase.from('push_subscriptions').delete().eq('student_id', targetStudentId);
-
-            const payload: any = {
-                student_id: targetStudentId,
-                subscription_json: newSub,
-                device_type: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-                last_used_at: new Date().toISOString()
-            };
-            await supabase.from('push_subscriptions').insert(payload);
+            const deviceType = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+            await fetch('/api/push-sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userType: 'student',
+                    userId: targetStudentId,
+                    subscription: newSub,
+                    deviceType,
+                    forceCleanUser: true
+                })
+            });
 
             // 4. 즉시 테스트 알림 전송 (학생 기기에서 정상 수신 즉시 확인)
             try {
@@ -309,7 +270,9 @@ export function NotificationPermissionBanner({ userId, userType, parentToken, st
             }
 
             toast.success('실시간 알림이 성공적으로 켜졌습니다! 🔔', { id: 'push-setup', duration: 4000 });
+            setNeedsManualReconnect(false);
             setIsForceDismissed(true);
+            localStorage.setItem('hong_notif_done_v2', 'true');
             sessionStorage.setItem('hong_notif_done', 'true');
         } catch (error: any) {
             console.error('Hong Seok Hyun Push Setup Error:', error);
@@ -328,7 +291,39 @@ export function NotificationPermissionBanner({ userId, userType, parentToken, st
             setPermission(result);
 
             if (result === 'granted') {
-                await autoSyncSubscription();
+                // 사용자 터치(User Gesture) 컨텍스트 내에서 직접 구독 확인 및 생성
+                const currentVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+                if (currentVapidKey) {
+                    const registration = await navigator.serviceWorker.ready;
+                    if (registration) {
+                        const expectedKeyBytes = urlBase64ToUint8Array(currentVapidKey);
+                        let sub = await registration.pushManager.getSubscription();
+                        if (!sub) {
+                            sub = await registration.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: expectedKeyBytes
+                            });
+                        }
+                        if (sub) {
+                            const deviceType = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+                            await fetch('/api/push-sync', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    userType,
+                                    userId,
+                                    parentToken,
+                                    subscription: sub,
+                                    deviceType
+                                })
+                            });
+                            localStorage.setItem('dormichan_active_vapid_key', currentVapidKey);
+                            setNeedsManualReconnect(false);
+                        }
+                    }
+                } else {
+                    await autoSyncSubscription();
+                }
                 toast.success('알림이 성공적으로 켜졌습니다! 🔔');
             } else if (result === 'denied') {
                 toast.error(
@@ -388,7 +383,7 @@ export function NotificationPermissionBanner({ userId, userType, parentToken, st
         );
     }
 
-    if (permission === 'granted') return null; // 알림 허용 시 배너 자동 숨김
+    if (permission === 'granted' && !needsManualReconnect) return null; // 알림 허용 및 구독 정상 존재 시 배너 자동 숨김
 
     // 알림 미허용 또는 차단 사용자 대상 안내 배너
     return (

@@ -40,24 +40,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: '데이터베이스 오류' }, { status: 500 });
         }
 
-        if (!subs || subs.length === 0) {
-            console.warn(`[API/Summon] No subscription found for student: ${studentId} (searched: ${searchIds.join(', ')})`);
-            return NextResponse.json({ error: '학생이 알림 권한을 허용하지 않았습니다.\n(앱 미설치 또는 알림 차단)' }, { status: 404 });
-        }
-
-        // 2. Check VAPID Keys
-        if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
-            console.error('[API/Summon] Missing VAPID Keys');
-            return NextResponse.json({ error: '서버 알림 설정 오류 (VAPID Key Missing)' }, { status: 500 });
-        }
-
-        // 2.5 Retrieve Timetable & Holidays for Current Period Calculation
+        // 1.5 Retrieve Timetable & Holidays for Current Period Calculation
         const { data: timetable } = await supabase.from('timetable_entries').select('*');
         const { data: holidays } = await supabase.from('special_holidays').select('date');
 
         // Calculate Current Time (KST)
         const now = new Date();
-        const kstOffset = 9 * 60; // KST +9
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
         const kstDate = new Date(utc + (3600000 * 9));
 
@@ -75,19 +63,15 @@ export async function POST(request: Request) {
 
             let typeFilter = 'weekday';
             if (isHoliday) {
-                // Simple mapping for ease
                 typeFilter = 'weekend';
             }
 
-            // Find matching period
             const currentPeriod = timetable.find(t => {
                 if (!t.day_type.includes(typeFilter)) return false;
-                // Use simple string comparison for "HH:mm"
                 return hhmm >= t.start_time.substring(0, 5) && hhmm <= t.end_time.substring(0, 5);
             });
 
             if (currentPeriod) {
-                // Extract logic (Night 1 -> 야간 1교시, Day 8 -> 8교시)
                 if (currentPeriod.day_type.includes('night')) {
                     const num = currentPeriod.description.replace(/[^0-9]/g, '');
                     periodName = `야간 ${num}교시`;
@@ -100,6 +84,64 @@ export async function POST(request: Request) {
 
         const timeString = `${month}월 ${date}일 ${periodName ? periodName : hhmm}`;
         const message = `현재시간은 ${timeString} 입니다. 이석을 신청하거나 학습실로 돌아오세요.`;
+        const summonId = Date.now();
+        const summonTimestamp = new Date().toISOString();
+
+        // 1.8 Save summon to system_settings for Realtime & In-App guaranteed delivery
+        try {
+            const { data: existingSetting } = await supabase
+                .from('system_settings')
+                .select('setting_value')
+                .eq('setting_key', 'student_summons')
+                .maybeSingle();
+
+            let summonMap: Record<string, any[]> = {};
+            if (existingSetting?.setting_value) {
+                try {
+                    summonMap = JSON.parse(existingSetting.setting_value);
+                } catch (e) {
+                    summonMap = {};
+                }
+            }
+
+            const cutoff = Date.now() - 12 * 60 * 60 * 1000;
+            Object.keys(summonMap).forEach(k => {
+                if (Array.isArray(summonMap[k])) {
+                    summonMap[k] = summonMap[k].filter((item: any) => item && item.id > cutoff);
+                    if (summonMap[k].length === 0) delete summonMap[k];
+                } else {
+                    delete summonMap[k];
+                }
+            });
+
+            const key = String(studentId).trim();
+            if (!summonMap[key]) summonMap[key] = [];
+            summonMap[key].push({
+                id: summonId,
+                teacherName: teacherName || '담당',
+                message,
+                timestamp: summonTimestamp
+            });
+
+            await supabase.from('system_settings').upsert({
+                setting_key: 'student_summons',
+                setting_value: JSON.stringify(summonMap),
+                updated_at: summonTimestamp
+            }, { onConflict: 'setting_key' });
+        } catch (dbSummonErr) {
+            console.warn('[API/Summon] Realtime summon record warning:', dbSummonErr);
+        }
+
+        if (!subs || subs.length === 0) {
+            console.warn(`[API/Summon] No subscription found for student: ${studentId} (searched: ${searchIds.join(', ')})`);
+            return NextResponse.json({ error: '학생이 알림 권한을 허용하지 않았습니다.\n(앱 내 실시간 호출 창은 전송되었습니다)' }, { status: 404 });
+        }
+
+        // 2. Check VAPID Keys
+        if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+            console.error('[API/Summon] Missing VAPID Keys');
+            return NextResponse.json({ error: '서버 알림 설정 오류 (VAPID Key Missing)' }, { status: 500 });
+        }
 
         // 3. Send Push
         const webpush = (await import('web-push')).default;
@@ -113,7 +155,14 @@ export async function POST(request: Request) {
         const payload = JSON.stringify({
             title: '📢 선생님 호출',
             body: `${teacherName} 선생님: "${message}"`,
-            url: `/?summon=true&teacherName=${encodeURIComponent(teacherName)}&action=submit_leave&message=${encodeURIComponent(message)}`
+            url: `/?summon=true&teacherName=${encodeURIComponent(teacherName)}&action=submit_leave&message=${encodeURIComponent(message)}`,
+            tag: 'student-summon',
+            summonData: {
+                id: summonId,
+                teacherName: teacherName || '담당',
+                message,
+                timestamp: summonTimestamp
+            }
         });
 
         const results = await Promise.allSettled(

@@ -157,6 +157,26 @@ self.addEventListener('push', function (event) {
             return;
         }
 
+        if (data.tag === 'student-summon' || data.summonData) {
+            options.tag = 'student-summon-' + Date.now();
+            options.renotify = true;
+            options.requireInteraction = true;
+            event.waitUntil(
+                Promise.all([
+                    self.registration.showNotification(data.title, options),
+                    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+                        clientList.forEach(function (client) {
+                            client.postMessage({
+                                type: 'STUDENT_SUMMON_PUSH',
+                                summonData: data.summonData
+                            });
+                        });
+                    })
+                ])
+            );
+            return;
+        }
+
         event.waitUntil(
             self.registration.showNotification(data.title, options)
         );

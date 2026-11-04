@@ -230,55 +230,12 @@ export default function StudentPage() {
 
   const searchParams = useSearchParams();
 
-  // Load and display unread summons on mount and when URL params change
-  useEffect(() => {
-    // 1. Check for NEW summon from URL
-    const isSummon = searchParams.get('summon');
-    const teacherName = searchParams.get('teacherName');
-    const message = searchParams.get('message');
-
-    let currentSummons = [];
-    try {
-      currentSummons = JSON.parse(localStorage.getItem('dormichan_unread_summons') || '[]');
-      if (!Array.isArray(currentSummons)) currentSummons = [];
-    } catch (e) {
-      console.error('Failed to parse summons from localStorage:', e);
-      currentSummons = [];
-    }
-
-    if (isSummon === 'true' && teacherName) {
-      const newSummon = {
-        id: Date.now(), // Unique ID based on timestamp
-        teacherName: decodeURIComponent(teacherName),
-        message: message ? decodeURIComponent(message) : "이석을 신청하거나 학습실로 돌아오세요.",
-        timestamp: new Date().toISOString()
-      };
-
-      // Add to local storage (avoid exact duplicates within 5 seconds if multiple effects fire)
-      const isDuplicate = currentSummons.some((s: any) =>
-        s && s.teacherName === newSummon.teacherName &&
-        s.timestamp && Math.abs(new Date(s.timestamp).getTime() - newSummon.id) < 5000
-      );
-
-      if (!isDuplicate) {
-        currentSummons.push(newSummon);
-        localStorage.setItem('dormichan_unread_summons', JSON.stringify(currentSummons));
-        setUnreadSummonCount(currentSummons.length);
-
-        // Clean URL immediately to prevent re-adding on soft refresh
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-      }
-    }
-
-    // 2. Clear existing toasts to prevent duplicates when re-rendering
+  const renderSummonToasts = useCallback((summonsList: any[]) => {
     toast.dismiss();
-
-    // 3. Display ALL unread summons from LocalStorage
-    currentSummons.forEach((summon: any) => {
+    summonsList.forEach((summon: any) => {
       if (!summon || !summon.timestamp) return;
       const summonDate = new Date(summon.timestamp);
-      if (isNaN(summonDate.getTime())) return; // Safe check for invalid date!
+      if (isNaN(summonDate.getTime())) return;
 
       toast((t) => (
         <div className="flex flex-col gap-2 min-w-[300px]">
@@ -298,12 +255,17 @@ export default function StudentPage() {
           <button
             onClick={() => {
               toast.dismiss(t.id);
-              // Remove from LocalStorage
               try {
                 const remaining = JSON.parse(localStorage.getItem('dormichan_unread_summons') || '[]')
                   .filter((s: any) => s && s.id !== summon.id);
                 localStorage.setItem('dormichan_unread_summons', JSON.stringify(remaining));
                 setUnreadSummonCount(remaining.length);
+
+                const seenIds: number[] = JSON.parse(localStorage.getItem('dormichan_seen_summon_ids') || '[]');
+                if (summon.id && !seenIds.includes(summon.id)) {
+                  seenIds.push(summon.id);
+                  localStorage.setItem('dormichan_seen_summon_ids', JSON.stringify(seenIds.slice(-50)));
+                }
               } catch (err) {
                 console.error(err);
               }
@@ -316,15 +278,155 @@ export default function StudentPage() {
       ), {
         duration: Infinity,
         position: 'top-center',
-        id: `summon-${summon.id}`, // specific ID to prevent duplicates
+        id: `summon-${summon.id}`,
         style: {
           border: '2px solid #ef4444',
           padding: '16px',
         },
       });
     });
-    setUnreadSummonCount(currentSummons.length);
-  }, [searchParams]);
+    setUnreadSummonCount(summonsList.length);
+  }, []);
+
+  const mergeIncomingSummons = useCallback((incoming: any[], shouldVibrate = false) => {
+    if (!incoming || incoming.length === 0) return;
+    try {
+      let currentSummons = JSON.parse(localStorage.getItem('dormichan_unread_summons') || '[]');
+      if (!Array.isArray(currentSummons)) currentSummons = [];
+
+      let seenIds: number[] = JSON.parse(localStorage.getItem('dormichan_seen_summon_ids') || '[]');
+      if (!Array.isArray(seenIds)) seenIds = [];
+
+      let added = false;
+      for (const item of incoming) {
+        if (!item || !item.teacherName) continue;
+        const itemTime = item.timestamp ? new Date(item.timestamp).getTime() : Date.now();
+        const itemId = item.id || itemTime;
+
+        if (seenIds.includes(itemId)) continue;
+
+        const isDup = currentSummons.some((s: any) => {
+          if (!s) return false;
+          if (s.id === itemId) return true;
+          const sTime = s.timestamp ? new Date(s.timestamp).getTime() : 0;
+          return s.teacherName === item.teacherName && Math.abs(sTime - itemTime) < 10000;
+        });
+
+        if (!isDup) {
+          currentSummons.push({
+            id: itemId,
+            teacherName: item.teacherName,
+            message: item.message || "이석을 신청하거나 학습실로 돌아오세요.",
+            timestamp: item.timestamp || new Date(itemTime).toISOString()
+          });
+          seenIds.push(itemId);
+          added = true;
+        }
+      }
+
+      if (added) {
+        localStorage.setItem('dormichan_unread_summons', JSON.stringify(currentSummons));
+        localStorage.setItem('dormichan_seen_summon_ids', JSON.stringify(seenIds.slice(-50)));
+        if (shouldVibrate && typeof navigator !== 'undefined' && navigator.vibrate) {
+          try { navigator.vibrate([200, 100, 200]); } catch (e) {}
+        }
+        renderSummonToasts(currentSummons);
+      }
+    } catch (e) {
+      console.error('Failed to merge incoming summons:', e);
+    }
+  }, [renderSummonToasts]);
+
+  // Load and display unread summons on mount and when URL params change
+  useEffect(() => {
+    // 1. Check for NEW summon from URL
+    const isSummon = searchParams.get('summon');
+    const teacherName = searchParams.get('teacherName');
+    const message = searchParams.get('message');
+
+    let currentSummons = [];
+    try {
+      currentSummons = JSON.parse(localStorage.getItem('dormichan_unread_summons') || '[]');
+      if (!Array.isArray(currentSummons)) currentSummons = [];
+    } catch (e) {
+      console.error('Failed to parse summons from localStorage:', e);
+      currentSummons = [];
+    }
+
+    if (isSummon === 'true' && teacherName) {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      mergeIncomingSummons([{
+        id: Date.now(),
+        teacherName: decodeURIComponent(teacherName),
+        message: message ? decodeURIComponent(message) : "이석을 신청하거나 학습실로 돌아오세요.",
+        timestamp: new Date().toISOString()
+      }], true);
+      return;
+    }
+
+    renderSummonToasts(currentSummons);
+  }, [searchParams, mergeIncomingSummons, renderSummonToasts]);
+
+  // Realtime & Service Worker Summon Listener (OS 푸시가 차단된 단말이나 앱 실행 중 호출도 100% 수신)
+  useEffect(() => {
+    const targetId = (actualLoginId || studentId || '').trim();
+    if (!targetId) return;
+
+    const parseAndApplySummonSetting = (rawVal?: string | null, vibrate = false) => {
+      if (!rawVal) return;
+      try {
+        const summonMap = JSON.parse(rawVal);
+        const mySummons = summonMap?.[targetId];
+        if (Array.isArray(mySummons) && mySummons.length > 0) {
+          mergeIncomingSummons(mySummons, vibrate);
+        }
+      } catch (e) {}
+    };
+
+    // 1. 앱 진입 시 최근 미확인 호출 조회
+    supabase
+      .from('system_settings')
+      .select('setting_value')
+      .eq('setting_key', 'student_summons')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.setting_value) {
+          parseAndApplySummonSetting(data.setting_value, false);
+        }
+      });
+
+    // 2. Supabase Realtime 구독으로 호출 즉시 팝업 표시
+    const summonChannel = supabase
+      .channel(`public:student_summons:${targetId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'system_settings', filter: 'setting_key=eq.student_summons' },
+        (payload: any) => {
+          if (payload.new && payload.new.setting_value) {
+            parseAndApplySummonSetting(payload.new.setting_value, true);
+          }
+        }
+      )
+      .subscribe();
+
+    // 3. 서비스 워커 메시지 수신 (푸시 도착 즉시 열려있는 화면에 반영)
+    const handleSwMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'STUDENT_SUMMON_PUSH' && event.data.summonData) {
+        mergeIncomingSummons([event.data.summonData], true);
+      }
+    };
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+    }
+
+    return () => {
+      supabase.removeChannel(summonChannel);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+      }
+    };
+  }, [actualLoginId, studentId, mergeIncomingSummons]);
 
   // Update App Icon Badge (Real-time summon count for Students)
   useEffect(() => {
