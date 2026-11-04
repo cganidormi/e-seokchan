@@ -33,7 +33,7 @@ function areKeysEqual(buf: ArrayBuffer | null | undefined, expectedKey: Uint8Arr
     return true;
 }
 
-export function NotificationPermissionBanner({ userId, userType, parentToken, studentName }: Props) {
+export function NotificationPermissionBanner({ userId, userType, parentToken }: Props) {
     const [permission, setPermission] = useState<NotificationPermission>('default');
     const [isSupported, setIsSupported] = useState(true);
     const [isIOS, setIsIOS] = useState(false);
@@ -171,115 +171,6 @@ export function NotificationPermissionBanner({ userId, userType, parentToken, st
         };
     }, [autoSyncSubscription]);
 
-    const isHongSeokHyun = !!(
-        (userId && (String(userId).includes('2220') || String(userId).includes('홍석현'))) ||
-        (studentName && studentName.includes('홍석현'))
-    );
-    const [isForceDismissed, setIsForceDismissed] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('hong_notif_done_v2') === 'true' || sessionStorage.getItem('hong_notif_done') === 'true';
-        }
-        return false;
-    });
-
-    // 홍석현 학생 전용: 처음 설치 시와 동일한 방식으로 알림 허용 + DB 등록 + 즉시 테스트 푸시 발송
-    const handleHongSeokHyunPermission = async () => {
-        if (!isSupported) {
-            toast.error('이 환경에서는 실시간 알림을 사용할 수 없습니다.');
-            return;
-        }
-
-        try {
-            toast.loading('알림 설정을 진행 중입니다...', { id: 'push-setup' });
-
-            const result = await Notification.requestPermission();
-            setPermission(result);
-
-            if (result !== 'granted') {
-                toast.error('알림이 차단되어 있습니다. 스마트폰 설정에서 알림 차단을 해제 후 다시 눌러주세요! 🔔', { id: 'push-setup', duration: 5000 });
-                return;
-            }
-
-            const registration = await navigator.serviceWorker.ready;
-            if (!registration) {
-                toast.error('서비스 워커를 준비할 수 없습니다.', { id: 'push-setup' });
-                return;
-            }
-
-            // 1. 기존 구형 구독 완전 파기
-            const existingSub = await registration.pushManager.getSubscription();
-            if (existingSub) {
-                try {
-                    await existingSub.unsubscribe();
-                    console.log('[Push] Force-unsubscribed existing subscription for Hong Seok-hyun');
-                } catch (unsubErr) {
-                    console.warn('[Push] Unsubscribe error:', unsubErr);
-                }
-            }
-
-            localStorage.removeItem('dormichan_active_vapid_key');
-
-            // 2. 최신 VAPID 키로 깨끗한 새 구독 발급
-            const currentVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-            if (!currentVapidKey) {
-                toast.error('VAPID 키가 누락되었습니다.', { id: 'push-setup' });
-                return;
-            }
-            const expectedKeyBytes = urlBase64ToUint8Array(currentVapidKey);
-
-            const newSub = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: expectedKeyBytes
-            });
-
-            if (!newSub) {
-                toast.error('새 알림 구독 생성에 실패했습니다.', { id: 'push-setup' });
-                return;
-            }
-
-            localStorage.setItem('dormichan_active_vapid_key', currentVapidKey);
-
-            // 3. 서버 API(/api/push-sync)를 통해 기존 홍석현 토큰 모두 정리(RLS 우회) 후 신규 저장
-            const targetStudentId = userId || '2220홍석현';
-            const deviceType = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
-            await fetch('/api/push-sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userType: 'student',
-                    userId: targetStudentId,
-                    subscription: newSub,
-                    deviceType,
-                    forceCleanUser: true
-                })
-            });
-
-            // 4. 즉시 테스트 알림 전송 (학생 기기에서 정상 수신 즉시 확인)
-            try {
-                await fetch('/api/web-push', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        subscription: newSub,
-                        title: '🔔 알림 연결 완료',
-                        message: '홍석현 학생, 실시간 알림이 성공적으로 연결되었습니다!'
-                    })
-                });
-            } catch (testPushErr) {
-                console.warn('Test push send error:', testPushErr);
-            }
-
-            toast.success('실시간 알림이 성공적으로 켜졌습니다! 🔔', { id: 'push-setup', duration: 4000 });
-            setNeedsManualReconnect(false);
-            setIsForceDismissed(true);
-            localStorage.setItem('hong_notif_done_v2', 'true');
-            sessionStorage.setItem('hong_notif_done', 'true');
-        } catch (error: any) {
-            console.error('Hong Seok Hyun Push Setup Error:', error);
-            toast.error('알림 설정 오류: ' + (error?.message || error), { id: 'push-setup' });
-        }
-    };
-
     const handleRequestPermission = async () => {
         if (!isSupported) {
             toast.error('이 환경에서는 실시간 알림을 사용할 수 없습니다.');
@@ -357,31 +248,6 @@ export function NotificationPermissionBanner({ userId, userType, parentToken, st
     }
 
     if (!isSupported) return null; // 그 외 기술적 미지원 브라우저는 숨김
-
-    // 홍석현 학생 전용: 처음 설치 시와 동일한 형태의 알림 허용 뱃지 강제 노출
-    if (isHongSeokHyun && !isForceDismissed) {
-        return (
-            <div
-                onClick={handleHongSeokHyunPermission}
-                className="w-full p-4 mb-4 rounded-xl cursor-pointer transition-all shadow-md animate-fast-pulse flex items-center justify-between border bg-red-50 border-red-200 hover:bg-red-100"
-            >
-                <div className="flex items-center gap-3">
-                    <span className="text-2xl">🚨</span>
-                    <div className="text-left">
-                        <p className="font-bold text-sm text-red-700">
-                            실시간 알림을 반드시 켜주세요
-                        </p>
-                        <p className="text-xs mt-0.5 text-red-600 font-bold">
-                            여기를 터치하여 알림을 켜면 정상적으로 이용 가능합니다.
-                        </p>
-                    </div>
-                </div>
-                <div className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-green-100 text-green-700 border border-green-200 shadow-sm hover:bg-green-200">
-                    지금 허용
-                </div>
-            </div>
-        );
-    }
 
     if (permission === 'granted' && !needsManualReconnect) return null; // 알림 허용 및 구독 정상 존재 시 배너 자동 숨김
 
