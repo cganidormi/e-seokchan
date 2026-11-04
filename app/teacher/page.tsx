@@ -123,9 +123,27 @@ export default function TeacherPage() {
     const loginId = localStorage.getItem('dormichan_login_id') || sessionStorage.getItem('dormichan_login_id');
     const role = localStorage.getItem('dormichan_role') || sessionStorage.getItem('dormichan_role');
 
+    // 다른 교사 계정으로 재로그인한 경우 이전 모듈 전역 캐시 초기화
+    if (loginId && globalTeacherLoginId && globalTeacherLoginId !== loginId) {
+      globalTeacherId = null;
+      globalTeacherLoginId = '';
+      globalTeacherName = '';
+      globalTeacherPosition = '';
+      globalStudents = [];
+      globalLeaveRequests = [];
+      setTeacherId(null);
+      setTeacherLoginId('');
+      setTeacherName('');
+      setTeacherPosition('');
+      setStudents([]);
+      setLeaveRequests([]);
+      setIsLoading(true);
+    }
+
     const resolveTeacherInfo = async () => {
       try {
         if (loginId && role === 'teacher') {
+          const normalizedLoginId = loginId.trim().normalize('NFC');
           // We must fetch 'teacher_id' (string ID) as well to pass to change-password page correctly
           // However, to be safe against column existence issues, we use the loginId variable 
           // which we know is valid (since the query succeeded).
@@ -134,12 +152,12 @@ export default function TeacherPage() {
           const { data: teachersList, error } = await supabase
             .from('teachers')
             .select('id, name, position')
-            .ilike('name', `%${loginId}%`);
+            .ilike('name', `%${normalizedLoginId}%`);
 
           let teacher = null;
           if (teachersList && teachersList.length > 0) {
-            // Find the exact match after trimming
-            teacher = teachersList.find(t => t.name.trim() === loginId.trim());
+            // Find the exact match after trimming and NFC normalization
+            teacher = teachersList.find(t => (t.name || '').trim().normalize('NFC') === normalizedLoginId) || teachersList[0];
           }
 
           if (error) {

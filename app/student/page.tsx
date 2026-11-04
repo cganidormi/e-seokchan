@@ -69,9 +69,14 @@ export default function StudentPage() {
     // PWA 독립 실행 모드 검사 (일반 브라우저 학생 접속 차단)
     const isStandalone = typeof window !== 'undefined' && (
       window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
       (navigator as any).standalone ||
-      document.referrer.includes('android-app://')
+      document.referrer.includes('android-app://') ||
+      sessionStorage.getItem('dormichan_standalone_session') === 'true'
     );
+    if (isStandalone) {
+      sessionStorage.setItem('dormichan_standalone_session', 'true');
+    }
     const isLocalhost = typeof window !== 'undefined' && (
       window.location.hostname === 'localhost' ||
       window.location.hostname === '127.0.0.1'
@@ -83,6 +88,7 @@ export default function StudentPage() {
       loginId.startsWith('3318');
 
     if (!isStandalone && !isLocalhost && !isMaster) {
+      sessionStorage.setItem('dormichan_pwa_redirect_block', 'true');
       toast.error('학생은 웹 브라우저에서 이용할 수 없습니다. 앱으로 접속해주세요.', { duration: 5000 });
       router.replace('/');
       return;
@@ -93,13 +99,16 @@ export default function StudentPage() {
 
     // Initial data fetch
     const fetchData = async () => {
-      const { data: studentsData } = await supabase.from('students').select('*');
-      if (studentsData) {
+      const { data: studentsData, error: studentsError } = await supabase.from('students').select('*');
+      if (!studentsError && studentsData && studentsData.length > 0) {
         // 진급 또는 졸업으로 인해 기존 로컬스토리지 학번(loginId)이 DB에 더 이상 존재하지 않는 경우 재로그인 유도
-        const existsInDb = studentsData.some((s: any) => s.student_id === loginId);
+        const normalizedLoginId = loginId.trim().normalize('NFC');
+        const existsInDb = studentsData.some((s: any) => (s.student_id || '').trim().normalize('NFC') === normalizedLoginId);
         if (!existsInDb && !isMaster) {
           localStorage.removeItem('dormichan_login_id');
+          localStorage.removeItem('dormichan_role');
           sessionStorage.removeItem('dormichan_login_id');
+          sessionStorage.removeItem('dormichan_role');
           toast.error('새학기 진급 등으로 학번 정보가 변경되었습니다. 새 학번으로 다시 로그인해주세요.', { duration: 4000 });
           router.replace('/login');
           return;

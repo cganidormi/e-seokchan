@@ -16,8 +16,12 @@ export default function LoginPage() {
   const [dbStatus, setDbStatus] = useState("시스템 점검 중...");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // DB 연결 상태 확인
+  // DB 연결 상태 확인 및 주요 경로 프리페치
   useEffect(() => {
+    router.prefetch('/student');
+    router.prefetch('/teacher');
+    router.prefetch('/student/seats');
+
     const checkDb = async () => {
       const { error } = await supabase.from('students_auth').select('student_id').limit(1);
       if (error) {
@@ -27,7 +31,7 @@ export default function LoginPage() {
       }
     };
     checkDb();
-  }, []);
+  }, [router]);
 
   const handleParentLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,17 +95,15 @@ export default function LoginPage() {
 
     sessionStorage.removeItem("dormichan_login_id");
     sessionStorage.removeItem("dormichan_role");
+    sessionStorage.removeItem("dormichan_pwa_redirect_block");
 
-    // Auto-redirect restored
-    setTimeout(() => {
-      if (role === 'monitor') {
-        window.location.replace("/student/seats");
-      } else if (role === 'teacher') {
-        window.location.replace("/teacher");
-      } else {
-        window.location.replace("/student");
-      }
-    }, 500);
+    if (role === 'monitor') {
+      router.replace("/student/seats");
+    } else if (role === 'teacher') {
+      router.replace("/teacher");
+    } else {
+      router.replace("/student");
+    }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -110,6 +112,7 @@ export default function LoginPage() {
 
     setError("");
     setIsLoggingIn(true);
+    let redirected = false;
 
     try {
       const rawId = loginId || "";
@@ -122,13 +125,20 @@ export default function LoginPage() {
         return;
       }
 
-      // 1. Check Monitor (Highest priority for this fix)
-      const { data: monitorData, error: monitorErr } = await supabase.rpc('validate_monitor_login', {
-        p_monitor_id: id,
-        p_password: pw
-      });
+      // 3종 로그인 검증을 병렬(동시) 호출하여 네트워크 왕복 지연 최소화
+      const [
+        { data: monitorData, error: monitorErr },
+        { data: studentData },
+        { data: teacherData }
+      ] = await Promise.all([
+        supabase.rpc('validate_monitor_login', { p_monitor_id: id, p_password: pw }),
+        supabase.rpc('validate_student_login', { p_student_id: id, p_password: pw }),
+        supabase.rpc('validate_teacher_login', { p_teacher_id: id, p_password: pw })
+      ]);
 
+      // 1. Check Monitor
       if (monitorData?.success) {
+        redirected = true;
         completeLogin(id, "monitor");
         return;
       }
@@ -137,17 +147,14 @@ export default function LoginPage() {
       }
 
       // 2. Check Student
-      const { data: studentData, error: studentErr } = await supabase.rpc('validate_student_login', {
-        p_student_id: id,
-        p_password: pw
-      });
-
       if (studentData?.success) {
         // 브라우저 접속 차단 검사 (PWA 앱 독립 실행 모드 여부 확인)
         const isStandalone = typeof window !== 'undefined' && (
           window.matchMedia('(display-mode: standalone)').matches ||
+          window.matchMedia('(display-mode: fullscreen)').matches ||
           (navigator as any).standalone ||
-          document.referrer.includes('android-app://')
+          document.referrer.includes('android-app://') ||
+          sessionStorage.getItem('dormichan_standalone_session') === 'true'
         );
         const isLocalhost = typeof window !== 'undefined' && (
           window.location.hostname === 'localhost' ||
@@ -165,6 +172,7 @@ export default function LoginPage() {
           return;
         }
 
+        redirected = true;
         if (studentData.must_change_password) {
           router.replace(`/change-password?role=student&id=${id}`);
         } else {
@@ -175,12 +183,8 @@ export default function LoginPage() {
       }
 
       // 3. Check Teacher
-      const { data: teacherData, error: teacherErr } = await supabase.rpc('validate_teacher_login', {
-        p_teacher_id: id,
-        p_password: pw
-      });
-
       if (teacherData?.success) {
+        redirected = true;
         if (teacherData.must_change_password) {
           router.replace(`/change-password?role=teacher&id=${id}`);
         } else {
@@ -195,7 +199,9 @@ export default function LoginPage() {
       console.error("Login fatal error:", err);
       setError("로그인 중 오류가 발생했습니다. (" + (err.message || 'unknown') + ")");
     } finally {
-      setIsLoggingIn(false);
+      if (!redirected) {
+        setIsLoggingIn(false);
+      }
     }
   };
 

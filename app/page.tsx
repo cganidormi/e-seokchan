@@ -33,11 +33,17 @@ export default function Home() {
 
     // Check if running in standalone mode (PWA)
     const checkStandalone = () => {
-      return (
+      const detected = (
         window.matchMedia('(display-mode: standalone)').matches ||
+        window.matchMedia('(display-mode: fullscreen)').matches ||
         (navigator as any).standalone ||
-        document.referrer.includes('android-app://')
+        document.referrer.includes('android-app://') ||
+        sessionStorage.getItem('dormichan_standalone_session') === 'true'
       );
+      if (detected) {
+        sessionStorage.setItem('dormichan_standalone_session', 'true');
+      }
+      return detected;
     };
 
     const inStandalone = checkStandalone();
@@ -73,9 +79,11 @@ export default function Home() {
     // 1) PWA 앱 독립 실행 상태이면 세션에 맞춰 자동 이동
     // 2) 일반 브라우저여도 교사/모니터/개발자는 세션 있으면 자동 이동
     // 3) 학생은 일반 브라우저인 경우 자동 이동하지 않고 앱 설치 안내(Landing Page) 노출
-    if (inStandalone || (isTeacherOrMonitor && loginId) || (canPassStudent && loginId && role === 'student')) {
+    const isRedirectBlocked = sessionStorage.getItem('dormichan_pwa_redirect_block') === 'true';
+    if (!isRedirectBlocked && (inStandalone || (isTeacherOrMonitor && loginId) || (canPassStudent && loginId && role === 'student'))) {
       performRedirect();
     } else {
+      sessionStorage.removeItem('dormichan_pwa_redirect_block');
       setIsLoading(false); // Show Landing Page
     }
   }, []);
@@ -97,14 +105,14 @@ export default function Home() {
     const search = window.location.search; // Preserve query params
 
     if (loginId && role) {
-      if (role === 'student') window.location.replace(`/student${search}`);
-      else if (role === 'teacher') window.location.replace(`/teacher${search}`);
-      else if (role === 'monitor') window.location.replace(`/student/seats`);
-      else window.location.replace('/login');
+      if (role === 'student') router.replace(`/student${search}`);
+      else if (role === 'teacher') router.replace(`/teacher${search}`);
+      else if (role === 'monitor') router.replace(`/student/seats`);
+      else router.replace('/login');
     } else if (parentToken) {
-      window.location.replace(`/parent?token=${parentToken}`);
+      router.replace(`/parent?token=${parentToken}`);
     } else {
-      window.location.replace('/login');
+      router.replace('/login');
     }
   };
 

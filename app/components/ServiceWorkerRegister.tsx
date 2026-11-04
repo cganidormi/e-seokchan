@@ -10,8 +10,8 @@ export default function ServiceWorkerRegister() {
                 .then((registration) => {
                     console.log('SW Registered');
 
-                    // Check for updates every time the page loads
-                    registration.update();
+                    // Check for updates in the background
+                    registration.update().catch(() => { });
 
                     // If a waiting worker exists, let it take over
                     if (registration.waiting) {
@@ -21,15 +21,6 @@ export default function ServiceWorkerRegister() {
                 .catch((error) => {
                     console.error('SW Register fail:', error);
                 });
-
-            // Refresh page only when a NEW SW takes control over an EXISTING controlled page (updates app)
-            let refreshing = false;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (!refreshing && navigator.serviceWorker.controller) {
-                    refreshing = true;
-                    window.location.reload();
-                }
-            });
         }
     }, []);
 
