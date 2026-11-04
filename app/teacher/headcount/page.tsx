@@ -11,12 +11,13 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
 import { HiHome, HiChevronDoubleDown } from 'react-icons/hi';
+import { FaBell, FaEdit } from 'react-icons/fa';
 import SwipeWrapper from '@/components/teacher/SwipeWrapper';
 import SwipeNudgeDots from '@/components/teacher/SwipeNudgeDots';
 import { isWeeklyHomeTime } from '@/lib/weeklyReturn';
 import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
 import { LeaveRequest } from '@/components/teacher/types';
-import DashboardMain from '@/components/admin/DashboardMain';
+import DashboardMain from '@/components/admin/DashboardMain'; import DormLogModal from '@/components/teacher/DormLogModal';
 
 // Room Layout Configuration (Row, Col) based on floor plan
 // Abstracted using last 2 digits (01-25)
@@ -127,10 +128,27 @@ export default function HeadcountPage() {
     // History Modal State
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
     const [isTodayModalOpen, setIsTodayModalOpen] = useState(false);
-    const [isViolationModalOpen, setIsViolationModalOpen] = useState(false);
+    const [isViolationModalOpen, setIsViolationModalOpen] = useState(false); const [isDormLogModalOpen, setIsDormLogModalOpen] = useState(false);
     const [historyStudent, setHistoryStudent] = useState<{ name: string, student_id: string } | null>(null);
     const [historyRecords, setHistoryRecords] = useState<any[]>([]);
-    const [teacherPosition, setTeacherPosition] = useState<string>('');
+    const [teacherPosition, setTeacherPosition] = useState<string>(() => (typeof window !== 'undefined' ? (localStorage.getItem('dormichan_teacher_position') || '') : ''));
+    const [teacherName, setTeacherName] = useState<string>(() => (typeof window !== 'undefined' ? (localStorage.getItem('dormichan_teacher_name') || '담당 교사') : '담당 교사'));
+    const [teacherId, setTeacherId] = useState<string>(() => (typeof window !== 'undefined' ? (localStorage.getItem('dormichan_teacher_id') || '') : ''));
+    const [expandedHistoryId, setExpandedHistoryId] = useState<string | number | null>(null);
+    const [historyMenuId, setHistoryMenuId] = useState<string | number | null>(null);
+    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+    const [isLoadingPastHistory, setIsLoadingPastHistory] = useState(false);
+    const [hasLoadedPastHistory, setHasLoadedPastHistory] = useState(false);
+    const [studentYanghyeonjaeViolations, setStudentYanghyeonjaeViolations] = useState<any[]>([]);
+    const [isSubmittingViolation, setIsSubmittingViolation] = useState(false);
+    const [selectedViolationCategory, setSelectedViolationCategory] = useState<string | null>(null);
+    const [violationDetail, setViolationDetail] = useState('');
+    const [editingViolationId, setEditingViolationId] = useState<string | number | null>(null);
+    const [editingViolationNote, setEditingViolationNote] = useState('');
+    const [isSavingViolationEdit, setIsSavingViolationEdit] = useState(false);
+    const teacherMapCacheRef = useRef<Map<string, string> | null>(null);
+    const allTodayLeavesRef = useRef<any[]>([]);
+    const lastClickTimeRef = useRef<{ [slotKey: string]: number }>({});
 
     // Disciplinary Modal State
     const [isDisciplineModalOpen, setIsDisciplineModalOpen] = useState(false);
@@ -164,7 +182,7 @@ export default function HeadcountPage() {
             // teachers 테이블에서 교사 정보 조회
             supabase
                 .from('teachers')
-                .select('name, teacher_id, position')
+                .select('id, name, teacher_id, position')
                 .or(`teacher_id.eq.${loginId},name.ilike.%${loginId}%`)
                 .then(({ data }) => {
                     if (data && data.length > 0) {
@@ -175,6 +193,8 @@ export default function HeadcountPage() {
 
                         if (matched) {
                             if (matched.position) setTeacherPosition(matched.position);
+                            if (matched.id) setTeacherId(matched.id);
+                            if (matched.name) setTeacherName(matched.name);
                             if (isSpecialTeacher(matched.name) || isSpecialTeacher(matched.teacher_id)) {
                                 setCurrentFloor(1);
                             }
@@ -196,7 +216,309 @@ export default function HeadcountPage() {
         };
     }, []);
 
-    const fetchStudentHistory = async (studentId: string, name: string) => {
+    useEffect(() => {
+        if (historyMenuId === null) return;
+        const handleGlobalClick = () => {
+            setHistoryMenuId(null);
+        };
+        const timer = setTimeout(() => {
+            window.addEventListener('click', handleGlobalClick);
+        }, 0);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('click', handleGlobalClick);
+        };
+    }, [historyMenuId]);
+
+    const sortAndDecorateLeaves = (records: any[]) => {
+        const now = new Date();
+        const isRecordPast = (rec: any) => {
+            if (rec.status === '복귀' || rec.status === '취소' || rec.status === '반려' || rec.status === '거절') return true;
+            if (rec.end_time && new Date(rec.end_time) < now) return true;
+            return false;
+        };
+        const teacherMap = teacherMapCacheRef.current || new Map<string, string>();
+
+        return [...records]
+            .sort((a, b) => {
+                const aPast = isRecordPast(a);
+                const bPast = isRecordPast(b);
+                if (!aPast && bPast) return -1;
+                if (aPast && !bPast) return 1;
+                const timeA = new Date(a.start_time || a.created_at).getTime();
+                const timeB = new Date(b.start_time || b.created_at).getTime();
+                return timeB - timeA;
+            })
+            .map(req => ({
+                ...req,
+                teachers: req.teacher_id ? { name: teacherMap.get(req.teacher_id) || req.teacher_id } : { name: '-' }
+            }));
+    };
+
+    const getTodayStudentLeaves = (studentId: string, sourceData: any[]) => {
+        if (!sourceData || sourceData.length === 0) return [];
+        const matches = sourceData.filter(req => {
+            if (req.student_id === studentId) return true;
+            if (req.leave_request_students?.some((s: any) => s.student_id === studentId)) return true;
+            return false;
+        });
+        return sortAndDecorateLeaves(matches);
+    };
+
+    const fetchStudentHistory = async (studentId: string, nameOrSilent?: string | boolean) => {
+        const isSilent = typeof nameOrSilent === 'boolean' ? nameOrSilent : false;
+        const fallbackName = typeof nameOrSilent === 'string' ? nameOrSilent : 'Unknown';
+        const s = students.find(st => st.student_id === studentId);
+        setHistoryStudent({ student_id: studentId, name: s?.name || fallbackName });
+        setIsHistoryModalOpen(true);
+        setExpandedHistoryId(null);
+        setHistoryMenuId(null);
+        setHasLoadedPastHistory(false);
+        setIsLoadingPastHistory(false);
+
+        if (!isSilent) {
+            setStudentYanghyeonjaeViolations([]);
+            setSelectedViolationCategory(null);
+            setViolationDetail('');
+        }
+
+        const initialLeaves = getTodayStudentLeaves(studentId, allTodayLeavesRef.current);
+        setHistoryRecords(initialLeaves);
+        setIsHistoryLoading(initialLeaves.length === 0 && !isSilent);
+
+        const fetchTeachers = async () => {
+            if (teacherMapCacheRef.current) return teacherMapCacheRef.current;
+            const { data: teachersData } = await supabase.from('teachers').select('id, name');
+            const map = new Map<string, string>();
+            teachersData?.forEach(t => map.set(t.id, t.name));
+            teacherMapCacheRef.current = map;
+            return map;
+        };
+
+        try {
+            await fetchTeachers();
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayIso = today.toISOString();
+
+            const [mainRes, coLinkRes] = await Promise.all([
+                supabase
+                    .from('leave_requests')
+                    .select('*, leave_request_students(student_id)')
+                    .eq('student_id', studentId)
+                    .gte('end_time', todayIso)
+                    .order('created_at', { ascending: false }),
+                supabase
+                    .from('leave_request_students')
+                    .select('leave_request_id')
+                    .eq('student_id', studentId)
+                    .gte('created_at', todayIso)
+            ]);
+
+            const coRequestIds = coLinkRes.data?.map(c => c.leave_request_id) || [];
+            let coRequests: any[] = [];
+            if (coRequestIds.length > 0) {
+                const { data: fetchedCo } = await supabase
+                    .from('leave_requests')
+                    .select('*, leave_request_students(student_id)')
+                    .in('id', coRequestIds)
+                    .gte('end_time', todayIso);
+                if (fetchedCo) coRequests = fetchedCo;
+            }
+
+            const combined = [...(mainRes.data || []), ...coRequests];
+            const uniqueMap = new Map();
+            combined.forEach(req => uniqueMap.set(req.id, req));
+            initialLeaves.forEach(req => {
+                if (!uniqueMap.has(req.id)) uniqueMap.set(req.id, req);
+            });
+
+            const freshSorted = sortAndDecorateLeaves(Array.from(uniqueMap.values()));
+            setHistoryRecords(freshSorted);
+        } catch (e) {
+            console.error('Failed to sync today leaves for student:', e);
+        } finally {
+            if (!isSilent) {
+                setIsHistoryLoading(false);
+            }
+        }
+
+        (async () => {
+            try {
+                const now = new Date();
+                const rollcallStart = now.getHours() < 18
+                    ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 18, 0, 0, 0)
+                    : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0, 0);
+
+                const { data: yanghyeonjaeData } = await supabase
+                    .from('morning_checks')
+                    .select('id, student_id, checked_at, note, teacher_id')
+                    .eq('student_id', studentId)
+                    .eq('type', 'yanghyeonjae')
+                    .gte('checked_at', rollcallStart.toISOString())
+                    .order('checked_at', { ascending: false });
+                setStudentYanghyeonjaeViolations(yanghyeonjaeData || []);
+            } catch (err) {
+                console.error('Failed to load student yanghyeonjae violations:', err);
+            }
+        })();
+    };
+
+    const fetchPastHistory = async (studentId: string) => {
+        setIsLoadingPastHistory(true);
+        try {
+            const { data } = await supabase
+                .from('leave_requests')
+                .select('*, leave_request_students(student_id)')
+                .eq('student_id', studentId)
+                .order('created_at', { ascending: false })
+                .limit(30);
+
+            if (data) {
+                const uniqueMap = new Map();
+                historyRecords.forEach(r => uniqueMap.set(r.id, r));
+                data.forEach(r => uniqueMap.set(r.id, r));
+                setHistoryRecords(sortAndDecorateLeaves(Array.from(uniqueMap.values())));
+                setHasLoadedPastHistory(true);
+            }
+        } catch (err) {
+            console.error('Failed to load past history:', err);
+            toast.error('지난 기록을 불러오지 못했습니다.');
+        } finally {
+            setIsLoadingPastHistory(false);
+        }
+    };
+
+    const handleCreateYanghyeonjaeViolation = async (studentId: string) => {
+        if (!selectedViolationCategory) return;
+        const category = selectedViolationCategory;
+        const detail = violationDetail.trim();
+        if (category === '기타' && !detail) {
+            toast.error('기타 선택 시 상세 내용을 입력해주세요.');
+            return;
+        }
+
+        const violationNote = detail ? `${category}: ${detail}` : category;
+
+        if (!confirm(`${studentId} 학생의 [${violationNote}] 위반 카드를 양현재 일지에 등록하시겠습니까?`)) {
+            return;
+        }
+        setIsSubmittingViolation(true);
+        try {
+            const currentTeacher = (teacherName && teacherName !== '담당 교사' ? teacherName : '')
+                || localStorage.getItem('dormichan_login_id')
+                || sessionStorage.getItem('dormichan_login_id')
+                || '지도교사';
+
+            const payload = {
+                student_id: studentId,
+                teacher_id: currentTeacher,
+                type: 'yanghyeonjae',
+                note: violationNote,
+                checked_at: new Date().toISOString()
+            };
+            const { data, error } = await supabase
+                .from('morning_checks')
+                .insert(payload)
+                .select();
+
+            if (error) {
+                console.error('Failed to create yanghyeonjae violation:', error);
+                toast.error('양현재 일지 등록에 실패했습니다.');
+            } else {
+                toast.success(`[${violationNote}] 양현재 일지에 등록되었습니다.`);
+                if (data && data[0]) {
+                    setStudentYanghyeonjaeViolations(prev => [data[0], ...prev]);
+                }
+                setSelectedViolationCategory(null);
+                setViolationDetail('');
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error('등록 중 오류가 발생했습니다.');
+        } finally {
+            setIsSubmittingViolation(false);
+        }
+    };
+
+    const handleDeleteYanghyeonjaeViolation = async (violationId: string | number, note: string) => {
+        if (!confirm(`[${note}] 위반 기록을 삭제(취소)하시겠습니까?`)) return;
+        try {
+            const { error } = await supabase.from('morning_checks').delete().eq('id', violationId);
+            if (error) throw error;
+            toast.success('위반 기록이 삭제되었습니다.');
+            setStudentYanghyeonjaeViolations(prev => prev.filter(v => v.id !== violationId));
+            if (editingViolationId === violationId) {
+                setEditingViolationId(null);
+                setEditingViolationNote('');
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error('삭제에 실패했습니다.');
+        }
+    };
+
+    const handleUpdateYanghyeonjaeViolation = async (violationId: string | number) => {
+        const trimmed = editingViolationNote.trim();
+        if (!trimmed) {
+            toast.error('수정할 내용을 입력해주세요.');
+            return;
+        }
+        setIsSavingViolationEdit(true);
+        try {
+            const { error } = await supabase
+                .from('morning_checks')
+                .update({ note: trimmed })
+                .eq('id', violationId);
+
+            if (error) throw error;
+
+            toast.success('위반 내용이 수정되었습니다.');
+            setStudentYanghyeonjaeViolations(prev =>
+                prev.map(v => v.id === violationId ? { ...v, note: trimmed } : v)
+            );
+            setEditingViolationId(null);
+            setEditingViolationNote('');
+        } catch (err) {
+            console.error(err);
+            toast.error('수정에 실패했습니다.');
+        } finally {
+            setIsSavingViolationEdit(false);
+        }
+    };
+
+    const handleCancelRequest = async (requestId: string | number) => {
+        const confirmMsg = "이석 신청을 취소(삭제) 시 사용하는 기능입니다.\n\n정말로 신청을 취소(삭제)하시겠습니까?";
+        if (!confirm(confirmMsg)) return;
+
+        setHistoryMenuId(null);
+        setHistoryRecords(prev =>
+            prev.map(r => String(r.id) === String(requestId) ? { ...r, status: '취소' } : r)
+        );
+
+        try {
+            const { error } = await supabase
+                .from('leave_requests')
+                .update({ status: '취소' })
+                .eq('id', requestId);
+
+            if (error) throw error;
+
+            toast.success('취소되었습니다.');
+            if (historyStudent) {
+                fetchStudentHistory(historyStudent.student_id, true);
+            }
+        } catch (err) {
+            console.error('Cancel error:', err);
+            toast.error('취소 실패');
+            if (historyStudent) {
+                fetchStudentHistory(historyStudent.student_id, true);
+            }
+        }
+    };
+
+    const _unusedOldFetchStudentHistory = async (studentId: string, name: string) => {
         try {
             const { data } = await supabase
                 .from('leave_requests')
@@ -465,7 +787,18 @@ export default function HeadcountPage() {
             setIsModalOpen(true);
         } else if (mode === 'check') {
             // In check mode, a single click toggles status
-            toggleStatus(roomNum, position);
+            const slotKey = `${roomNum}-${position}`;
+            const slotData = roomStatus[roomNum]?.[position];
+            const now = Date.now();
+            const lastTime = lastClickTimeRef.current[slotKey] || 0;
+            if (now - lastTime < 380 && slotData?.student_id) {
+                lastClickTimeRef.current[slotKey] = 0;
+                toggleStatus(roomNum, position);
+                fetchStudentHistory(slotData.student_id, slotData.name);
+            } else {
+                lastClickTimeRef.current[slotKey] = now;
+                toggleStatus(roomNum, position);
+            }
         }
     };
 
@@ -477,7 +810,7 @@ export default function HeadcountPage() {
         if (roomData.left.student_id) ids.push(roomData.left.student_id);
         if (roomData.right.student_id) ids.push(roomData.right.student_id);
 
-        if (ids.length === 0) {
+        if (false && ids.length === 0) {
             toast.error('해당 호실에 배정된 학생이 없습니다.');
             return;
         }
@@ -798,6 +1131,10 @@ export default function HeadcountPage() {
 
     // LeaveProcessCard status update handler
     const handleUpdateStatus = async (requestId: string | number, newStatus: string) => {
+        setHistoryMenuId(null);
+        setHistoryRecords(prev =>
+            prev.map(r => String(r.id) === String(requestId) ? { ...r, status: newStatus } : r)
+        );
         try {
             const { error } = await supabase.from('leave_requests').update({ status: newStatus }).eq('id', requestId);
             if (error) throw error;
@@ -1295,7 +1632,7 @@ export default function HeadcountPage() {
                             </button>
                         )}
                         {/* Right: Floor Selector Tabs */}
-                        <div className="flex items-center gap-1 bg-gray-900/90 p-1 rounded-xl border border-gray-700/80 shadow-inner shrink-0 h-9 sm:h-10">
+                        <button type="button" onClick={() => setIsDormLogModalOpen(true)} className={clsx("h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl bg-gray-800/90 hover:bg-gray-700/90 border border-gray-700 text-white text-xs sm:text-sm font-extrabold whitespace-nowrap flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95 shrink-0", checkedSlots.size === 0 && "ml-auto")}><span>기숙사일지</span><span className="flex items-center justify-center w-5 h-5 rounded-md bg-orange-500/20 border border-orange-500/40 text-orange-400 shrink-0"><svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg></span></button><div className="flex items-center gap-1 bg-gray-900/90 p-1 rounded-xl border border-gray-700/80 shadow-inner shrink-0 h-9 sm:h-10">
                             {[1, 2, 3, 4].map(floor => (
                                 <button
                                     key={floor}
@@ -1640,25 +1977,165 @@ export default function HeadcountPage() {
                 }
 
                 {/* Student History Modal */}
+                {isHistoryModalOpen && historyStudent && (
+                    <div
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => {
+                            setIsHistoryModalOpen(false);
+                            setExpandedHistoryId(null);
+                            setHistoryMenuId(null);
+                        }}
+                    >
+                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[92vh] sm:max-h-[88vh] min-h-[420px] flex flex-col overflow-hidden text-gray-800" onClick={e => e.stopPropagation()}>
+                            <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col relative bg-white shrink-0">
+                                {/* Close Button Top Right */}
+                                <button
+                                    onClick={() => {
+                                        setIsHistoryModalOpen(false);
+                                        setExpandedHistoryId(null);
+                                        setHistoryMenuId(null);
+                                    }}
+                                    className="absolute top-3.5 right-3.5 p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 cursor-pointer"
+                                >
+                                    ✕
+                                </button>
+
+                                {/* Center Content - Horizontal Layout */}
+                                <div className="flex items-center justify-center gap-5 mt-1 mb-2">
+                                    {/* Student Info - ID Only */}
+                                    <h3 className="text-2xl sm:text-3xl font-black text-gray-800 tracking-tight">{historyStudent.student_id}</h3>
+
+                                    {/* Call Button Group */}
+                                    <div className="flex items-center gap-1.5">
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
+                                                try {
+                                                    const res = await fetch('/api/teacher/summon', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            studentId: historyStudent.student_id,
+                                                            teacherName: teacherName
+                                                        })
+                                                    });
+                                                    const data = await res.json();
+
+                                                    if (res.ok) {
+                                                        toast.success('호출 알림을 보냈습니다.');
+                                                    } else {
+                                                        toast.error(data.error || '호출 실패');
+                                                    }
+                                                } catch (err) {
+                                                    console.error('Call failed:', err);
+                                                    toast.error('호출 중 네트워크 오류가 발생했습니다.');
+                                                }
+                                            }}
+                                            className="p-2.5 sm:p-3 rounded-xl bg-red-500 border-b-4 border-red-700 text-white hover:bg-red-400 hover:border-red-600 transition-all active:border-b-0 active:translate-y-1 shadow-md flex items-center justify-center group cursor-pointer"
+                                            title="호출"
+                                        >
+                                            <FaBell className="w-5 h-5 sm:w-6 sm:h-6 group-hover:animate-swing" />
+                                        </button>
+                                        <span className="text-xs font-bold text-red-500">호출</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Divider for Leave History - Compact and Clean */}
+                            <div className="px-4 py-2 bg-gray-50 border-b border-gray-200/70 flex items-center justify-between shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-gray-700">
+                                        {hasLoadedPastHistory ? '전체 이석 기록' : '현재 및 금일 이석'}
+                                    </span>
+                                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                        {historyRecords.length}건
+                                    </span>
+                                </div>
+                                {!hasLoadedPastHistory && (
+                                    <button
+                                        type="button"
+                                        disabled={isLoadingPastHistory}
+                                        onClick={() => historyStudent && fetchPastHistory(historyStudent.student_id)}
+                                        className="text-[11px] font-bold text-gray-500 hover:text-gray-900 hover:underline cursor-pointer transition-colors disabled:opacity-50"
+                                    >
+                                        {isLoadingPastHistory ? '불러오는 중...' : '지난 기록 더보기'}
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Leave History List - Compact Padding & Gaps */}
+                            <div className="overflow-y-auto p-2.5 sm:p-3 flex flex-col gap-2 bg-gray-100/50 flex-1 min-h-[180px] max-h-[50vh] sm:max-h-[55vh] pb-28 sm:pb-32">
+                                {isHistoryLoading ? (
+                                    <div className="py-6 flex flex-col items-center justify-center gap-2">
+                                        <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                                        <span className="text-xs text-gray-400 font-bold">이석 현황 확인 중...</span>
+                                    </div>
+                                ) : historyRecords.length === 0 ? (
+                                    <div className="py-6 text-center flex flex-col items-center justify-center gap-1.5">
+                                        <div className="text-gray-400 text-xs font-medium">현재 진행 중이거나 금일 신청된 이석이 없습니다.</div>
+                                        {!hasLoadedPastHistory && (
+                                            <button
+                                                type="button"
+                                                onClick={() => historyStudent && fetchPastHistory(historyStudent.student_id)}
+                                                className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"
+                                            >
+                                                지난 이석 기록 조회하기
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    historyRecords.map((rec) => {
+                                        const isPast = rec.status === '복귀' || rec.status === '취소' || rec.status === '반려' || new Date(rec.end_time) < new Date();
+                                        const viewMode = isPast ? 'past' : 'active';
+
+                                        return (
+                                            <LeaveProcessCard
+                                                key={rec.id}
+                                                req={rec as LeaveRequest}
+                                                isExpanded={expandedHistoryId === rec.id}
+                                                onToggleExpand={() => setExpandedHistoryId(expandedHistoryId === rec.id ? null : rec.id)}
+                                                isMenuOpen={historyMenuId === rec.id}
+                                                onToggleMenu={(e) => {
+                                                    e.stopPropagation();
+                                                    setHistoryMenuId(historyMenuId === rec.id ? null : rec.id);
+                                                }}
+                                                onUpdateStatus={(id, status) => {
+                                                    setHistoryMenuId(null);
+                                                    handleUpdateStatus(id, status);
+                                                }}
+                                                onCancel={handleCancelRequest}
+                                                viewMode={viewMode}
+                                                currentTeacherId={teacherId}
+                                                teacherPosition={teacherPosition}
+                                                showOpacityForPast={true}
+                                            />
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {
-                    isHistoryModalOpen && historyStudent && (
+                    false && isHistoryModalOpen && historyStudent && (
                         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsHistoryModalOpen(false)}>
                             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden text-gray-800" onClick={e => e.stopPropagation()}>
                                 <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                                     <div className="flex items-center gap-3">
                                         <div>
                                             <div className="flex items-center gap-2">
-                                                <h3 className="text-lg font-bold text-gray-800">{historyStudent.student_id}</h3>
+                                                <h3 className="text-lg font-bold text-gray-800">{historyStudent?.student_id}</h3>
                                                 <button
                                                     onClick={async (e) => {
                                                         e.stopPropagation();
-                                                        if (!confirm(`${historyStudent.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
+                                                        if (!confirm(`${historyStudent?.student_id} 학생을 호출하시겠습니까?\n(앱 알림이 전송됩니다)`)) return;
                                                         try {
                                                             const res = await fetch('/api/teacher/summon', {
                                                                 method: 'POST',
                                                                 headers: { 'Content-Type': 'application/json' },
                                                                 body: JSON.stringify({
-                                                                    studentId: historyStudent.student_id,
+                                                                    studentId: historyStudent?.student_id,
                                                                     teacherName: '담당 교사'
                                                                 })
                                                             });
@@ -1675,7 +2152,7 @@ export default function HeadcountPage() {
                                                     🔔
                                                 </button>
                                             </div>
-                                            <p className="text-xs text-gray-500">최근 이석 기록 (최신순 20건)</p>
+                    <p className="text-xs text-gray-500">최근 이석 기록 (최신순 20건)</p>
                                         </div>
                                     </div>
                                     <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400">
@@ -1791,7 +2268,7 @@ export default function HeadcountPage() {
                     </div>
                 )}
 
-                <ViolationStatsModal
+                <DormLogModal isOpen={isDormLogModalOpen} onClose={() => setIsDormLogModalOpen(false)} students={students} hideViolationCheck={true} /><ViolationStatsModal
                     isOpen={isViolationModalOpen}
                     onClose={() => setIsViolationModalOpen(false)}
                     initialFilter="today"

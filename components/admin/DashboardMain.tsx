@@ -15,7 +15,7 @@ import { MorningCheckoutModal } from '@/components/room/MorningCheckoutModal';
 import { ViolationStatsModal } from '@/components/admin/ViolationStatsModal';
 import { FacilityStatsModal } from '@/components/admin/FacilityStatsModal';
 import { PatientStatsModal } from '@/components/admin/PatientStatsModal';
-import { YanghyeonjaeStatsModal } from '@/components/admin/YanghyeonjaeStatsModal';
+import { YanghyeonjaeStatsModal } from '@/components/admin/YanghyeonjaeStatsModal'; import { SpecialNotesModal } from '@/components/admin/SpecialNotesModal'; import StudyLogModal from '@/components/teacher/StudyLogModal'; import DormLogModal from '@/components/teacher/DormLogModal';
 import { LeaveProcessCard } from '@/components/teacher/LeaveProcessCard';
 import { LeaveRequest } from '@/components/teacher/types';
 import { isWeeklyHomeTime as isWeeklyReturnPeriod } from '@/lib/weeklyReturn';
@@ -124,7 +124,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
     const [showSearch, setShowSearch] = useState(false);
 
     // Modals
-    const [isMorningModalOpen, setIsMorningModalOpen] = useState(false);
+    const [isMorningModalOpen, setIsMorningModalOpen] = useState(false); const [isStudyLogModalOpen, setIsStudyLogModalOpen] = useState(false); const [isDormLogModalOpen, setIsDormLogModalOpen] = useState(false); const [specialNotesModalType, setSpecialNotesModalType] = useState<'late' | 'yanghyeonjae' | null>(null);
     const [isViolationStatsOpen, setIsViolationStatsOpen] = useState(false);
     const [violationStatsFilter, setViolationStatsFilter] = useState<'today' | 'month'>('month');
     const [isYanghyeonjaeStatsOpen, setIsYanghyeonjaeStatsOpen] = useState(false);
@@ -1091,7 +1091,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                         {/* Header: Title, Counts, and Monthly Stats Button */}
                         <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                                <div className="relative px-4 py-2 rounded-xl bg-gradient-to-b from-[#2a5d42] to-[#1f4933] border-2 border-[#8c5e39] shadow-[inset_0_2px_5px_rgba(0,0,0,0.4),0_2px_6px_rgba(0,0,0,0.15)] flex items-center gap-3 select-none">
+                                <div onClick={() => setIsDormLogModalOpen(true)} title="홍지관 일지 등록/관리" className="relative px-4 py-2 rounded-xl bg-gradient-to-b from-[#2a5d42] to-[#1f4933] border-2 border-[#8c5e39] shadow-[inset_0_2px_5px_rgba(0,0,0,0.4),0_2px_6px_rgba(0,0,0,0.15)] flex items-center gap-3 select-none cursor-pointer hover:brightness-110 active:scale-95 transition-all">
                                     <h3
                                         style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
                                         className="text-xl sm:text-2xl text-white/95 leading-none tracking-wider [text-shadow:_0_0_1px_rgba(255,255,255,0.95),_0_0_2px_rgba(255,255,255,0.5)]"
@@ -1102,7 +1102,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                         style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
                                         className="text-base sm:text-lg text-[#fef08a] leading-none [text-shadow:_0_0_1px_rgba(253,224,71,0.9),_0_0_2px_rgba(253,224,71,0.5)] border border-dashed border-[#fde047]/60 px-2 py-0.5 rounded-full"
                                     >
-                                        {stats.violationCount}명
+                                        {stats.violationCount}명</span></div></div><button onClick={() => setSpecialNotesModalType('late')} className="ml-auto px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0" title="홍지관 월간 특이사항 보기"><span>월간 특이사항</span></button><div className="hidden"><div><span>
                                     </span>
                                 </div>
                             </div>
@@ -1131,7 +1131,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                 <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-0.5">
                                     {stats.violationList.map((v, vIdx) => {
                                         const noteStyle: string = (
-                                            v.note === '스토퍼 미설치' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                            v.student_id === '특이사항' ? 'bg-yellow-100 text-yellow-900 border-yellow-300' : v.note === '스토퍼 미설치' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                             v.note === '일과시간 미준수' ? 'bg-orange-50 text-orange-700 border-orange-200' :
                                             v.note === '청소불량' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                             v.note === '음식물 섭취 위반' ? 'bg-amber-50 text-amber-800 border-amber-200' :
@@ -1157,7 +1157,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                                             {studentDisplayName}
                                                         </span>
                                                         <span className={`px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold border ${noteStyle}`}>
-                                                            {v.note}
+                                                            {v.student_id === '특이사항' ? '특이사항' : v.note}</span>{v.student_id === '특이사항' && v.note && (<span className="text-xs font-medium text-slate-700">{v.note}</span>)}<span>
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-2 mt-1.5 flex-wrap text-[10px] sm:text-[11px] text-gray-400">
@@ -1196,7 +1196,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                         {/* Header: Title, Counts, and Monthly Stats Button */}
                         <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                                <div className="relative px-4 py-2 rounded-xl bg-gradient-to-b from-[#1e293b] to-[#0f172a] border-2 border-[#8c5e39] shadow-[inset_0_2px_5px_rgba(0,0,0,0.4),0_2px_6px_rgba(0,0,0,0.15)] flex items-center gap-3 select-none">
+                                <div onClick={() => setIsStudyLogModalOpen(true)} title="양현재 일지 및 시설물 수리요청 등록/관리" className="relative px-4 py-2 rounded-xl bg-gradient-to-b from-[#1e293b] to-[#0f172a] border-2 border-[#8c5e39] shadow-[inset_0_2px_5px_rgba(0,0,0,0.4),0_2px_6px_rgba(0,0,0,0.15)] flex items-center gap-3 select-none cursor-pointer hover:brightness-110 active:scale-95 transition-all">
                                     <h3
                                         style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
                                         className="text-xl sm:text-2xl text-white/95 leading-none tracking-wider [text-shadow:_0_0_1px_rgba(255,255,255,0.95),_0_0_2px_rgba(255,255,255,0.5)]"
@@ -1207,7 +1207,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                         style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
                                         className="text-base sm:text-lg text-[#93c5fd] leading-none [text-shadow:_0_0_1px_rgba(147,197,253,0.9),_0_0_2px_rgba(147,197,253,0.5)] border border-dashed border-[#93c5fd]/60 px-2 py-0.5 rounded-full"
                                     >
-                                        {stats.yanghyeonjaeCount}명
+                                        {stats.yanghyeonjaeCount}명</span></div></div><button onClick={() => setSpecialNotesModalType('yanghyeonjae')} className="ml-auto px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0" title="양현재 월간 특이사항 보기"><span>월간 특이사항</span></button><div className="hidden"><div><span>
                                     </span>
                                 </div>
                             </div>
@@ -1562,7 +1562,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                     </div>
                 </div>
 
-            <MorningCheckoutModal
+            <SpecialNotesModal isOpen={specialNotesModalType !== null} onClose={() => setSpecialNotesModalType(null)} logType={specialNotesModalType || 'late'} selectedDate={selectedDate} readOnly={readOnly} onUpdate={() => setRefreshKey(prev => prev + 1)} /><DormLogModal isOpen={isDormLogModalOpen} onClose={() => { setIsDormLogModalOpen(false); setRefreshKey(prev => prev + 1); }} students={allRawStudents} /><StudyLogModal isOpen={isStudyLogModalOpen} onClose={() => { setIsStudyLogModalOpen(false); setRefreshKey(prev => prev + 1); fetchFacilityData(); }} students={allRawStudents} teacherName="" /><MorningCheckoutModal
                 key="main-morning-checkout-modal"
                 isOpen={isMorningModalOpen}
                 onClose={() => setIsMorningModalOpen(false)}
