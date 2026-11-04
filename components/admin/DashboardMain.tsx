@@ -1102,7 +1102,8 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                         style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
                                         className="text-base sm:text-lg text-[#fef08a] leading-none [text-shadow:_0_0_1px_rgba(253,224,71,0.9),_0_0_2px_rgba(253,224,71,0.5)] border border-dashed border-[#fde047]/60 px-2 py-0.5 rounded-full"
                                     >
-                                        {stats.violationCount}명</span></div></div><button onClick={() => setSpecialNotesModalType('late')} className="ml-auto px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0" title="홍지관 월간 특이사항 보기"><span>월간 특이사항</span></button><div className="hidden"><div><span>
+                                        {stats.violationCount}명
+
                                     </span>
                                 </div>
                             </div>
@@ -1118,6 +1119,13 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                             >
                                 <FaChartBar size={12} className="text-slate-500" />
                                 <span>월간 통계</span>
+                            </button>
+                            <button
+                                onClick={() => setSpecialNotesModalType('late')}
+                                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                                title="홍지관 월간 특이사항 보기"
+                            >
+                                <span>월간 특이사항</span>
                             </button>
                         </div>
 
@@ -1207,10 +1215,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                         style={{ fontFamily: "'SchoolSafetyStubbyChalk', 'SchoolSafetyChalk', cursive" }}
                                         className="text-base sm:text-lg text-[#93c5fd] leading-none [text-shadow:_0_0_1px_rgba(147,197,253,0.9),_0_0_2px_rgba(147,197,253,0.5)] border border-dashed border-[#93c5fd]/60 px-2 py-0.5 rounded-full"
                                     >
-                                        {stats.yanghyeonjaeCount}명</span></div></div><button onClick={() => setSpecialNotesModalType('yanghyeonjae')} className="ml-auto px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0" title="양현재 월간 특이사항 보기"><span>월간 특이사항</span></button><div className="hidden"><div><span>
-                                    </span>
-                                </div>
-                            </div>
+                                        {stats.yanghyeonjaeCount}명</span></div></div>
 
                             {/* Monthly Stats Action Button */}
                             <button
@@ -1223,6 +1228,13 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                             >
                                 <FaChartBar size={12} className="text-slate-500" />
                                 <span>월간 통계</span>
+                            </button>
+                            <button
+                                onClick={() => setSpecialNotesModalType('yanghyeonjae')}
+                                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                                title="양현재 월간 특이사항 보기"
+                            >
+                                <span>월간 특이사항</span>
                             </button>
                         </div>
 
