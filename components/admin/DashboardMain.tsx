@@ -1108,25 +1108,27 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                 </div>
                             </div>
 
-                            {/* Monthly Stats Action Button */}
-                            <button
-                                onClick={() => {
-                                    setViolationStatsFilter('month');
-                                    setIsViolationStatsOpen(true);
-                                }}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
-                                title="월간 통계 보기"
-                            >
-                                <FaChartBar size={12} className="text-slate-500" />
-                                <span>월간 통계</span>
-                            </button>
-                            <button
-                                onClick={() => setSpecialNotesModalType('late')}
-                                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
-                                title="홍지관 월간 특이사항 보기"
-                            >
-                                <span>월간 특이사항</span>
-                            </button>
+                            {/* Action Buttons: 월간 특이사항 (위), 월간 통계 (아래) */}
+                            <div className="flex flex-col gap-1 shrink-0 items-end">
+                                <button
+                                    onClick={() => setSpecialNotesModalType('late')}
+                                    className="w-full justify-center px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                                    title="홍지관 월간 특이사항 보기"
+                                >
+                                    <span>월간 특이사항</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setViolationStatsFilter('month');
+                                        setIsViolationStatsOpen(true);
+                                    }}
+                                    className="w-full justify-center px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                                    title="월간 통계 보기"
+                                >
+                                    <FaChartBar size={12} className="text-slate-500" />
+                                    <span>월간 통계</span>
+                                </button>
+                            </div>
                         </div>
 
                         {/* Cards List or Empty State */}
@@ -1217,25 +1219,27 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                     >
                                         {stats.yanghyeonjaeCount}명</span></div></div>
 
-                            {/* Monthly Stats Action Button */}
-                            <button
-                                onClick={() => {
-                                    setYanghyeonjaeStatsFilter('month');
-                                    setIsYanghyeonjaeStatsOpen(true);
-                                }}
-                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
-                                title="월간 통계 보기"
-                            >
-                                <FaChartBar size={12} className="text-slate-500" />
-                                <span>월간 통계</span>
-                            </button>
-                            <button
-                                onClick={() => setSpecialNotesModalType('yanghyeonjae')}
-                                className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
-                                title="양현재 월간 특이사항 보기"
-                            >
-                                <span>월간 특이사항</span>
-                            </button>
+                            {/* Action Buttons: 월간 특이사항 (위), 월간 통계 (아래) */}
+                            <div className="flex flex-col gap-1 shrink-0 items-end">
+                                <button
+                                    onClick={() => setSpecialNotesModalType('yanghyeonjae')}
+                                    className="w-full justify-center px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                                    title="양현재 월간 특이사항 보기"
+                                >
+                                    <span>월간 특이사항</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setYanghyeonjaeStatsFilter('month');
+                                        setIsYanghyeonjaeStatsOpen(true);
+                                    }}
+                                    className="w-full justify-center px-2.5 sm:px-3 py-1 rounded-lg text-xs font-bold text-gray-700 bg-gray-50 hover:bg-slate-100 hover:text-gray-900 border border-gray-200 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+                                    title="월간 통계 보기"
+                                >
+                                    <FaChartBar size={12} className="text-slate-500" />
+                                    <span>월간 통계</span>
+                                </button>
+                            </div>
                         </div>
 
                         {/* Cards List or Empty State */}
