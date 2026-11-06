@@ -381,7 +381,7 @@ export default function GeonheeChatModal({
         </div>
 
         {/* 대화 본문 영역 */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#FFFDF8]">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[#FFFDF8] overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400 text-xs gap-2">
               <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
