@@ -195,6 +195,18 @@ export default function DongheonChatModal({
     };
   }, [isOpen, currentRole]);
 
+  // 모달이 열려 있을 때 배경 body 스크롤 방지 (모바일 터치 간섭 및 버벅임 차단)
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   // 모달이 열리거나 메시지가 추가될 때 자동 스크롤
   useEffect(() => {
     if (isOpen && messages.length > 0) {
@@ -353,7 +365,7 @@ export default function DongheonChatModal({
       : '실시간 1:1 대화 및 상담';
 
   return (
-    <div className="fixed inset-0 z-[100000] flex items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-[100000] flex items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn overscroll-none">
       <div className="bg-white w-full h-full sm:h-[88vh] sm:max-h-[720px] sm:max-w-md sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden border-0 sm:border sm:border-teal-200">
         {/* 상단 헤더 */}
         <div className="bg-gradient-to-r from-teal-600 via-cyan-600 to-[#0E8694] p-4 text-white flex items-center justify-between shadow-md select-none shrink-0 pt-[calc(1rem+env(safe-area-inset-top,0px))] sm:pt-4">
@@ -380,8 +392,8 @@ export default function DongheonChatModal({
           </button>
         </div>
 
-        {/* 대화 본문 영역 (카톡과 동일한 표준 터치 스크롤) */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[#FFFDF8]">
+        {/* 대화 본문 영역 (카톡과 동일한 표준 터치 스크롤 및 경계 렉 방지) */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[#FFFDF8] overscroll-contain touch-pan-y">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400 text-xs gap-2">
               <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
