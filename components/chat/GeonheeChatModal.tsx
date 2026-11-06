@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '@/supabaseClient';
 import toast from 'react-hot-toast';
 import { IoClose, IoSend } from 'react-icons/io5';
@@ -32,6 +33,7 @@ export default function GeonheeChatModal({
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   // 실시간 채널 (Presence로 상대방이 대화창을 보고 있는지 확인용)
@@ -195,6 +197,11 @@ export default function GeonheeChatModal({
       channelRef.current = null;
     };
   }, [isOpen, currentRole]);
+
+  // 클라이언트 사이드 마운트 확인 (Portal 렌더링용)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 모달이 열려 있을 때 배경 body 스크롤 방지 (모바일 터치 간섭 및 버벅임 차단)
   useEffect(() => {
@@ -407,7 +414,7 @@ export default function GeonheeChatModal({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted || typeof document === 'undefined') return null;
 
   const headerTitle =
     currentRole === 'student'
@@ -419,7 +426,7 @@ export default function GeonheeChatModal({
       ? '선생님과 실시간으로 대화할 수 있는 창구입니다.'
       : '실시간 1:1 대화 및 상담';
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-[100000] flex items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn overscroll-none">
       <div className="bg-white w-full h-full sm:h-[88vh] sm:max-h-[720px] sm:max-w-md sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden border-0 sm:border sm:border-teal-200">
         {/* 상단 헤더 */}
@@ -564,4 +571,6 @@ export default function GeonheeChatModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
