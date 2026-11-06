@@ -44,7 +44,7 @@ interface DashboardStats {
     unassignedCount?: number;
     currentLeaves: { overnight: number; short: number };
     violationCount: number;
-    violationList: { id: number | string; student_id: string; student_name: string; checked_at: string; note: string; teacher_id?: string }[];
+    violationList: { id: number | string; student_id: string; student_name: string; student_room?: number | string; checked_at: string; note: string; teacher_id?: string }[];
     yanghyeonjaeCount: number;
     yanghyeonjaeList: { id: number | string; student_id: string; student_name: string; checked_at: string; note: string; teacher_id?: string }[];
 }
@@ -542,7 +542,12 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
             // --- Process 5: Violations (Hongjigwan & Yanghyeonjae) ---
             const allChecks = violationsRes.data || [];
             const studentMap = new Map();
-            students.forEach((s: any) => studentMap.set(s.student_id, s.name));
+            const studentRoomMap = new Map();
+            students.forEach((s: any) => {
+                studentMap.set(s.student_id, s.name);
+                const r = s.room_number || s.room;
+                if (r) studentRoomMap.set(s.student_id, r);
+            });
 
             // 1) Hongjigwan violations (late / room checks in rollcall window)
             const hongjigwanRaw = allChecks.filter((v: any) => 
@@ -554,6 +559,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                 id: v.id,
                 student_id: v.student_id,
                 student_name: studentMap.get(v.student_id) || v.student_id,
+                student_room: studentRoomMap.get(v.student_id),
                 checked_at: v.checked_at,
                 note: v.note || '일과시간 미준수',
                 teacher_id: v.teacher_id
@@ -1138,7 +1144,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                     <p className="text-xs font-bold text-gray-700">금일 홍지관 위반 학생이 없습니다</p>
                                 </div>
                             ) : (
-                                <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-0.5">
+                                <div className="flex flex-col gap-2">
                                     {stats.violationList.map((v, vIdx) => {
                                         const noteStyle: string = (
                                             v.student_id === '특이사항' ? 'bg-yellow-100 text-yellow-900 border-yellow-300' : v.note === '스토퍼 미설치' ? 'bg-amber-50 text-amber-700 border-amber-200' :
@@ -1163,6 +1169,11 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                             >
                                                 <div className="min-w-0 flex-1">
                                                     <div className="flex items-center gap-1.5 flex-wrap">
+                                                        {v.student_id !== '특이사항' && v.student_room && (
+                                                            <span className="text-[10px] sm:text-[11px] font-black text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-200/80 leading-none shrink-0 shadow-2xs">
+                                                                {v.student_room}호
+                                                            </span>
+                                                        )}
                                                         <span className="font-extrabold text-gray-900 text-xs sm:text-sm">
                                                             {studentDisplayName}
                                                         </span>
@@ -1249,7 +1260,7 @@ export default function DashboardMain({ readOnly = false }: DashboardMainProps =
                                     <p className="text-xs font-bold text-gray-700">금일 양현재 위반 학생이 없습니다</p>
                                 </div>
                             ) : (
-                                <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-0.5">
+                                <div className="flex flex-col gap-2">
                                     {stats.yanghyeonjaeList.map((v, vIdx) => {
                                         const isSpecialNote = v.student_id === '특이사항'; const rawNote = v.note || '';
                                         let category = isSpecialNote ? '특이사항' : rawNote;
