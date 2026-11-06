@@ -33,6 +33,7 @@ export default function GeonheeChatModal({
   const [isSending, setIsSending] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   // 실시간 채널 (Presence로 상대방이 대화창을 보고 있는지 확인용)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
@@ -207,6 +208,60 @@ export default function GeonheeChatModal({
     };
   }, [isOpen]);
 
+  // 모바일 터치 시 경계(상단/하단 끝)에서 고무줄 바운스 및 브라우저 터치 락 원천 차단
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!isOpen || !el) return;
+
+    let startY = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        startY = e.touches[0].clientY;
+        // iOS 1px Offset: 스크롤이 끝에 도달했을 때 1px 오프셋을 부여하여 OS WebKit이 스크롤 제스처를 브라우저 윈도우로 가로채지 못하도록 보호
+        if (el.scrollHeight > el.clientHeight) {
+          if (el.scrollTop <= 0) {
+            el.scrollTop = 1;
+          } else if (el.scrollTop + el.clientHeight >= el.scrollHeight) {
+            el.scrollTop = el.scrollHeight - el.clientHeight - 1;
+          }
+        }
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+
+      // 내용이 없거나 짧아서 스크롤할 수 없는 상태에서는 화면 전체 바운스 차단
+      if (el.scrollHeight <= el.clientHeight) {
+        if (e.cancelable) e.preventDefault();
+        return;
+      }
+
+      const currentY = e.touches[0].clientY;
+      const deltaY = currentY - startY;
+      const isAtTop = el.scrollTop <= 1;
+      const isAtBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+
+      // 상단 끝에서 아래로 당기는 제스처 차단
+      if (isAtTop && deltaY > 0) {
+        if (e.cancelable) e.preventDefault();
+      }
+      // 하단 끝에서 위로 밀어올리는 제스처 차단
+      else if (isAtBottom && deltaY < 0) {
+        if (e.cancelable) e.preventDefault();
+      }
+    };
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: true });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [isOpen]);
+
   // 모달이 열리거나 메시지가 추가될 때 자동 스크롤
   useEffect(() => {
     if (isOpen && messages.length > 0) {
@@ -368,7 +423,7 @@ export default function GeonheeChatModal({
     <div className="fixed inset-0 z-[100000] flex items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm animate-fadeIn overscroll-none">
       <div className="bg-white w-full h-full sm:h-[88vh] sm:max-h-[720px] sm:max-w-md sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden border-0 sm:border sm:border-teal-200">
         {/* 상단 헤더 */}
-        <div className="bg-gradient-to-r from-teal-600 via-cyan-600 to-[#0E8694] p-4 text-white flex items-center justify-between shadow-md select-none shrink-0 pt-[calc(1rem+env(safe-area-inset-top,0px))] sm:pt-4">
+        <div className="bg-gradient-to-r from-teal-600 via-cyan-600 to-[#0E8694] p-4 text-white flex items-center justify-between shadow-md select-none shrink-0 pt-[calc(1rem+env(safe-area-inset-top,0px))] sm:pt-4 touch-none">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 text-white text-lg shadow-inner">
               <BsChatDotsFill />
@@ -393,7 +448,10 @@ export default function GeonheeChatModal({
         </div>
 
         {/* 대화 본문 영역 (카톡과 동일한 표준 터치 스크롤 및 경계 렉 방지) */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[#FFFDF8] overscroll-contain touch-pan-y">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-[#FFFDF8] overscroll-contain touch-pan-y"
+        >
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400 text-xs gap-2">
               <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
